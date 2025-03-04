@@ -4,6 +4,7 @@ import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
+from django.utils.dateparse import parse_date
 from .models import ProductoFijo, RegistroMovimiento, StockBalde
 from django.db.models import Max
 import pandas as pd
@@ -114,18 +115,27 @@ def buscar(request):
 def buscar_detallado(request):
     if request.method == "POST":
         termino_busqueda = request.POST.get("termino_busqueda", "").strip()
-        fecha = request.POST.get("fecha", "")
+        fecha = request.POST.get("fecha", "").strip()
 
-        # Filtrar productos por nombre o PLU
-        productos = StockBalde.objects.filter(producto__nombre__icontains=termino_busqueda)
+        # Si el usuario no ingresó nada, devolver todos los productos
+        if not termino_busqueda and not fecha:
+            productos = StockBalde.objects.all()
+        else:
+            # Buscar por nombre o PLU
+            productos = StockBalde.objects.filter(
+                producto__nombre__icontains=termino_busqueda
+            ) | StockBalde.objects.filter(
+                producto__plu__icontains=termino_busqueda
+            )
 
-        if fecha:
-            productos = productos.filter(fecha_ingreso=fecha)
+            # Si el usuario ingresó una fecha, filtramos también por fecha
+            fecha_formateada = parse_date(fecha)
+            if fecha_formateada:
+                productos = productos.filter(timestamp__date=fecha_formateada)
 
         return render(request, "stock_detallado.html", {"stock_detallado": productos})
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
-
 
 @csrf_exempt  # Deshabilita protección CSRF para pruebas (evitar en producción)
 def reiniciar_lista(request):

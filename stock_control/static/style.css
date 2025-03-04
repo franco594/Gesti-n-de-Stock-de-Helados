@@ -377,6 +377,8 @@ thead {
 
 /* Opcional: Mejorar visibilidad de los encabezados */
 th {
+    position: sticky;
+    top: 0;
     padding: 10px;
     background: #007bff;
     color: white;

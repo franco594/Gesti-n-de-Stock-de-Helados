@@ -18,7 +18,7 @@
             <a href="{% url 'historial_movimientos' %}"><button>Ver Historial de Movimientos</button></a>
         </div>
         <div class="menu-form">
-            <form action="{% url 'buscar' %}" method="POST" style="margin-bottom: 20px;">
+            <form action="{% url 'buscar_detallado' %}" method="POST" style="margin-bottom: 20px;">
                 {% csrf_token %}
                 <input type="text" name="termino_busqueda" placeholder="Buscar por nombre o PLU" required>
                 <button type="submit">Buscar</button>
