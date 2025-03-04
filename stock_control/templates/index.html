@@ -27,7 +27,7 @@
     </div>
     <input type="text" id="codigoScanner" autofocus style="position: absolute; left: -9999px;">
     <h2>Stock Resumido</h2>
-    <button id="configButton" style="position: absolute; top: 10px; right: 10px; font-size: 24px;">⚙️</button>
+    <button id="configButton" style="position: absolute; top: 10px; right: 10px; font-size: 24px;" onclick="abrirModalStock()">⚙️</button>
     {% if stock_resumido %}
     <table id="stockTable">
 
@@ -86,6 +86,38 @@
         </div>
     </div>
     
+    <!-- Modal de edición de stock mínimo -->
+    <div id="modalStockMinimo" class="modal">
+        <div class="modal-content">
+            <h2>Modificar Stock Mínimo</h2>
+            <div class="modal-body">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Stock Mínimo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for producto in stock_resumido %}
+                        <tr>
+                            <td>{{ producto.nombre }}</td>
+                            <td>
+                                <input type="number" id="nuevo-stock-{{ producto.plu }}" value="{{ producto.stock_minimo }}" min="0">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button onclick="guardarStockMinimo()">Guardar</button>
+                <button onclick="cerrarModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
     <script src="{% static 'index.js' %}"></script>
     <script>
@@ -111,6 +143,53 @@
             // Evitar que el usuario pierda el foco del input
             document.addEventListener("click", () => scannerInput.focus());
         });
+
+        function abrirModalStock() {
+            document.getElementById("modalStockMinimo").style.display = "flex"; // Muestra el modal
+        }
+
+        function cerrarModal() {
+            document.getElementById("modalStockMinimo").style.display = "none"; // Oculta el modal
+            location.reload();
+        }
+
+
+        function guardarStockMinimo() {
+        const productos = [];
+        document.querySelectorAll("input[id^='nuevo-stock-']").forEach(input => {
+            const plu = input.id.replace("nuevo-stock-", "");
+            const nuevoStock = input.value;
+            productos.push({ plu: plu, stock_minimo: nuevoStock });
+        });
+
+        fetch("api/actualizar_stock_minimo/", {  
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"  
+            },
+            body: JSON.stringify({ productos: productos })
+        })
+        .then(response => response.json())  
+        .then(data => {
+            if (data.success) {
+                productos.forEach(producto => {
+                    const stockElement = document.getElementById(`stock-minimo-${producto.plu}`);
+                    if (stockElement) {  // ✅ Verificamos que el elemento exista antes de modificarlo
+                        stockElement.innerText = producto.stock_minimo;
+                        
+                    } else {
+                        console.warn(`⚠️ No se encontró el elemento con id stock-minimo-${producto.plu}`);
+                    }
+                });
+                cerrarModal();
+            } else {
+                alert("Error al actualizar stock mínimo: " + data.error);
+            }
+        })
+        .catch(error => console.error("Error:", error));
+    }
+
     </script>
     
 </body>

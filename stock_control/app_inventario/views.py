@@ -396,3 +396,33 @@ def interpretar_codigo_barras(codigo_barras):
         peso = f"{peso_parte_entera}.{peso_parte_decimal}"
         return {"plu": plu, "peso": float(peso)}
     return {"error": "Código de barras no válido"}
+
+
+@csrf_exempt
+def actualizar_stock_minimo(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            productos = data.get("productos", [])
+
+            if not productos:
+                return JsonResponse({"error": "No se enviaron productos"}, status=400)
+
+            for producto in productos:
+                plu = producto.get("plu")
+                nuevo_stock = producto.get("stock_minimo")
+
+                if not plu or nuevo_stock is None:
+                    return JsonResponse({"error": "Datos incompletos"}, status=400)
+
+                producto_obj = ProductoFijo.objects.filter(plu=plu).first()
+                if producto_obj:
+                    producto_obj.stock_minimo = int(nuevo_stock)
+                    producto_obj.save()
+
+            return JsonResponse({"success": True, "message": "Stock mínimo actualizado correctamente"})
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Método no permitido"}, status=405)
