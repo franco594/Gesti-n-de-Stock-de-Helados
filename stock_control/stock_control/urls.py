@@ -1,10 +1,9 @@
 
 from django.urls import path
 from app_inventario.views import (
-    buscar_detallado, importar_productos, index, obtener_productos_temporales, procesar_codigo, stock_detallado, historial, buscar,
+    buscar_detallado, detalle_movimiento, historial_movimientos, importar_productos, index, obtener_productos_temporales, procesar_codigo, stock_detallado, historial, buscar,
     agregar_productos, retirar_producto, procesar_codigo,
-    obtener_codigos, confirmar_codigos, confirmar_retiro, agregar_productos, obtener_historial_movimientos,
-    obtener_detalle_movimiento, actualizar_stock_minimo, reiniciar_lista_temporal,
+    obtener_codigos, confirmar_codigos, confirmar_retiro, agregar_productos, actualizar_stock_minimo, reiniciar_lista_temporal,
 )
 
 urlpatterns = [
@@ -22,9 +21,9 @@ urlpatterns = [
     path('api/confirmar_codigos/', confirmar_codigos, name="confirmar_codigos"),
     path('api/confirmar_retiro/', confirmar_retiro, name="confirmar_retiro"),
     path('api/agregar_productos/', agregar_productos, name="agregar_productos"),
-    path('api/historial_movimientos/', obtener_historial_movimientos, name="historial_movimientos"),
-    path('api/detalle_movimiento/<int:grupo_id>/', obtener_detalle_movimiento, name="detalle_movimiento"),
     path('api/actualizar_stock_minimo/', actualizar_stock_minimo, name="actualizar_stock_minimo"),
     path("api/reiniciar_lista_temporal/", reiniciar_lista_temporal, name="reiniciar_lista"),
+    path('historial_movimientos/', historial_movimientos, name='historial_movimientos'),
+    path('detalle_movimiento/<int:grupo_id>/', detalle_movimiento, name='detalle_movimiento'),
 ]
 

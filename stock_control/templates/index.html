@@ -15,7 +15,7 @@
         <div class="menu-btn">
             <button id="ingresar" onclick="abrirModal('ingresar');">Ingresar Baldes</button>
             <button id="retirar" onclick="abrirModal('retirar');">Retirar Baldes</button>
-            <a href="{% url 'historial' %}"><button>Ver Historial de Movimientos</button></a>
+            <a href="{% url 'historial_movimientos' %}"><button>Ver Historial de Movimientos</button></a>
         </div>
         <div class="menu-form">
             <form action="{% url 'buscar' %}" method="POST" style="margin-bottom: 20px;">

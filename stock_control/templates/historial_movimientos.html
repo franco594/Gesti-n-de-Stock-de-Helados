@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Stock</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+
+    <div class="header">
+        <h1>Historial de Movimientos</h1>
+    </div>
+    
+    <div class="mov">
+        <ul>
+            {% for movimiento in movimientos %}
+            <li>
+                <strong>#{{ movimiento.grupo_id }}</strong> - Movimiento de {{ movimiento.tipo }} - {{ movimiento.timestamp|date:"d/m/Y H:i" }}
+                <button onclick="verDetalleMovimiento('{{ movimiento.grupo_id }}')">Ver Detalles</button>
+            </li>
+            {% endfor %}
+
+        </ul>
+
+        <div id="detalleModal" style="display:none;">
+            <h2>Detalle de Movimiento <strong id="detalleGrupoId"></strong></h2>
+            <ul id="detalleLista"></ul>
+            <button onclick="cerrarDetalle()">Cerrar</button>
+        </div>
+    </div>
+    
+    <script>
+    function verDetalleMovimiento(grupoId) {
+        document.getElementById("detalleGrupoId").textContent = `#${grupoId}`;
+        fetch(`/detalle_movimiento/${grupoId}/`)
+            .then(response => response.json())
+            .then(data => {
+                const detalleLista = document.getElementById("detalleLista");
+                detalleLista.innerHTML = "";
+                data.forEach(item => {
+                    const li = document.createElement("li");
+                    li.innerHTML = `<span class="producto">${item.producto}</span>
+                                    <span class="peso">Peso: ${item.peso}g</span>
+                                    <span class="tipo">Tipo: ${item.tipo}</span>
+                                    <span class="fecha">Fecha: ${item.fecha}</span>`;
+                    
+                    li.onclick = function() {
+                        resaltarElemento(li);
+                    };
+
+                    detalleLista.appendChild(li);
+                });
+                document.getElementById("detalleModal").style.display = "block";
+            });
+    }
+
+    function resaltarElemento(element) {
+        document.querySelectorAll("#detalleLista li").forEach(li => li.classList.remove("resaltado"));
+        element.classList.add("resaltado");
+    }
+
+    function cerrarDetalle() {
+        document.getElementById("detalleModal").style.display = "none";
+    }
+    </script>
+</body>
+</html>

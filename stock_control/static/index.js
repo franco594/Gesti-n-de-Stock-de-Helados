@@ -74,6 +74,7 @@ function cerrarModal(tipo) {
         productosEscaneados = [];
         actualizarListaEscaneados(modo, []);
         desactivarInputEscaneo(); // 🔴 Desactivar el input de escaneo
+        location.reload();
     })
     .catch(error => console.error("Error al reiniciar la lista:", error));
 }

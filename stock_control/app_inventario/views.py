@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 from .models import ProductoFijo, RegistroMovimiento, StockBalde
+from django.db.models import Max
 import pandas as pd
 import sqlite3
 
@@ -59,29 +60,51 @@ def stock_detallado(request):
 def historial(request):
     return render(request, "historial.html")
 
-def obtener_historial_movimientos(request):
-    movimientos = RegistroMovimiento.objects.select_related("producto").all().order_by("-timestamp")
-    return render(request, "historial.html", {"movimientos": movimientos})
+
+def historial_movimientos(request):
+    """
+    Obtiene una lista de movimientos únicos agrupados por grupo_id.
+    Muestra solo el último movimiento de cada grupo_id para evitar duplicados.
+    """
+    movimientos = (
+        RegistroMovimiento.objects.values("grupo_id")
+        .annotate(ultimo_movimiento=Max("timestamp"))
+        .order_by("-ultimo_movimiento")
+    )
+
+    # Obtener el último registro de cada grupo_id para mostrar en el historial
+    movimientos_detalle = RegistroMovimiento.objects.filter(
+        grupo_id__in=[mov["grupo_id"] for mov in movimientos]
+    ).order_by("-timestamp")
+
+    # Removemos duplicados usando un diccionario
+    movimientos_dict = {}
+    for mov in movimientos_detalle:
+        if mov.grupo_id not in movimientos_dict:
+            movimientos_dict[mov.grupo_id] = mov  # Guardamos solo el primer registro de cada grupo_id
+
+    return render(request, "historial_movimientos.html", {"movimientos": movimientos_dict.values()})
 
 
-def obtener_detalle_movimiento(request, grupo_id):
-    try:
-        movimientos = RegistroMovimiento.objects.filter(grupo_id=grupo_id).select_related("producto")
+def detalle_movimiento(request, grupo_id):
+    """
+    Devuelve solo los registros del grupo_id específico.
+    """
+    detalles = RegistroMovimiento.objects.filter(grupo_id=grupo_id).order_by("timestamp")
 
-        detalles = [
-            {
-                "nombre": movimiento.producto.nombre,
-                "peso": movimiento.peso,
-                "tipo": movimiento.tipo,
-                "timestamp": movimiento.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-            }
-            for movimiento in movimientos
-        ]
+    data = [
+        {
+            "producto": detalle.producto.nombre,
+            "peso": detalle.peso,
+            "tipo": detalle.tipo,
+            "fecha": detalle.timestamp.strftime("%d/%m/%Y %H:%M")
+        }
+        for detalle in detalles
+    ]
+    
+    return JsonResponse(data, safe=False)
 
-        return JsonResponse(detalles, safe=False)
 
-    except Exception as e:
-        return JsonResponse({"error": f"Error al obtener detalles del movimiento: {str(e)}"}, status=500)
 
 
 
@@ -223,6 +246,9 @@ def reiniciar_lista_temporal(request):
 
 @csrf_exempt
 def confirmar_codigos(request):
+    """
+    Guarda en la base de datos los productos escaneados solo cuando se presiona 'Aceptar' en el modal.
+    """
     if request.method == "POST":
         try:
             productos_temporales = request.session.get("productos_temporales", [])
@@ -230,20 +256,31 @@ def confirmar_codigos(request):
             if not productos_temporales:
                 return JsonResponse({"error": "No hay productos para confirmar"}, status=400)
 
+            # Obtener el último grupo_id y sumarle 1
+            ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
+            nuevo_grupo_id = ultimo_grupo + 1
+
             for producto in productos_temporales:
                 producto_obj = ProductoFijo.objects.get(plu=producto["plu"])
                 StockBalde.objects.create(producto=producto_obj, peso=producto["peso"])
 
+                # Guardar en el historial de movimientos
+                RegistroMovimiento.objects.create(
+                    grupo_id=nuevo_grupo_id,
+                    producto=producto_obj,
+                    peso=producto["peso"],
+                    tipo="ingreso"
+                )
+
             request.session["productos_temporales"] = []  # Vaciar la lista en la sesión
             request.session.modified = True
 
-            return JsonResponse({"message": "Productos agregados✅"}, status=200)
+            return JsonResponse({"message": "Productos agregados correctamente ✅"}, status=200)
         
         except Exception as e:
             return JsonResponse({"error": f"Error al confirmar productos: {str(e)}"}, status=500)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
-
 
 
 
@@ -303,6 +340,9 @@ def retirar_producto(request):
 
 @csrf_exempt
 def confirmar_retiro(request):
+    """
+    Confirma el retiro de productos, asegurándose de agruparlos en un nuevo grupo_id.
+    """
     if request.method == "POST":
         try:
             data = json.loads(request.body)
@@ -310,6 +350,10 @@ def confirmar_retiro(request):
 
             if not productos:
                 return JsonResponse({"error": "No hay productos para retirar"}, status=400)
+
+            # Obtener el último grupo_id y sumarle 1
+            ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
+            nuevo_grupo_id = ultimo_grupo + 1
 
             for producto in productos:
                 plu = producto.get("plu")
@@ -319,18 +363,26 @@ def confirmar_retiro(request):
 
                     if balde:
                         balde.delete()
-                        RegistroMovimiento.objects.create(grupo_id=1, producto=producto_obj, peso=balde.peso, tipo="retiro")
+
+                        # Guardar en el historial de movimientos
+                        RegistroMovimiento.objects.create(
+                            grupo_id=nuevo_grupo_id,
+                            producto=producto_obj,
+                            peso=balde.peso,
+                            tipo="retiro"
+                        )
                     else:
-                        return JsonResponse({"error": f"No hay stock disponible para el producto {producto_obj.nombre}"}, status=400)
+                        return JsonResponse({"error": f"No hay stock disponible para {producto_obj.nombre}"}, status=400)
 
                 except ProductoFijo.DoesNotExist:
                     return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
-            return JsonResponse({"message": "Productos retirados correctamente"}, status=200)
+            return JsonResponse({"message": "Productos retirados correctamente ✅"}, status=200)
 
         except json.JSONDecodeError:
             return JsonResponse({"error": "Formato JSON inválido"}, status=400)
     return JsonResponse({"error": "Método no permitido"}, status=405)
+
 
 
 productos_temporales = []  # Lista temporal de productos escaneados

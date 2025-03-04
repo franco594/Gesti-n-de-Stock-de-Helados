@@ -6,6 +6,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'tu_clave_secreta'
 DEBUG = True
 ALLOWED_HOSTS = []
+# settings.py
+TIME_ZONE = "America/Argentina/Buenos_Aires"
+USE_TZ = True  # Mantiene los datos en UTC, pero los convierte a la zona local
+
+
 
 INSTALLED_APPS = [
     'django.contrib.admin',
