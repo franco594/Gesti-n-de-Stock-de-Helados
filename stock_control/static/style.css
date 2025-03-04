@@ -1,0 +1,324 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f9f9f9;
+}
+
+.header {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    margin: 20px;
+}
+
+ul {
+    
+    text-align: justify;
+    list-style-type: none;
+    padding: 0;
+}
+
+li {
+    box-shadow: 0 1px 6px rgba(0, 0, 0, .2);
+    border-radius: 0.50rem;
+    padding-left: 10px;
+}
+
+h1, h2 {
+    color: #333;
+}
+
+button {
+    margin: 10px;
+    padding: 10px 20px;
+    color: white;
+    text-decoration: none;
+    font-size: large;
+    font-weight: 700;
+    border-width: 0px;
+    border-radius: 40px;
+    transition: all 0.5s ease-out;
+    cursor: pointer;
+    background-color: rgb(5, 5, 166);
+}
+
+button:hover {
+    background-color: rgb(27, 27, 243);
+}
+
+#buscar {
+    margin: 15px;
+    padding: 4px 10px;
+    color: rgb(118,118,118);
+    border-color: rgb(118,118,118);
+    border-width: 1px;
+    font-size: small;
+    font-weight: 100;
+    border-radius: 0px;
+    cursor: pointer;
+}
+
+#ingresar {
+    background-color: #4CAF50;
+}
+
+#retirar {
+    background-color: #c63636;
+}
+
+#ingresar:hover {
+    background-color: #4ae552;
+    
+}
+
+#retirar:hover {
+    background-color: #f33f3f;
+   
+}
+
+.menu {
+    display: grid;
+    flex-direction: column;
+}
+
+.menu-btn {
+    justify-self: center;
+}
+
+.menu-form {
+    justify-self: flex-start;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+table, th, td {
+    border: 1px solid #ddd;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #f2f2f2;
+}
+
+/* Estilos básicos para la ventana modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: white;
+    margin: 10% auto;
+    padding: 20px;
+    width: 50%;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    text-align: center;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: space-around;
+}
+
+.mov {
+    display: flex;
+    flex-direction: row;
+    justify-content:space-around;
+}
+
+.mov #detalleModal {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, .2);
+    border-radius: 0.50rem;
+    padding: 20px;
+}
+
+.mov #detalleModal li {
+    margin: 0px;
+    padding: 5px;
+    box-shadow: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 5px 0;
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
+}
+
+#detalleModal li span {
+    display: inline-block;
+    margin-right: 10px;
+}
+
+#detalleModal li .producto {
+    width: 75%; /* Ajusta según lo que necesites */
+    font-weight: bold;
+}
+
+#detalleModal li .peso,
+#detalleModal li .tipo,
+#detalleModal li .fecha {
+    width: 40%; /* Ajusta según lo que necesites */
+    text-align: center;
+}
+
+.mov ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.mov li {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#detalleLista li {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    margin-bottom: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+#detalleLista li span {
+    margin: 0 10px;
+}
+
+.resaltado {
+    background-color: #f0f0f0;
+    font-weight: bold;
+}
+
+button#ver-detalle {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+button#ver-detalle:hover {
+    background-color: #0056b3;
+}
+
+#listaEscaneadosIngreso {
+    text-align: center; /* Centrar texto dentro de la lista */
+    list-style: none;   /* Quita los puntos de la lista */
+    padding: 0;         /* Elimina el padding predeterminado */
+}
+
+#listaEscaneadosRetiro {
+    text-align: center; /* Centrar texto dentro de la lista */
+    list-style: none;   /* Quita los puntos de la lista */
+    padding: 0;         /* Elimina el padding predeterminado */
+}
+
+.btnEliminar {
+    padding: 0;
+    background-color: white;
+}
+
+.btnEliminar:hover {
+    background-color: white;
+}
+
+#stockModal {
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width:100%;
+    height: 100%; 
+    background: rgba(0,0,0,0.5); 
+}
+
+.modal-content {
+    max-width: 80%;  /* Ancho máximo */
+    max-height: 60vh;  /* Altura máxima del modal */
+    overflow-y: auto;  /* Habilita el scroll vertical */
+    padding: 20px;
+    background-color: white;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Fondo oscuro */
+}
+
+.modal table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.modal table th, .modal table td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+.modal table thead {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+}
+
+.modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+    background-color: #888;
+    border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+    background-color: #555;
+}
+
+button#saveStockMin {
+    margin: 20px;
+}
+
+.close { float: right; font-size: 24px; cursor: pointer; }
+
+.resaltar-bajo-stock {
+    background-color: red;
+    color: white;
+    font-weight: bold;
+}

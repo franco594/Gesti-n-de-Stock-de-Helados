@@ -1,0 +1,117 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Stock</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+    <div class="header">
+        <h1>Gestión de Stock de Helados</h1>
+    </div>
+    
+    <div class="menu">
+        <div class="menu-btn">
+            <button id="ingresar" onclick="abrirModal('ingresar');">Ingresar Baldes</button>
+            <button id="retirar" onclick="abrirModal('retirar');">Retirar Baldes</button>
+            <a href="{% url 'historial' %}"><button>Ver Historial de Movimientos</button></a>
+        </div>
+        <div class="menu-form">
+            <form action="{% url 'buscar' %}" method="POST" style="margin-bottom: 20px;">
+                {% csrf_token %}
+                <input type="text" name="termino_busqueda" placeholder="Buscar por nombre o PLU" required>
+                <button type="submit">Buscar</button>
+            </form> 
+        </div>
+    </div>
+    <input type="text" id="codigoScanner" autofocus style="position: absolute; left: -9999px;">
+    <h2>Stock Resumido</h2>
+    <button id="configButton" style="position: absolute; top: 10px; right: 10px; font-size: 24px;">⚙️</button>
+    {% if stock_resumido %}
+    <table id="stockTable">
+
+            <tr>
+                <th>Producto</th>
+                <th>Cantidad de Baldes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for producto in stock_resumido %}
+            <tr class="{% if producto.stock_minimo > producto.stockbalde_set.count %}resaltar-bajo-stock{% endif %}">
+                <td>{{ producto.nombre }}</td>
+                <td>{{ producto.stockbalde_set.count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No se encontraron productos para el término de búsqueda.</p>
+    {% endif %}
+    
+    <div id="modal-ingresar" class="modal">
+        <div class="modal-content">
+            <h2>Productos Escaneados</h2>
+            <ul id="listaEscaneadosIngreso"></ul>
+            <div class="modal-buttons">
+                <button id="ingresar" onclick="confirmarAgregarProductos()">Agregar</button>
+                <button id="retirar" onclick="cerrarModal('ingresar')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal-retirar" class="modal">
+        <div class="modal-content">
+            <h2>Productos Escaneados</h2>
+            <ul id="listaEscaneadosRetiro"></ul>
+            <div class="modal-buttons">
+                <button id="retirar" onclick="confirmarRetirarProductos()">Retirar</button>
+                <button id="retirar" onclick="cerrarModal('retirar')">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal-confirmacion" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cerrarModalConfirmacion()">&times;</span>
+            <p id="mensajeConfirmacion"></p>
+        </div>
+    </div>
+    
+    <div id="modal-historial" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cerrarHistorialModal()">&times;</span>
+            <h2>Historial de Movimientos</h2>
+            <ul id="listaHistorial"></ul>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
+    <script src="{% static 'index.js' %}"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const scannerInput = document.getElementById("codigoScanner");
+    
+            // Enfocar el input al cargar la página para capturar escaneos automáticamente
+            scannerInput.focus();
+    
+            // Capturar códigos escaneados
+            document.addEventListener("paste", async (event) => {
+                let clipboardData = event.clipboardData || window.clipboardData;
+                let pastedText = clipboardData.getData("Text").trim();
+    
+                if (pastedText.length === 13 && !isNaN(pastedText)) {
+                    console.log("📌 Código escaneado:", pastedText);
+                    procesarCodigoEscaneado(pastedText);
+                } else {
+                    console.warn("⚠️ Código no válido:", pastedText);
+                }
+            });
+    
+            // Evitar que el usuario pierda el foco del input
+            document.addEventListener("click", () => scannerInput.focus());
+        });
+    </script>
+    
+</body>
+</html>
