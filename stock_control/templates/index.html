@@ -17,16 +17,19 @@
             <button id="retirar" onclick="abrirModal('retirar');">Retirar Baldes</button>
             <a href="{% url 'historial_movimientos' %}"><button>Ver Historial de Movimientos</button></a>
         </div>
-        <div class="menu-form">
-            <form action="{% url 'buscar_detallado' %}" method="POST" style="margin-bottom: 20px;">
-                {% csrf_token %}
-                <input type="text" name="termino_busqueda" placeholder="Buscar por nombre o PLU" required>
-                <button type="submit">Buscar</button>
-            </form> 
-        </div>
     </div>
     <input type="text" id="codigoScanner" autofocus style="position: absolute; left: -9999px;">
-    <h2>Stock Resumido</h2>
+    <div class="menu-form">
+        <form action="{% url 'buscar_detallado' %}" method="POST" style="margin-bottom: 20px;">
+            {% csrf_token %}
+            <input type="text" name="termino_busqueda" placeholder="Buscar por nombre o PLU" required>
+            <button type="submit">Buscar</button>
+            <form id="formExcel" enctype="multipart/form-data">
+                <input type="file" id="archivoExcel" name="archivo" accept=".xlsx" style="display: none;">
+                <button type="button" id="botonCargarExcel">Cargar Excel</button>
+            </form>
+        </form> 
+    </div>
     <button id="configButton" style="position: absolute; top: 10px; right: 10px; font-size: 24px;" onclick="abrirModalStock()">⚙️</button>
     {% if stock_resumido %}
     <table id="stockTable">
@@ -189,7 +192,27 @@
         })
         .catch(error => console.error("Error:", error));
     }
-
+    </script>
+    
+<script>
+    document.getElementById("botonCargarExcel").addEventListener("click", function() {
+        document.getElementById("archivoExcel").click(); // Simular clic en el input de archivo
+    });
+    
+    document.getElementById("archivoExcel").addEventListener("change", function() {
+        if (this.files.length > 0) {
+            let formData = new FormData();
+            formData.append("archivo", this.files[0]);
+    
+            fetch("/cargar_excel/", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => alert(data.message || data.error))
+            .catch(error => console.error("Error al subir el archivo:", error));
+        }
+    });
     </script>
     
 </body>

@@ -88,9 +88,15 @@ button:hover {
 }
 
 .menu-form {
-    justify-self: flex-start;
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
 }
 
+form {
+    margin-top: 20px;
+    justify-content: space-between;
+}
 table {
     width: 100%;
     border-collapse: collapse;

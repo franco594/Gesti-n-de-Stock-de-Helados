@@ -54,6 +54,13 @@ function abrirModal(tipo) {
     modalAbierta = true;
     console.log(`📢 Modal abierta: ${tipo}`);
 
+    fetch("/api/reiniciar_lista_temporal/", { method: "POST" })
+    .then(() => {
+        productosEscaneados = [];
+        actualizarListaEscaneados(modo, []);
+    })
+    .catch(error => console.error("Error al reiniciar la lista:", error));
+
     document.getElementById(`modal-${tipo}`).style.display = "block";
     activarInputEscaneo(); 
     obtenerProductosEscaneados();
@@ -258,8 +265,10 @@ function confirmarRetirarProductos() {
     })
     .then(response => response.json())
     .then(data => {
+        console.log("✅ Productos retirados correctamente.");
         mostrarModalConfirmacion(data.message);
         cerrarModal("retirar");
+        productosEscaneados = []; // Vaciar la lista después de confirmar
     })
     .catch(error => console.error("❌ Error al retirar productos:", error));
 };

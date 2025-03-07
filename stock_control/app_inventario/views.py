@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 from django.utils.dateparse import parse_date
+from django.core.files.storage import FileSystemStorage
 from .models import ProductoFijo, RegistroMovimiento, StockBalde
 from django.db.models import Max
 import pandas as pd
@@ -46,6 +47,36 @@ def cargar_productos_desde_excel():
 
     except Exception as e:
         return {"error": f"Error procesando el archivo: {str(e)}"}
+
+
+@csrf_exempt
+def cargar_productos_excel(request):
+    if request.method == "POST" and request.FILES.get("archivo"):
+        archivo = request.FILES["archivo"]
+        fs = FileSystemStorage(location="uploads/")  # Carpeta donde se guardan los archivos
+        nombre_archivo = fs.save(archivo.name, archivo)
+        ruta_archivo = fs.path(nombre_archivo)
+
+        try:
+            df = pd.read_excel(ruta_archivo)
+
+            # Verificar que tiene las columnas necesarias
+            if "Nombre" not in df.columns or "PLU" not in df.columns:
+                return JsonResponse({"error": "El archivo debe contener las columnas 'Nombre' y 'PLU'"}, status=400)
+
+            for _, row in df.iterrows():
+                nombre = row["Nombre"]
+                plu = str(row["PLU"]).zfill(3)  # Asegura que el PLU tenga 3 dígitos
+
+                # Crear el producto si no existe
+                ProductoFijo.objects.get_or_create(plu=plu, nombre=nombre)
+
+            return JsonResponse({"message": "Productos cargados correctamente"})
+
+        except Exception as e:
+            return JsonResponse({"error": f"Error al procesar el archivo: {str(e)}"}, status=500)
+
+    return JsonResponse({"error": "No se envió ningún archivo"}, status=400)
 
 
 # Vista para ejecutar la carga manualmente desde la web

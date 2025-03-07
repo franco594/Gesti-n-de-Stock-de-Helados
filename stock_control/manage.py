@@ -10,7 +10,6 @@ def abrir_navegador():
     time.sleep(1)  # Espera 1 segundo para asegurarse de que el servidor esté corriendo
     webbrowser.open("http://127.0.0.1:8000")  # Cambia la URL si usas otro puerto
 
-
 def iniciar_lector_en_hilo():
     """Inicia el lector de códigos en un hilo separado para que no bloquee Django."""
     hilo_lector = threading.Thread(target=lector_codigos.iniciar_lector, daemon=True)
@@ -26,6 +25,8 @@ def main():
         ) from exc
 
 if __name__ == '__main__':
-    threading.Thread(target=abrir_navegador, daemon=True).start()
+    if 'runserver' in sys.argv and '--noreload' not in sys.argv:
+        threading.Thread(target=abrir_navegador, daemon=True).start()
+    
     iniciar_lector_en_hilo()  # Inicia el lector de códigos antes de arrancar Django
     main()
