@@ -30,17 +30,17 @@ h1, h2 {
     color: #333;
 }
 
+
+
 button {
-    margin: 10px;
-    padding: 10px 20px;
     color: white;
-    text-decoration: none;
-    font-size: large;
-    font-weight: 700;
-    border-width: 0px;
-    border-radius: 40px;
-    transition: all 0.5s ease-out;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
     cursor: pointer;
+    margin-top: 10px;
+    font-size: 16px;
+    transition: 0.3s;
     background-color: rgb(5, 5, 166);
 }
 
@@ -117,23 +117,33 @@ th {
 }
 
 /* Estilos básicos para la ventana modal */
+/* Estilos para la modal mejorada */
 .modal {
-    display: none;
-    position: fixed;
+    display: none; 
+    position: fixed; 
     z-index: 1000;
-    left: 0;
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.5); /* Fondo oscuro translúcido */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease-in-out;
 }
 
+/* Contenido de la modal */
 .modal-content {
-    background-color: white;
-    margin: 10% auto;
+    background: white;
     padding: 20px;
-    width: 50%;
-    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    width: 300px;
+    text-align: center;
+    border-radius: 12px;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.3);
+    position: relative;
+    transform: scale(0.8);
+    animation: zoomIn 0.3s ease-in-out forwards;
+    align-items: center;
 }
 
 .modal-content h2 {
@@ -144,6 +154,91 @@ th {
 .modal-buttons {
     display: flex;
     justify-content: space-around;
+}
+
+/* Botón de cerrar */
+.close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #555;
+}
+
+.close:hover {
+    color: #ff4d4d;
+}
+
+/* Icono de check */
+.icono-check {
+    font-size: 50px;
+    color: #4CAF50; 
+    margin-bottom: 10px;
+    animation: bounce 0.5s ease-in-out;
+}
+
+/* Botón de confirmación */
+.boton-ok {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+    font-size: 16px;
+    transition: 0.3s;
+    width: 100px;
+}
+
+.boton-ok:hover {
+    background-color: #388E3C;
+}
+
+
+/* Icono de cross */
+.icono-cross {
+    font-size: 50px;
+    color: #ff0000; 
+    margin-bottom: 10px;
+    animation: bounce 0.5s ease-in-out;
+}
+
+/* Botón de denegado */
+.boton-denegado {
+    background-color: #f31919;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+    font-size: 16px;
+    transition: 0.3s;
+    width: 100px;
+}
+
+.boton-denegado:hover {
+    background-color: #ff0000;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes zoomIn {
+    from { transform: scale(0.8); }
+    to { transform: scale(1); }
+}
+
+@keyframes bounce {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 .mov {
@@ -346,22 +441,27 @@ button#saveStockMin {
 /* Contenedor del modal */
 .modal-content {
     background: white;
-    width: 50%; /* Ajusta el tamaño del modal */
+    width: 50%;
     max-width: 600px;
-    max-height: 70vh; /* Limita la altura para evitar que cubra toda la pantalla */
+    max-height: 70vh; /* Altura máxima */
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
     position: fixed;
-    top: 50%;
-    left: 50%;
+    top: 20%;
     transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
+    overflow: auto; /* Permite el desplazamiento interno */
+    justify-self: anchor-center;
+    align-items: normal;
 }
 
+
+
+
 /* Estilos para la tabla dentro del modal */
-.modal-body {
+modal-body {
     max-height: 50vh; /* Límite de altura para habilitar scroll */
     overflow-y: auto; /* Scroll solo en el cuerpo de la tabla */
     border: 1px solid #ccc; /* Borde para separar el encabezado */
@@ -407,7 +507,7 @@ td input {
 }
 /* Pie del modal */
 .modal-footer {
-    text-align: right;
+    text-align: center;
     margin-top: 10px;
 }
 

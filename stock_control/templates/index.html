@@ -60,6 +60,7 @@
                 <button id="ingresar" onclick="confirmarAgregarProductos()">Agregar</button>
                 <button id="retirar" onclick="cerrarModal('ingresar')">Cancelar</button>
             </div>
+            <div id="container-ingresar"></div>
         </div>
     </div>
     
@@ -71,13 +72,23 @@
                 <button id="retirar" onclick="confirmarRetirarProductos()">Retirar</button>
                 <button id="retirar" onclick="cerrarModal('retirar')">Cancelar</button>
             </div>
+            <div id="container-ingresar"></div>
         </div>
     </div>
     
     <div id="modal-confirmacion" class="modal">
         <div class="modal-content">
-            <span class="close" onclick="cerrarModalConfirmacion()">&times;</span>
+            <div class="icono-check">✔</div>
             <p id="mensajeConfirmacion"></p>
+            <button class="boton-ok" onclick="cerrarModalConfirmacion()" style="align-self: center;">Aceptar</button>
+        </div>
+    </div>
+
+    <div id="modal-denegado" class="modal">
+        <div class="modal-content">
+            <div class="icono-cross">❌</div>
+            <p id="mensajeDenegado"></p>
+            <button class="boton-denegado" onclick="cerrarModalDenegado()" style="align-self: center;">Aceptar</button>
         </div>
     </div>
     

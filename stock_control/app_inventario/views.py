@@ -10,6 +10,7 @@ from .models import ProductoFijo, RegistroMovimiento, StockBalde
 from django.db.models import Max
 import pandas as pd
 import sqlite3
+from django.db.models import Count
 
 def conectar_bd():
     """Conectar a la base de datos SQLite."""
@@ -179,10 +180,13 @@ def reiniciar_lista(request):
 
 
 
+
+
 def api_stock_detallado(request):
-    productos = ProductoFijo.objects.all()
-    data = [{"nombre": p.nombre, "stock_minimo": p.stock_minimo, "cantidad": p.stockbalde_set.count()} for p in productos]
+    productos = ProductoFijo.objects.annotate(stock_actual=Count('stockbalde'))
+    data = [{"nombre": p.nombre, "stock_minimo": p.stock_minimo, "cantidad": p.stock_actual} for p in productos]
     return JsonResponse({"stock_detallado": data})
+
 
 
 productos_temporales = []  # Lista temporal de productos escaneados
@@ -380,6 +384,7 @@ def retirar_producto(request):
 
 
 @csrf_exempt
+@csrf_exempt
 def confirmar_retiro(request):
     """
     Confirma el retiro de productos, asegurándose de agruparlos en un nuevo grupo_id.
@@ -396,34 +401,44 @@ def confirmar_retiro(request):
             ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
             nuevo_grupo_id = ultimo_grupo + 1
 
+            productos_sin_stock = []
+            productos_retirados = []
+
             for producto in productos:
                 plu = producto.get("plu")
                 try:
                     producto_obj = ProductoFijo.objects.get(plu=plu)
                     balde = StockBalde.objects.filter(producto=producto_obj).order_by("-timestamp").first()
 
-                    if balde:
-                        balde.delete()
+                    if not balde:
+                        productos_sin_stock.append(producto_obj.nombre)
+                        continue  # ❌ No intentar eliminar si no hay stock
 
-                        # Guardar en el historial de movimientos
-                        RegistroMovimiento.objects.create(
-                            grupo_id=nuevo_grupo_id,
-                            producto=producto_obj,
-                            peso=balde.peso,
-                            tipo="retiro"
-                        )
-                    else:
-                        return JsonResponse({"error": f"No hay stock disponible para {producto_obj.nombre}"}, status=400)
+                    balde.delete()
+
+                    # Guardar en el historial de movimientos
+                    RegistroMovimiento.objects.create(
+                        grupo_id=nuevo_grupo_id,
+                        producto=producto_obj,
+                        peso=balde.peso,
+                        tipo="retiro"
+                    )
+                    productos_retirados.append(producto_obj.nombre)
 
                 except ProductoFijo.DoesNotExist:
                     return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
-            return JsonResponse({"message": "Productos retirados correctamente ✅"}, status=200)
+            if productos_sin_stock:
+                return JsonResponse({
+                    "error": f"No hay stock disponible para los siguientes productos: {', '.join(productos_sin_stock)}"
+                }, status=400)
+
+            return JsonResponse({"message": f"Productos retirados correctamente: {', '.join(productos_retirados)} ✅"}, status=200)
 
         except json.JSONDecodeError:
             return JsonResponse({"error": "Formato JSON inválido"}, status=400)
-    return JsonResponse({"error": "Método no permitido"}, status=405)
 
+    return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
 productos_temporales = []  # Lista temporal de productos escaneados

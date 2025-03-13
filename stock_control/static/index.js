@@ -1,6 +1,7 @@
 let productosEscaneados = [];
 let modo = '';
 let modalAbierta = false; // Controla si el escaneo está habilitado
+let faltantesSet = new Set();
 
 
 console.log("📢 DOM completamente cargado.");
@@ -86,6 +87,14 @@ function cerrarModal(tipo) {
     .catch(error => console.error("Error al reiniciar la lista:", error));
 }
 
+function cerrarModalDenegado() {
+    document.getElementById(`modal-denegado`).style.display = "none";
+}
+
+function cerrarModalConfirmacion() {
+    document.getElementById(`modal-confirmacion`).style.display = "none";
+}
+
 // ✅ Obtener productos escaneados y actualizar modal en tiempo real
 function obtenerProductosEscaneados() {
     if (!modalAbierta) return; // 🔴 No solicitar datos si la modal está cerrada
@@ -134,6 +143,11 @@ function actualizarListaEscaneados(modalTipo, productosEscaneados) {
         item.appendChild(botonEliminar);
         lista.appendChild(item);
     });
+
+    // 🔴 Validar stock después de actualizar la lista de productos escaneados
+    if (modalTipo === "retirar") {
+        validarStockParaRetiro();
+    }
 }
 
 // Enviar el código al servidor Django para su procesamiento
@@ -152,6 +166,7 @@ function procesarCodigoEscaneado(codigo) {
         } else {
             console.log("✔ Código procesado con éxito:", data);
             actualizarProductosEscaneados();  // Refrescar la lista de productos escaneados
+            validarStockParaRetiro();
         }
     })
     .catch(error => console.error("⚠️ Error en la petición:", error));
@@ -214,11 +229,22 @@ function mostrarModalConfirmacion(mensaje) {
     }, 3000); // Ocultar automáticamente después de 3 segundos
 }
 
+function mostrarModalDenegado(mensaje) {
+    const modal = document.getElementById("modal-denegado");
+    const mensajeElemento = document.getElementById("mensajeDenegado");
+    mensajeElemento.innerText = mensaje;
+    modal.style.display = "block";
+    setTimeout(() => {
+        modal.style.display = "none";
+    }, 3000); // Ocultar automáticamente después de 3 segundos
+}
+
 // ✅ Confirmar y agregar los productos escaneados al servidor
 function confirmarAgregarProductos() {
     console.log("📢 Intentando confirmar productos. Lista actual:", productosEscaneados);
 
     if (!productosEscaneados || productosEscaneados.length === 0) {
+        mostrarModalDenegado("No hay productos escaneados para agregar.");
         console.warn("⛔ No hay productos escaneados para agregar.");
         return;
     }
@@ -239,11 +265,11 @@ function confirmarAgregarProductos() {
 
         if (data.error) {
             console.error("❌ Error al confirmar productos:", data.error);
-        } else {
+        } else {  
             console.log("✅ Productos agregados correctamente.");
             mostrarModalConfirmacion(data.message);
             cerrarModal("ingresar");
-            productosEscaneados = []; // Vaciar la lista después de confirmar
+            productosEscaneados = []; // Vaciar la lista después de confirmar 
         }
     })
     .catch(error => console.error("⚠️ Error al agregar productos:", error));
@@ -252,8 +278,19 @@ function confirmarAgregarProductos() {
 
 
 // ✅ Confirmar y retirar productos escaneados
-function confirmarRetirarProductos() {
+async function confirmarRetirarProductos() {
+    const hayStockSuficiente = await validarStockParaRetiro();
+    const faltantes = Array.from(faltantesSet).join("\n");
+
+    if (!hayStockSuficiente) {
+        console.warn("⛔ No se puede continuar con el retiro porque hay productos sin stock.");
+        mostrarModalDenegado(`No se puede continuar con el retiro porque hay productos sin stock:\n${faltantes}`);
+        faltantes = [];
+        return; // 🔴 DETIENE la ejecución si hay productos sin stock
+    }
+
     if (productosEscaneados.length === 0) {
+        mostrarModalDenegado("No hay productos escaneados para retirar.");
         console.warn("⛔ No hay productos escaneados para retirar.");
         return;
     }
@@ -265,11 +302,82 @@ function confirmarRetirarProductos() {
     })
     .then(response => response.json())
     .then(data => {
+        if (data.error) {
+            console.error("❌ Error al retirar productos:", data.error);
+            return;
+        }
+
         console.log("✅ Productos retirados correctamente.");
         mostrarModalConfirmacion(data.message);
         cerrarModal("retirar");
         productosEscaneados = []; // Vaciar la lista después de confirmar
     })
     .catch(error => console.error("❌ Error al retirar productos:", error));
-};
+}
+
+
+
+async function validarStockParaRetiro() {
+    try {
+        const responseStock = await fetch('/api/stock_detallado/');
+        const dataStock = await responseStock.json();
+
+        const responseEscaneados = await fetch('/api/obtener_productos_temporales/');
+        const dataEscaneados = await responseEscaneados.json();
+
+        if (!dataStock || !dataStock.stock_detallado || !dataEscaneados || !dataEscaneados.productos) {
+            console.error("Error al obtener los datos de stock o productos escaneados.");
+            return false;
+        }
+
+        const stockProductos = dataStock.stock_detallado;
+        const productosEscaneados = dataEscaneados.productos;
+        let hayStockInsuficiente = false;
+
+        productosEscaneados.forEach(producto => {
+            const productoStock = stockProductos.find(p => p.nombre === producto.nombre);
+            if (productoStock) {
+                const cantidadDisponible = productoStock.cantidad;
+                const cantidadRetirar = productosEscaneados.filter(p => p.nombre === producto.nombre).length;
+
+                if (cantidadDisponible < cantidadRetirar) {
+                    faltantesSet.add(`${producto.nombre} ❗`); // ✅ Agrega al Set (evita duplicados)
+                    hayStockInsuficiente = true;
+
+                    const filaProducto = document.querySelector(`.producto-fila[data-nombre="${producto.nombre}"]`);
+                    if (filaProducto) {
+                        filaProducto.classList.add("sin-stock");
+                    }
+                }
+            }
+            
+        });
+
+        const botonRetiro = document.getElementById("boton-retirar");
+        const mensajeError = document.getElementById("mensaje-error");
+
+        if (hayStockInsuficiente) {
+            if (mensajeError) {
+                mensajeError.innerText = "⚠️ Algunos productos no tienen stock suficiente.";
+                mensajeError.style.display = "block";
+            }
+            if (botonRetiro) {
+                botonRetiro.disabled = true;
+            }
+            return false; // 🔴 Indica que hay productos sin stock
+        } else {
+            if (mensajeError) mensajeError.style.display = "none";
+            if (botonRetiro) botonRetiro.disabled = false;
+            return true; // ✅ Indica que se puede proceder
+        }
+
+    } catch (error) {
+        console.error("Error al validar el stock para retiro:", error);
+        return false;
+    }
+}
+
+
+// Ejecutar la validación cuando se cargue la página y cuando se actualicen los productos escaneados
+document.addEventListener("DOMContentLoaded", validarStockParaRetiro);
 
