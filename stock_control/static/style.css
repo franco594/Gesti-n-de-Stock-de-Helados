@@ -17,6 +17,46 @@ ul {
     padding: 0;
 }
 
+input {
+    width: 100%; /* Ajuste dinámico */
+    max-width: 250px; /* Tamaño máximo */
+    padding: 10px;
+    font-size: 16px;
+    font-family: 'Arial', sans-serif;
+    border: 2px solid #ccc;
+    border-radius: 8px; /* Bordes redondeados */
+    outline: none;
+    transition: all 0.3s ease-in-out;
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+}
+
+/* Cambio de color cuando el usuario hace foco */
+input:focus {
+    border-color: #007bff; /* Azul moderno */
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.5);
+}
+
+/* Estilo cuando está deshabilitado */
+input:disabled {
+    background-color: #f8f8f8;
+    border-color: #ddd;
+    color: #888;
+    cursor: not-allowed;
+}
+
+/* Input con error */
+input.error {
+    border-color: #dc3545; /* Rojo */
+    box-shadow: 0 0 8px rgba(220, 53, 69, 0.5);
+}
+
+/* Input válido */
+input.success {
+    border-color: #28a745; /* Verde */
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.5);
+}
+
 /* ENCABERZADO */
 .header {
     display: flex;
@@ -96,7 +136,6 @@ li {
 
 .menu-form {
     margin-top: 20px;
-    display: flex;
     justify-content: space-between;
 }
 
@@ -183,6 +222,26 @@ th {
 }
 
 .modalStockMinimo.zoom-out {
+    animation: zoomOut 0.3s ease-in-out forwards;
+}
+
+.modal-denegado.fade-out {
+    animation: fadeOut 0.3s ease-in-out forwards;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-denegado.zoom-out {
+    animation: zoomOut 0.3s ease-in-out forwards;
+}
+
+.modal-confirmacion.fade-out {
+    animation: fadeOut 0.3s ease-in-out forwards;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-confirmacion.zoom-out {
     animation: zoomOut 0.3s ease-in-out forwards;
 }
 

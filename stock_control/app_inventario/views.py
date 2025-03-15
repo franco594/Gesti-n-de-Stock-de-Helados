@@ -285,15 +285,21 @@ def confirmar_agregado(request):
         if not productos_temporales:
             return JsonResponse({"error": "No hay productos para confirmar"}, status=400)
 
+        productos_agregados = []
+
         for producto in productos_temporales:
-            producto_obj = ProductoFijo.objects.get(plu=producto["plu"])
-            StockBalde.objects.create(producto=producto_obj, peso=producto["peso"])
+            try:
+                producto_obj = ProductoFijo.objects.get(plu=producto["plu"])
+                StockBalde.objects.create(producto=producto_obj, peso=producto["peso"])
+                productos_agregados.append(producto_obj.nombre)
+            except ProductoFijo.DoesNotExist:
+                return JsonResponse({"error": f"Producto con PLU {producto['plu']} no encontrado"}, status=404)
 
         productos_temporales = []  # Vaciar lista temporal tras confirmación
-        return JsonResponse({"message": "Productos agregados exitosamente"}, status=200)
+
+        return JsonResponse({"message": f"Productos agregados correctamente: {', '.join(productos_agregados)} ✅"}, status=200)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
-
 
 @csrf_exempt
 def reiniciar_lista_temporal(request):
@@ -306,7 +312,8 @@ def reiniciar_lista_temporal(request):
 @csrf_exempt
 def confirmar_codigos(request):
     """
-    Guarda en la base de datos los productos escaneados solo cuando se presiona 'Aceptar' en el modal.
+    Guarda en la base de datos los productos escaneados solo cuando se presiona 'Aceptar' en el modal,
+    e informa qué productos fueron agregados.
     """
     if request.method == "POST":
         try:
@@ -319,23 +326,33 @@ def confirmar_codigos(request):
             ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
             nuevo_grupo_id = ultimo_grupo + 1
 
-            for producto in productos_temporales:
-                producto_obj = ProductoFijo.objects.get(plu=producto["plu"])
-                StockBalde.objects.create(producto=producto_obj, peso=producto["peso"])
+            productos_agregados = []
 
-                # Guardar en el historial de movimientos
-                RegistroMovimiento.objects.create(
-                    grupo_id=nuevo_grupo_id,
-                    producto=producto_obj,
-                    peso=producto["peso"],
-                    tipo="ingreso"
-                )
+            for producto in productos_temporales:
+                try:
+                    producto_obj = ProductoFijo.objects.get(plu=producto["plu"])
+                    StockBalde.objects.create(producto=producto_obj, peso=producto["peso"])
+
+                    # Guardar en el historial de movimientos
+                    RegistroMovimiento.objects.create(
+                        grupo_id=nuevo_grupo_id,
+                        producto=producto_obj,
+                        peso=producto["peso"],
+                        tipo="ingreso"
+                    )
+
+                    productos_agregados.append(producto_obj.nombre)
+
+                except ProductoFijo.DoesNotExist:
+                    return JsonResponse({"error": f"Producto con PLU {producto['plu']} no encontrado"}, status=404)
 
             request.session["productos_temporales"] = []  # Vaciar la lista en la sesión
             request.session.modified = True
 
-            return JsonResponse({"message": "Productos agregados correctamente ✅"}, status=200)
-        
+            return JsonResponse({
+                "message": f"Productos agregados correctamente:\n\n {'\n'.join(productos_agregados)}"
+            }, status=200)
+
         except Exception as e:
             return JsonResponse({"error": f"Error al confirmar productos: {str(e)}"}, status=500)
 
@@ -398,7 +415,6 @@ def retirar_producto(request):
 
 
 @csrf_exempt
-@csrf_exempt
 def confirmar_retiro(request):
     """
     Confirma el retiro de productos, asegurándose de agruparlos en un nuevo grupo_id.
@@ -447,7 +463,7 @@ def confirmar_retiro(request):
                     "error": f"No hay stock disponible para los siguientes productos: {', '.join(productos_sin_stock)}"
                 }, status=400)
 
-            return JsonResponse({"message": f"Productos retirados correctamente: {', '.join(productos_retirados)} ✅"}, status=200)
+            return JsonResponse({"message": f"Productos retirados correctamente:\n\n {'\n'.join(productos_retirados)} "}, status=200)
 
         except json.JSONDecodeError:
             return JsonResponse({"error": "Formato JSON inválido"}, status=400)

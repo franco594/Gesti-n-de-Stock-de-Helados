@@ -12,6 +12,8 @@ const stockTable = document.getElementById("stockTable");
 const configButton = document.getElementById("configButton");
 const closeModal = document.querySelector(".close");
 const codigoScanner = document.getElementById("codigoScanner");
+const contenedorIngresar = document.getElementById("contenedor-input-ingresar");
+const contenedorRetirar = document.getElementById("contenedor-input-retirar");
 
 codigoScanner.disabled = true;
 
@@ -54,6 +56,7 @@ function abrirModal(tipo) {
     modo = tipo;
     modalAbierta = true;
     console.log(`📢 Modal abierta: ${tipo}`);
+    codigoScanner.style.visibility = "visible";
 
     fetch("/api/reiniciar_lista_temporal/", { method: "POST" })
     .then(() => {
@@ -68,6 +71,14 @@ function abrirModal(tipo) {
         return;
     }
 
+    if (tipo == "ingresar"){
+
+        contenedorIngresar.appendChild(codigoScanner);
+
+    } else {
+        
+        contenedorRetirar.appendChild(codigoScanner);
+    }
     modal.style.display = "block";
     modal.classList.remove("fade-out"); // 🔥 Elimina la clase fade-out para evitar conflictos con fade-in
 
@@ -106,11 +117,27 @@ function cerrarModal(tipo) {
 }
 
 function cerrarModalDenegado() {
-    document.getElementById(`modal-denegado`).style.display = "none";
+    document.getElementById(`modal-denegado`).classList.add("zoom-out"); // Oculta el modal
+    document.getElementById(`modal-denegado`).classList.add("fade-out"); // Oculta el modal
+
+    // Esperar el tiempo de la animación antes de ocultar la modal
+    setTimeout(() => {
+        document.getElementById(`modal-denegado`).style.display = "none"; // Oculta el modal 
+        document.getElementById(`modal-denegado`).classList.remove("fade-out"); // Elimina la clase para la próxima vez que se abra
+        document.getElementById(`modal-denegado`).classList.remove("zoom-out"); 
+    }, 300); // Debe coincidir con la duración de fadeOut en CSS
 }
 
 function cerrarModalConfirmacion() {
-    document.getElementById(`modal-confirmacion`).style.display = "none";
+    document.getElementById(`modal-confirmacion`).classList.add("zoom-out"); // Oculta el modal
+    document.getElementById(`modal-confirmacion`).classList.add("fade-out"); // Oculta el modal
+
+    // Esperar el tiempo de la animación antes de ocultar la modal
+    setTimeout(() => {
+        document.getElementById(`modal-confirmacion`).style.display = "none"; // Oculta el modal 
+        document.getElementById(`modal-confirmacion`).classList.remove("fade-out"); // Elimina la clase para la próxima vez que se abra
+        document.getElementById(`modal-confirmacion`).classList.remove("zoom-out"); 
+    }, 300); // Debe coincidir con la duración de fadeOut en CSS
 }
 
 // ✅ Obtener productos escaneados y actualizar modal en tiempo real
@@ -277,9 +304,7 @@ function mostrarModalConfirmacion(mensaje) {
     const mensajeElemento = document.getElementById("mensajeConfirmacion");
     mensajeElemento.innerText = mensaje;
     modal.style.display = "block";
-    setTimeout(() => {
-        modal.style.display = "none";
-    }, 3000); // Ocultar automáticamente después de 3 segundos
+    
 }
 
 function mostrarModalDenegado(mensaje) {
@@ -287,9 +312,7 @@ function mostrarModalDenegado(mensaje) {
     const mensajeElemento = document.getElementById("mensajeDenegado");
     mensajeElemento.innerText = mensaje;
     modal.style.display = "block";
-    setTimeout(() => {
-        modal.style.display = "none";
-    }, 3000); // Ocultar automáticamente después de 3 segundos
+    
 }
 
 // ✅ Confirmar y agregar los productos escaneados al servidor

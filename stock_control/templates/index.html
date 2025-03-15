@@ -18,11 +18,11 @@
             <a href="{% url 'historial_movimientos' %}"><button>Ver Historial de Movimientos</button></a>
         </div>
     </div>
-    <input type="text" id="codigoScanner" autofocus style="position: absolute; left: -9999px;">
+    
     <div class="menu-form">
         <form action="{% url 'buscar_detallado' %}" method="POST" style="margin-bottom: 20px;">
             {% csrf_token %}
-            <input type="text" name="termino_busqueda" placeholder="Buscar por nombre o PLU" required>
+            <input type="text" name="termino_busqueda" placeholder="Buscar por nombre o PLU" required autocomplete="off">
             <button type="submit">Buscar</button>
             <form id="formExcel" enctype="multipart/form-data">
                 <input type="file" id="archivoExcel" name="archivo" accept=".xlsx" style="display: none;">
@@ -48,6 +48,7 @@
             {% endfor %}
         </tbody>
     </table>
+    <input type="text" id="codigoScanner" autofocus style="visibility: hidden;" placeholder="Ingrese un código" autocomplete="off">
     {% else %}
     <p>No se encontraron productos para el término de búsqueda.</p>
     {% endif %}
@@ -60,6 +61,7 @@
                 <button id="ingresar" onclick="confirmarAgregarProductos()">Agregar</button>
                 <button id="retirar" onclick="cerrarModal('ingresar')">Cancelar</button>
             </div>
+            <div id="contenedor-input-ingresar"></div>
             <div id="container-ingresar"></div>
         </div>
     </div>
@@ -72,6 +74,7 @@
                 <button id="retirar" onclick="confirmarRetirarProductos()">Retirar</button>
                 <button id="retirar" onclick="cerrarModal('retirar')">Cancelar</button>
             </div>
+            <div id="contenedor-input-retirar"></div>
             <div id="container-ingresar"></div>
         </div>
     </div>
@@ -198,7 +201,7 @@
         .then(data => {
             if (data.success) {
                 productos.forEach(producto => {
-                    const stockElement = document.getElementById(`stock-minimo-${producto.plu}`);
+                    const stockElement = document.getElementById(`nuevo-stock-${producto.plu}`)
                     if (stockElement) {  // ✅ Verificamos que el elemento exista antes de modificarlo
                         stockElement.innerText = producto.stock_minimo;
                         
@@ -206,7 +209,7 @@
                         console.warn(`⚠️ No se encontró el elemento con id stock-minimo-${producto.plu}`);
                     }
                 });
-                cerrarModal();
+                cerrarModalStockMinimo();
             } else {
                 alert("Error al actualizar stock mínimo: " + data.error);
             }
