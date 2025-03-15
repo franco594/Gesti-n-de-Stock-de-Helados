@@ -1,3 +1,4 @@
+/* ESTILOS GENERALES */
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -5,12 +6,8 @@ body {
     background-color: #f9f9f9;
 }
 
-.header {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    text-align: center;
-    margin: 20px;
+h1, h2 {
+    color: #333;
 }
 
 ul {
@@ -20,18 +17,16 @@ ul {
     padding: 0;
 }
 
-li {
-    box-shadow: 0 1px 6px rgba(0, 0, 0, .2);
-    border-radius: 0.50rem;
-    padding-left: 10px;
+/* ENCABERZADO */
+.header {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    margin: 20px;
 }
 
-h1, h2 {
-    color: #333;
-}
-
-
-
+/* BOTONES */
 button {
     color: white;
     padding: 10px 20px;
@@ -41,6 +36,8 @@ button {
     margin-top: 10px;
     font-size: 16px;
     transition: 0.3s;
+    margin-left: 10px;
+    margin-right: 10px;
     background-color: rgb(5, 5, 166);
 }
 
@@ -78,6 +75,16 @@ button:hover {
    
 }
 
+/* LISTAS */
+
+li {
+    box-shadow: 0 1px 6px rgba(0, 0, 0, .2);
+    border-radius: 0.50rem;
+    padding-left: 10px;
+}
+
+/* FORMULARIOS */
+
 .menu {
     display: grid;
     flex-direction: column;
@@ -97,6 +104,8 @@ form {
     margin-top: 20px;
     justify-content: space-between;
 }
+
+/* TABLAS */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -116,8 +125,8 @@ th {
     background-color: #f2f2f2;
 }
 
-/* Estilos básicos para la ventana modal */
-/* Estilos para la modal mejorada */
+
+/* MODAL */
 .modal {
     display: none; 
     position: fixed; 
@@ -156,7 +165,29 @@ th {
     justify-content: space-around;
 }
 
-/* Botón de cerrar */
+.modal.fade-out {
+   
+    animation: fadeOut 0.3s ease-in-out forwards;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-content.zoom-out {
+    animation: zoomOut 0.3s ease-in-out forwards;
+}
+
+.modalStockMinimo.fade-out {
+    animation: fadeOut 0.3s ease-in-out forwards;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modalStockMinimo.zoom-out {
+    animation: zoomOut 0.3s ease-in-out forwards;
+}
+
+
+/* Botón de cerrar MODAL */
 .close {
     position: absolute;
     top: 10px;
@@ -180,7 +211,7 @@ th {
     animation: bounce 0.5s ease-in-out;
 }
 
-/* Botón de confirmación */
+/* Botón de confirmación MODAL */
 .boton-ok {
     background-color: #4CAF50;
     color: white;
@@ -231,15 +262,26 @@ th {
     to { opacity: 1; }
 }
 
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
 @keyframes zoomIn {
     from { transform: scale(0.8); }
     to { transform: scale(1); }
+}
+
+@keyframes zoomOut {
+    from { transform: scale(1); }
+    to { transform: scale(0.8); }
 }
 
 @keyframes bounce {
     0% { transform: scale(0.5); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
 }
+
 
 .mov {
     display: flex;
@@ -393,7 +435,6 @@ button#ver-detalle:hover {
 }
 
 .modal table thead {
-    position: sticky;
     top: 0;
     background: white;
     z-index: 10;
@@ -460,7 +501,7 @@ button#saveStockMin {
 
 
 
-/* Estilos para la tabla dentro del modal */
+/* Estilos para la tabla STOCK MÍNIMO */
 modal-body {
     max-height: 50vh; /* Límite de altura para habilitar scroll */
     overflow-y: auto; /* Scroll solo en el cuerpo de la tabla */
@@ -475,7 +516,7 @@ table {
 
 /* Fija el <th> en la parte superior */
 thead {
-    position: sticky;
+    
     top: 0;
     background: white;
     z-index: 2; /* Para que esté sobre el contenido que se desplaza */
@@ -483,7 +524,6 @@ thead {
 
 /* Opcional: Mejorar visibilidad de los encabezados */
 th {
-    position: sticky;
     top: 0;
     padding: 10px;
     background: #007bff;
@@ -496,6 +536,7 @@ th {
 td {
     padding: 10px;
     border-bottom: 1px solid #ddd;
+    
 }
 
 /* Ajuste para los inputs */

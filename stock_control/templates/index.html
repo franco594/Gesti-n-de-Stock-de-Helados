@@ -53,7 +53,7 @@
     {% endif %}
     
     <div id="modal-ingresar" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" id="modal-content-ingresar">
             <h2>Productos Escaneados</h2>
             <ul id="listaEscaneadosIngreso"></ul>
             <div class="modal-buttons">
@@ -65,7 +65,7 @@
     </div>
     
     <div id="modal-retirar" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" id="modal-content-retirar">
             <h2>Productos Escaneados</h2>
             <ul id="listaEscaneadosRetiro"></ul>
             <div class="modal-buttons">
@@ -126,7 +126,7 @@
             </div>
             <div class="modal-footer">
                 <button onclick="guardarStockMinimo()">Guardar</button>
-                <button onclick="cerrarModal()">Cancelar</button>
+                <button onclick="cerrarModalStockMinimo()">Cancelar</button>
             </div>
         </div>
     </div>
@@ -162,9 +162,19 @@
             document.getElementById("modalStockMinimo").style.display = "flex"; // Muestra el modal
         }
 
-        function cerrarModal() {
-            document.getElementById("modalStockMinimo").style.display = "none"; // Oculta el modal
-            location.reload();
+        function cerrarModalStockMinimo() {
+
+            document.getElementById("modalStockMinimo").classList.add("zoom-out"); // Oculta el modal
+            document.getElementById("modalStockMinimo").classList.add("fade-out"); // Oculta el modal
+
+            // Esperar el tiempo de la animación antes de ocultar la modal
+            setTimeout(() => {
+                document.getElementById("modalStockMinimo").style.display = "none"; // Oculta el modal 
+                document.getElementById("modalStockMinimo").classList.remove("fade-out"); // Elimina la clase para la próxima vez que se abra
+                document.getElementById("modalStockMinimo").classList.remove("zoom-out");
+               
+            }, 300); // Debe coincidir con la duración de fadeOut en CSS
+           
         }
 
 

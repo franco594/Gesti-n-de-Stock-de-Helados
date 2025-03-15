@@ -85,6 +85,20 @@ def importar_productos(request):
     resultado = cargar_productos_desde_excel()
     return JsonResponse(resultado)
 
+def obtener_stock(request):
+    try:
+        # Obtener el stock de cada producto contando los baldes disponibles
+        productos_stock = ProductoFijo.objects.all().annotate(
+            cantidad=Count("stockbalde")
+        ).values("nombre", "cantidad", "stock_minimo")
+
+        # Convertir el queryset a una lista de diccionarios
+        stock_list = list(productos_stock)
+
+        return JsonResponse({"stock": stock_list})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 def stock_detallado(request):
     stock = StockBalde.objects.select_related("producto").all()

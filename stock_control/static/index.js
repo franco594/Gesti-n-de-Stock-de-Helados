@@ -62,7 +62,15 @@ function abrirModal(tipo) {
     })
     .catch(error => console.error("Error al reiniciar la lista:", error));
 
-    document.getElementById(`modal-${tipo}`).style.display = "block";
+    const modal = document.getElementById(`modal-${tipo}`);
+    if (!modal) {
+        console.error(`⚠️ No se encontró la modal: modal-${tipo}`);
+        return;
+    }
+
+    modal.style.display = "block";
+    modal.classList.remove("fade-out"); // 🔥 Elimina la clase fade-out para evitar conflictos con fade-in
+
     activarInputEscaneo(); 
     obtenerProductosEscaneados();
 
@@ -71,20 +79,30 @@ function abrirModal(tipo) {
     }, 100); 
 }
 
+
 // ❌ Modificar la función cerrarModal para deshabilitar el input
 function cerrarModal(tipo) {
     modalAbierta = false;
     console.log(`❌ Modal cerrada: ${tipo}`);
 
-    fetch("/api/reiniciar_lista_temporal/", { method: "POST" })
-    .then(() => {
-        document.getElementById(`modal-${tipo}`).style.display = "none";
-        productosEscaneados = [];
-        actualizarListaEscaneados(modo, []);
-        desactivarInputEscaneo(); // 🔴 Desactivar el input de escaneo
-        location.reload();
-    })
-    .catch(error => console.error("Error al reiniciar la lista:", error));
+    const modal = document.getElementById(`modal-${tipo}`);
+    const modalContent = document.getElementById(`modal-content-${tipo}`);
+    if (!modal) {
+        console.error(`⚠️ No se encontró la modal: modal-${tipo}`);
+        return;
+    }
+
+    // Agregar clase fade-out para iniciar la animación
+    modalContent.classList.add("zoom-out");
+    modal.classList.add("fade-out");
+
+    // Esperar el tiempo de la animación antes de ocultar la modal
+    setTimeout(() => {
+        modal.style.display = "none"; // Oculta la modal después de la animación
+        modal.classList.remove("fade-out"); // Elimina la clase para la próxima vez que se abra
+        modalContent.classList.remove("zoom-out");
+        desactivarInputEscaneo(); // Deshabilitar el input de escaneo
+    }, 300); // Debe coincidir con la duración de fadeOut en CSS
 }
 
 function cerrarModalDenegado() {
@@ -149,6 +167,41 @@ function actualizarListaEscaneados(modalTipo, productosEscaneados) {
         validarStockParaRetiro();
     }
 }
+
+function actualizarTablas() {
+    console.log("🔄 Actualizando tablas...");
+
+    fetch('/api/obtener_stock/')
+        .then(response => response.json())
+        .then(data => {
+            const tablaStock = document.getElementById("stockTable");
+            if (!tablaStock) {
+                console.error("⚠️ No se encontró la tabla de stock.");
+                return;
+            }
+
+            // Limpiar la tabla antes de agregar los nuevos datos
+            tablaStock.innerHTML = `
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                </tr>
+            `;
+
+            data.stock.forEach(item => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${item.nombre}</td>
+                    <td>${item.cantidad}</td>
+                `;
+                tablaStock.appendChild(row);
+            });
+
+            console.log("✅ Tabla de stock actualizada.");
+        })
+        .catch(error => console.error("❌ Error al actualizar la tabla de stock:", error));
+}
+
 
 // Enviar el código al servidor Django para su procesamiento
 function procesarCodigoEscaneado(codigo) {
