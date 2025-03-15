@@ -175,25 +175,45 @@ function actualizarListaEscaneados(modalTipo, productosEscaneados) {
         return;
     }
     
-    productosEscaneados.forEach((producto, index) => {
+    productosEscaneados.forEach((producto) => {
         const item = document.createElement("li");
-        item.textContent = `Balde ${index + 1}: ${producto.nombre}, Peso: ${producto.peso}g`;
+        item.textContent = `Balde: ${producto.nombre}, Peso: ${producto.peso}g`;
         
         const botonEliminar = document.createElement("button");
         botonEliminar.classList.add("btnEliminar");
         botonEliminar.textContent = "❌";
         botonEliminar.style.cursor = "pointer";
-        botonEliminar.onclick = () => eliminarProductoEscaneado(index, modalTipo);
+        botonEliminar.onclick = () => eliminarProductoEscaneado(producto.plu, modalTipo);
 
         item.appendChild(botonEliminar);
         lista.appendChild(item);
     });
 
-    // 🔴 Validar stock después de actualizar la lista de productos escaneados
+    // 🔴 Validar stock después de actualizar la lista de productos escaneados (solo en retiro)
     if (modalTipo === "retirar") {
         validarStockParaRetiro();
     }
 }
+
+
+function eliminarProductoEscaneado(plu, modalTipo) {
+    fetch('/api/eliminar_producto_temporal/', {
+        method: 'POST',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plu }) // 🔥 Enviar solo el PLU del producto a eliminar
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log("🗑 Producto eliminado de la sesión:", plu);
+            obtenerProductosEscaneados(); // ✅ Volver a cargar la lista desde la sesión
+        } else {
+            console.error("❌ Error al eliminar producto:", data.error);
+        }
+    })
+    .catch(error => console.error("⚠️ Error en la petición:", error));
+}
+
 
 function actualizarTablas() {
     console.log("🔄 Actualizando tablas...");
@@ -202,32 +222,63 @@ function actualizarTablas() {
         .then(response => response.json())
         .then(data => {
             const tablaStock = document.getElementById("stockTable");
+
             if (!tablaStock) {
                 console.error("⚠️ No se encontró la tabla de stock.");
                 return;
             }
 
-            // Limpiar la tabla antes de agregar los nuevos datos
-            tablaStock.innerHTML = `
-                <tr>
-                    <th>Producto</th>
-                    <th>Cantidad</th>
-                </tr>
+            // Verificar si la respuesta del backend es válida
+            if (!data.stock || !Array.isArray(data.stock)) {
+                console.error("❌ Error: La respuesta del backend no contiene una lista de stock.");
+                return;
+            }
+
+            // Guardar el encabezado actual para que no se pierda
+            const encabezado = `
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad de Baldes</th>
+                    </tr>
+                </thead>
             `;
 
-            data.stock.forEach(item => {
-                const row = document.createElement("tr");
-                row.innerHTML = `
-                    <td>${item.nombre}</td>
-                    <td>${item.cantidad}</td>
+            let contenido = "<tbody>";
+
+            if (data.stock.length === 0) {
+                contenido += `
+                    <tr>
+                        <td colspan="2" style="text-align: center; font-style: italic; color: gray;">
+                            No hay productos en stock.
+                        </td>
+                    </tr>
                 `;
-                tablaStock.appendChild(row);
-            });
+            } else {
+                data.stock.forEach(item => {
+                    // Aplicar la misma lógica de Jinja para resaltar stock bajo
+                    let rowClass = item.cantidad < item.stock_minimo ? "resaltar-bajo-stock" : "";
+
+                    contenido += `
+                        <tr class="${rowClass}">
+                            <td>${item.nombre}</td>
+                            <td>${item.cantidad}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            contenido += "</tbody>";
+
+            // Mantener el encabezado y actualizar solo el cuerpo de la tabla
+            tablaStock.innerHTML = encabezado + contenido;
 
             console.log("✅ Tabla de stock actualizada.");
         })
         .catch(error => console.error("❌ Error al actualizar la tabla de stock:", error));
 }
+
+
 
 
 // Enviar el código al servidor Django para su procesamiento
@@ -346,6 +397,7 @@ function confirmarAgregarProductos() {
             mostrarModalConfirmacion(data.message);
             cerrarModal("ingresar");
             productosEscaneados = []; // Vaciar la lista después de confirmar 
+            actualizarTablas();
         }
     })
     .catch(error => console.error("⚠️ Error al agregar productos:", error));
@@ -387,6 +439,7 @@ async function confirmarRetirarProductos() {
         mostrarModalConfirmacion(data.message);
         cerrarModal("retirar");
         productosEscaneados = []; // Vaciar la lista después de confirmar
+        actualizarTablas();
     })
     .catch(error => console.error("❌ Error al retirar productos:", error));
 }

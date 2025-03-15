@@ -359,6 +359,29 @@ def confirmar_codigos(request):
     return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
+@csrf_exempt
+def eliminar_producto_temporal(request):
+    """ Elimina un producto específico de la lista de productos temporales en la sesión. """
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            plu = data.get("plu")
+
+            # Obtener la lista actual de la sesión
+            productos_temporales = request.session.get("productos_temporales", [])
+
+            # Filtrar para eliminar el producto con el PLU recibido
+            productos_temporales = [p for p in productos_temporales if p["plu"] != plu]
+
+            # Guardar la lista actualizada en la sesión
+            request.session["productos_temporales"] = productos_temporales
+            request.session.modified = True
+
+            return JsonResponse({"success": True, "message": "Producto eliminado de la sesión."})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
 
 def actualizar_stock_minimo(request):
     if request.method == "POST":

@@ -1,7 +1,7 @@
 
 from django.urls import path
 from app_inventario.views import (
-    api_stock_detallado, buscar_detallado, cargar_productos_excel, detalle_movimiento, historial_movimientos, importar_productos, index, obtener_productos_temporales, obtener_stock, procesar_codigo, stock_detallado, historial, buscar,
+    api_stock_detallado, buscar_detallado, cargar_productos_excel, detalle_movimiento, eliminar_producto_temporal, historial_movimientos, importar_productos, index, obtener_productos_temporales, obtener_stock, procesar_codigo, stock_detallado, historial, buscar,
     agregar_productos, retirar_producto, procesar_codigo,
     obtener_codigos, confirmar_codigos, confirmar_retiro, agregar_productos, actualizar_stock_minimo, reiniciar_lista_temporal,
 )
@@ -15,6 +15,7 @@ urlpatterns = [
     path('buscar/', buscar, name="buscar"),
     path("buscar_detallado/", buscar_detallado, name="buscar_detallado"),  # Agregar la URL
     path("api/obtener_productos_temporales/", obtener_productos_temporales, name="obtener_productos_temporales"),
+    path("api/eliminar_producto_temporal/", eliminar_producto_temporal, name="eliminar_producto_temporal"),
     path('api/agregar_producto/', agregar_productos, name="agregar_producto"),
     path('api/retirar_producto/', retirar_producto, name="retirar_producto"),
     path('api/procesar_codigo/', procesar_codigo, name="procesar_codigo"),

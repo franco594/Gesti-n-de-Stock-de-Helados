@@ -522,6 +522,7 @@ button#saveStockMin {
     background-color: red;
     color: white;
     font-weight: bold;
+    vertical-align: auto;
 }
 
 /* Fondo oscuro semitransparente para el modal */
