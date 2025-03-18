@@ -1,9 +1,294 @@
 /* ESTILOS GENERALES */
-body {
-    font-family: Arial, sans-serif;
+* {
     margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Arial", sans-serif;
+}
+
+body {
+    background-color: #f4f4f4;
+    color: #333;
+    line-height: 1.6;
     padding: 20px;
-    background-color: #f9f9f9;
+}
+
+/* === CONTENEDOR PRINCIPAL === */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background: white;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+/* === ENCABEZADO === */
+.header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    background: #f4f4f4;
+    color: white;
+    border-radius: 8px;
+    font-size: 1.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+/* === TITULOS === */
+h1, h2 {
+    text-align: center;
+    color: #0056b3;
+    margin-bottom: 20px;
+}
+
+/* === BOTONES === */
+button {
+    background-color: #0056b3;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+    font-size: 16px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+button:hover {
+    background-color: #003d82;
+    transform: scale(1.05);
+}
+
+/* Botones de acciones específicas */
+#ingresar {
+    background-color: #28a745;
+    font-size: 24px;
+}
+
+#retirar {
+    font-size: 24px;
+    background-color: #dc3545;
+}
+
+#ingresar:hover {
+    background-color: #218838;
+}
+
+#retirar:hover {
+    background-color: #c82333;
+}
+
+/* === FORMULARIOS Y BÚSQUEDA === */
+.search-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.search-container input {
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    width: 250px;
+}
+
+.search-container button {
+    padding: 10px 15px;
+}
+
+/* === INPUTS GENERALES === */
+input {
+    width: 100%;
+    max-width: 300px;
+    padding: 10px;
+    font-size: 16px;
+    border: 2px solid #ccc;
+    border-radius: 6px;
+    outline: none;
+    transition: all 0.3s ease-in-out;
+    box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+input:focus {
+    border-color: #0056b3;
+    box-shadow: 0 0 8px rgba(0, 86, 179, 0.5);
+}
+
+input:disabled {
+    background-color: #f8f8f8;
+    border-color: #ddd;
+    color: #888;
+    cursor: not-allowed;
+}
+
+/* === TABLAS === */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: white;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+table, th, td {
+    border: 1px solid #ddd;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    font-size: 16px;
+}
+
+th {
+    background-color: #0056b3;
+    color: white;
+    text-transform: uppercase;
+}
+
+.resaltar-bajo-stock {
+    background-color: #dc3545;
+    color: white;
+    font-weight: bold;
+}
+
+/* === MODALES === */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    width: 50%;
+    text-align: center;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    position: relative;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.modal-content h2 {
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: space-evenly;
+    margin-top: 15px;
+}
+
+/* Botón de cerrar modal */
+.close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #333;
+    font-weight: bold;
+}
+
+.close:hover {
+    color: red;
+}
+
+/* === LISTAS DE PRODUCTOS === */
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+ul li {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    margin: 5px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 16px;
+}
+
+/* Botón eliminar de la lista */
+.btnEliminar {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #dc3545;
+    font-size: 18px;
+}
+
+.btnEliminar:hover {
+    color: red;
+}
+
+/* Desvanecimiento */
+
+/* Efecto de Fade-In en el cambio de páginas */
+.page-transition {
+    opacity: 0;
+    animation: fadeInPage 0.5s ease-in-out forwards;
+}
+
+@keyframes fadeInPage {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+
+/* === ANIMACIONES === */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 768px) {
+    .container {
+        width: 95%;
+    }
+
+    .modal-content {
+        width: 90%;
+    }
+
+    .search-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    button {
+        width: 100%;
+    }
 }
 
 h1, h2 {
@@ -135,9 +420,12 @@ li {
 }
 
 .menu-form {
-    margin-top: 20px;
+    display: flex;
+    flex-direction: row;
+    margin-top: 80px;
     justify-content: space-between;
 }
+
 
 form {
     margin-top: 20px;
@@ -181,18 +469,7 @@ th {
 }
 
 /* Contenido de la modal */
-.modal-content {
-    background: white;
-    padding: 20px;
-    width: 300px;
-    text-align: center;
-    border-radius: 12px;
-    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.3);
-    position: relative;
-    transform: scale(0.8);
-    animation: zoomIn 0.3s ease-in-out forwards;
-    align-items: center;
-}
+
 
 .modal-content h2 {
     margin-top: 0;
@@ -463,13 +740,12 @@ button#ver-detalle:hover {
 }
 
 .modal-content {
-    max-width: 80%;  /* Ancho máximo */
-    max-height: 60vh;  /* Altura máxima del modal */
     overflow-y: auto;  /* Habilita el scroll vertical */
     padding: 20px;
     background-color: white;
     border-radius: 10px;
     text-align: center;
+    position: relative;
 }
 
 .modal {
@@ -548,14 +824,12 @@ button#saveStockMin {
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-    position: fixed;
-    top: 20%;
-    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     overflow: auto; /* Permite el desplazamiento interno */
     justify-self: anchor-center;
     align-items: normal;
+    position: relative;
 }
 
 
@@ -625,4 +899,99 @@ td input {
 
 .modal-footer button:hover {
     background: #0056b3;
+}
+
+/* === LISTA DE MOVIMIENTOS === */
+.mov-list {
+    list-style: none;
+    padding: 0;
+    margin: 20px auto;
+    max-width: 800px;
+}
+
+.mov-item {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* === BOTONES === */
+.mov-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-view {
+    background-color: #007bff;
+}
+
+.btn-view:hover {
+    background-color: #0056b3;
+}
+
+.btn-delete {
+    background-color: #dc3545;
+}
+
+.btn-delete:hover {
+    background-color: #c82333;
+}
+
+/* === MODALES === */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    animation: fadeIn 0.3s ease-in-out;
+    position: absolute;
+    top: 20%;
+}
+
+.close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: red;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+/* === ANIMACIONES === */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }

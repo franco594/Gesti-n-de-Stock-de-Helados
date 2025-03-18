@@ -152,7 +152,16 @@ def detalle_movimiento(request, grupo_id):
     return JsonResponse(data, safe=False)
 
 
+@csrf_exempt  # Se usa para pruebas, en producción mejor manejar CSRF correctamente
+def eliminar_movimiento(request, grupo_id):
+    if request.method == "DELETE":
+        movimientos = RegistroMovimiento.objects.filter(grupo_id=grupo_id)
+        if movimientos.exists():
+            movimientos.delete()
+            return JsonResponse({"success": True, "message": "Movimiento eliminado correctamente."})
+        return JsonResponse({"success": False, "error": "Movimiento no encontrado."}, status=404)
 
+    return JsonResponse({"success": False, "error": "Método no permitido."}, status=405)
 
 
 def buscar(request):

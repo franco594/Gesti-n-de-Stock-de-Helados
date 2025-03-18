@@ -2,35 +2,56 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Gestión de Stock</title>
+    <title>Historial de Movimientos</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'style.css' %}">
 </head>
-<body>
+<body class="page-transition">
 
     <div class="header">
         <h1>Historial de Movimientos</h1>
     </div>
     
-    <div class="mov">
-        <ul>
+    <div class="container">
+        <ul class="mov-list">
             {% for movimiento in movimientos %}
-            <li>
-                <strong>#{{ movimiento.grupo_id }}</strong> - Movimiento de {{ movimiento.tipo }} - {{ movimiento.timestamp|date:"d/m/Y H:i" }}
-                <button onclick="verDetalleMovimiento('{{ movimiento.grupo_id }}')">Ver Detalles</button>
+            <li class="mov-item">
+                <strong>#{{ movimiento.grupo_id }}</strong> - {{ movimiento.tipo }} - {{ movimiento.timestamp|date:"d/m/Y H:i" }}
+                <div class="mov-buttons">
+                    <button class="btn-view" onclick="verDetalleMovimiento('{{ movimiento.grupo_id }}')">Ver Detalles</button>
+                    <button class="btn-delete" onclick="confirmarEliminacion('{{ movimiento.grupo_id }}')">🗑</button>
+                </div>
             </li>
             {% endfor %}
-
         </ul>
+    </div>
 
-        <div id="detalleModal" style="display:none;">
+    <!-- Modal de Detalle de Movimiento -->
+    <div id="detalleModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cerrarDetalle()">&times;</span>
             <h2>Detalle de Movimiento <strong id="detalleGrupoId"></strong></h2>
             <ul id="detalleLista"></ul>
-            <button onclick="cerrarDetalle()">Cerrar</button>
+            <button class="btn-close" onclick="cerrarDetalle()">Cerrar</button>
         </div>
     </div>
-    
+
+    <!-- Modal de Confirmación de Eliminación -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cerrarConfirmacion()">&times;</span>
+            <h2>¿Estás seguro?</h2>
+            <p>Esta acción no se puede deshacer.</p>
+            <div class="modal-buttons">
+                <button class="btn-delete" id="confirmDelete">Eliminar</button>
+                <button class="btn-close" onclick="cerrarConfirmacion()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+    let movimientoAEliminar = null;
+
     function verDetalleMovimiento(grupoId) {
         document.getElementById("detalleGrupoId").textContent = `#${grupoId}`;
         fetch(`/detalle_movimiento/${grupoId}/`)
@@ -51,7 +72,7 @@
 
                     detalleLista.appendChild(li);
                 });
-                document.getElementById("detalleModal").style.display = "block";
+                document.getElementById("detalleModal").style.display = "flex";
             });
     }
 
@@ -63,6 +84,33 @@
     function cerrarDetalle() {
         document.getElementById("detalleModal").style.display = "none";
     }
+
+    function confirmarEliminacion(grupoId) {
+        movimientoAEliminar = grupoId;
+        document.getElementById("confirmModal").style.display = "flex";
+    }
+
+    function cerrarConfirmacion() {
+        movimientoAEliminar = null;
+        document.getElementById("confirmModal").style.display = "none";
+    }
+
+    document.getElementById("confirmDelete").addEventListener("click", function() {
+        if (movimientoAEliminar) {
+            fetch(`/eliminar_movimiento/${movimientoAEliminar}/`, { method: "DELETE" })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert("Error al eliminar el movimiento.");
+                    }
+                })
+                .catch(error => console.error("Error:", error));
+        }
+        cerrarConfirmacion();
+    });
     </script>
+
 </body>
 </html>

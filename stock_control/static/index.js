@@ -507,6 +507,29 @@ async function validarStockParaRetiro() {
 }
 
 
-// Ejecutar la validación cuando se cargue la página y cuando se actualicen los productos escaneados
-document.addEventListener("DOMContentLoaded", validarStockParaRetiro);
+/* Transición suave de Salida */ 
 
+document.addEventListener("DOMContentLoaded", function () {
+    // Transición de entrada cuando la página se carga
+    document.body.classList.add("page-transition");
+
+    // Transición de salida antes de cambiar de página
+    document.querySelectorAll("a").forEach(link => {
+        link.addEventListener("click", function (event) {
+            const href = this.getAttribute("href");
+
+            // Evita la transición si es un enlace externo o #
+            if (!href || href.startsWith("#") || href.includes("javascript")) return;
+
+            event.preventDefault(); // Detiene la navegación
+
+            // Agrega la animación de salida
+            document.body.style.opacity = "0";
+
+            // Espera el tiempo de la animación antes de cambiar la página
+            setTimeout(() => {
+                window.location.href = href;
+            }, 300);
+        });
+    });
+});
