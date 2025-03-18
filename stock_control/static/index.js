@@ -533,3 +533,83 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("botonVistaGrupos").addEventListener("click", mostrarVistaGrupos);
+});
+
+const grupos = {
+    clasicos: ["AMERICANA", "CHOCOLATE", "VAINILLA", "LIMON", "DCE LECHE", "FRUTILLA AL AGUA"],
+    chocolates: ["CHOCOLATE BLOCK", "CH. CABSHA", "AMARGO", "CH. ALMENDRAS", "CH. PASAS RHUM", "CHOCOLAT PORTOFINO", "CHOCOLATE INTENSO", "CHOCOLAT DEBILIDAD", "CHOC. BLANCO", "ROCHER", "TOFFEE BLANCO"],
+    dulces: ["DCE. LECHE NUEZ", "DCE. GRANIZADO", "SUPER DCE LECHE", "DCE. VAUQUITA", "D. LECHE PORTOFINO", "DCE. LECHE COOKIES", "BASE DULCE LECHE", "CHOCOTORTA"],
+    cremas: ["TRAMONTANA", "ALMENDRADO", "CREMA RUSA", "GRANIZADO", "MENTA GRANIZADA", "CREMA FLAN", "FRUTOS DEL BOSQUE", "CREMA DEL CIELO", "PANNACOTA", "MASCARPONE", "CAPUCCINO", "MARROC", "OREO", "SNIKERS", "SAMBAYON", "SAMBAYON PORTOFINO"],
+    frutas: ["CEREZA", "FRUTILLA CREMA", "BANANA SPLIT", "MARACUYA", "ANANA AL CHANTILLY", "KINOTOS AL WHISKY", "DURAZNOS AL OPORTO", "MANZANA VERDE", "LEMON PIE", "LIMON C/MARACUYA", "FRAMBUESA C/CHOCO"],
+    otros: [] // El resto de los productos se asignarán automáticamente aquí
+};
+
+function mostrarVistaGrupos() {
+    console.log("🔄 Mostrando vista de grupos...");
+
+    // Ocultar tabla general y mostrar la vista de grupos
+    document.getElementById("stockTable").style.display = "none";
+    document.getElementById("vistaGrupos").style.display = "flex";
+
+    const gruposBody = {
+        clasicos: document.getElementById("clasicos-body"),
+        chocolates: document.getElementById("chocolates-body"),
+        dulces: document.getElementById("dulces-body"),
+        cremas: document.getElementById("cremas-body"),
+        frutas: document.getElementById("frutas-body"),
+        otros: document.getElementById("otros-body"),
+    };
+
+    // Limpiar contenido de las tablas antes de agregar contenido nuevo
+    Object.values(gruposBody).forEach(body => body.innerHTML = "");
+
+    // Obtener todas las filas de la tabla general
+    document.querySelectorAll("#stockTable tbody tr").forEach(row => {
+        const nombre = row.cells[0].textContent.trim().toUpperCase();
+        const cantidad = row.cells[1].textContent.trim();
+
+        let grupoAsignado = "otros";
+
+        // Verificar en qué grupo está el producto
+        for (const [grupo, productos] of Object.entries(grupos)) {
+            if (productos.includes(nombre)) {
+                grupoAsignado = grupo;
+                break;
+            }
+        }
+
+        // Crear fila para la tabla de grupo correspondiente
+        const nuevaFila = document.createElement("tr");
+        nuevaFila.innerHTML = `<td>${nombre}</td><td>${cantidad}</td>`;
+
+        // Resaltar en rojo si el stock está por debajo del mínimo
+        if (row.classList.contains("resaltar-bajo-stock")) {
+            nuevaFila.classList.add("resaltar-bajo-stock");
+        }
+
+        // Insertar la fila en la tabla del grupo correspondiente
+        if (gruposBody[grupoAsignado]) {
+            gruposBody[grupoAsignado].appendChild(nuevaFila);
+        } else {
+            console.warn(`⚠️ No se encontró el contenedor para el grupo ${grupoAsignado}`);
+        }
+    });
+}
+
+function mostrarVistaGeneral() {
+    console.log("🔄 Mostrando vista general...");
+
+    // Mostrar la tabla general
+    document.getElementById("stockTable").style.display = "table";
+
+    // Ocultar la vista de grupos
+    document.getElementById("vistaGrupos").style.display = "none";
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("botonVistaGrupos").addEventListener("click", mostrarVistaGrupos);
+    document.getElementById("botonVistaGeneral").addEventListener("click", mostrarVistaGeneral);
+});

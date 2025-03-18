@@ -995,3 +995,48 @@ td input {
         transform: scale(1);
     }
 }
+
+/* Grupos */
+
+
+.grupos-container {
+    margin-top: 50px;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.grupo {
+    flex: 1;
+    min-width: 250px;
+    max-width: 400px;
+    background: white;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+.grupo table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.grupo th, .grupo td {
+    padding: 10px;
+    border: 1px solid #ddd;
+}
+
+.grupo th {
+    background-color: #0056b3;
+    color: white;
+    text-transform: uppercase;
+}
+
+.resaltar-bajo-stock {
+    background-color: red;
+    color: white;
+    font-weight: bold;
+}

@@ -23,8 +23,8 @@
         <button id="configButton"  onclick="abrirModalStock()">Stock Mínimo</button>
         <input type="file" id="archivoExcel" name="archivo" accept=".xlsx" style="display: none;">
         <button type="button" id="botonCargarExcel">Cargar Excel Productos</button>
-        <button type="button" id="botonVista">Vista Grupos</button>
-        <button type="button" id="botonVista">Vista General</button>
+        <button id="botonVistaGrupos">Vista Grupos</button>
+        <button id="botonVistaGeneral">Vista General</button>
     </div>
 <!--  
     <div class="menu-form">
@@ -38,28 +38,105 @@
     </div>
 -->
 
-    {% if stock_resumido %}
-    <table id="stockTable">
 
-            <tr>
-                <th>Producto</th>
-                <th>Cantidad de Baldes</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for producto in stock_resumido %}
-            <tr class="{% if producto.stock_minimo > producto.stockbalde_set.count %}resaltar-bajo-stock{% endif %}">
-                <td>{{ producto.nombre }}</td>
-                <td>{{ producto.stockbalde_set.count }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <!-- Tabla General -->
+    <div id="stockGeneral">
+        <table id="stockTable">
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cantidad de Baldes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for producto in stock_resumido %}
+                <tr class="{% if producto.stock_minimo > producto.stockbalde_set.count %}resaltar-bajo-stock{% endif %}">
+                    <td>{{ producto.nombre }}</td>
+                    <td>{{ producto.stockbalde_set.count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Contenedor de la Vista de Grupos (Inicialmente Oculto) -->
+    <div id="vistaGrupos" class="grupos-container" style="display: none;">
+        <div class="grupo" id="clasicos">
+            <h3>CLÁSICOS</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad de Baldes</th>
+                    </tr>
+                </thead>
+                <tbody id="clasicos-body"></tbody>
+            </table>
+        </div>
+        <div class="grupo" id="chocolates">
+            <h3>CHOCOLATES</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad de Baldes</th>
+                    </tr>
+                </thead>
+                <tbody id="chocolates-body"></tbody>
+            </table>
+        </div>
+        <div class="grupo" id="dulces">
+            <h3>DULCE DE LECHES</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad de Baldes</th>
+                    </tr>
+                </thead>
+                <tbody id="dulces-body"></tbody>
+            </table>
+        </div>
+        <div class="grupo" id="cremas">
+            <h3>CREMAS</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad de Baldes</th>
+                    </tr>
+                </thead>
+                <tbody id="cremas-body"></tbody>
+            </table>
+        </div>
+        <div class="grupo" id="frutas">
+            <h3>FRUTAS</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad de Baldes</th>
+                    </tr>
+                </thead>
+                <tbody id="frutas-body"></tbody>
+            </table>
+        </div>
+        <div class="grupo" id="otros">
+            <h3>OTROS SABORES</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad de Baldes</th>
+                    </tr>
+                </thead>
+                <tbody id="otros-body"></tbody>
+            </table>
+        </div>
+    </div>
+
     <input type="text" id="codigoScanner" autofocus style="visibility: hidden;" placeholder="Ingrese un código" autocomplete="off">
-    {% else %}
-    <p>No se encontraron productos para el término de búsqueda.</p>
-    {% endif %}
-    
+
     <div id="modal-ingresar" class="modal">
         <div class="modal-content" id="modal-content-ingresar">
             <h2>Productos Escaneados</h2>
