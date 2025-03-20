@@ -15,7 +15,7 @@
     <div class="container">
         <ul class="mov-list">
             {% for movimiento in movimientos %}
-            <li class="mov-item">
+            <li class="mov-item" data-id="{{ movimiento.grupo_id }}">
                 <strong>#{{ movimiento.grupo_id }}</strong> - {{ movimiento.tipo }} - {{ movimiento.timestamp|date:"d/m/Y H:i" }}
                 <div class="mov-buttons">
                     <button class="btn-view" onclick="verDetalleMovimiento('{{ movimiento.grupo_id }}')">Ver Detalles</button>
@@ -50,7 +50,6 @@
     </div>
 
     <script>
-    let movimientoAEliminar = null;
 
     function verDetalleMovimiento(grupoId) {
         document.getElementById("detalleGrupoId").textContent = `#${grupoId}`;
@@ -96,12 +95,27 @@
     }
 
     document.getElementById("confirmDelete").addEventListener("click", function() {
+        console.log("grupoId: " + movimientoAEliminar);
+        let grupoId = movimientoAEliminar;
         if (movimientoAEliminar) {
             fetch(`/eliminar_movimiento/${movimientoAEliminar}/`, { method: "DELETE" })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        location.reload();
+                        
+                        const elemento = document.querySelector(`.mov-item[data-id="${grupoId}"]`);
+                        console.log("✔ Movimiento eliminado correctamente.");
+
+                        // Aplicar animación antes de eliminar el elemento
+                        elemento.style.transition = "transform 0.4s ease-in-out, opacity 0.4s ease-in-out";
+                        elemento.style.transform = "translateX(100%)";
+                        elemento.style.opacity = "0";
+
+                        setTimeout(() => {
+                            elemento.remove(); // Eliminar del DOM después de la animación
+                        }, 400);
+
+                        actualizarHistorial();
                     } else {
                         alert("Error al eliminar el movimiento.");
                     }
@@ -110,6 +124,16 @@
         }
         cerrarConfirmacion();
     });
+
+    function actualizarHistorial() {
+    fetch("/historial/")
+        .then(response => response.text())
+        .then(html => {
+            document.querySelector(".container").innerHTML = 
+                new DOMParser().parseFromString(html, "text/html").querySelector(".container").innerHTML;
+        })
+        .catch(error => console.error("❌ Error al actualizar historial:", error));
+}
     </script>
 
 </body>
