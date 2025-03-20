@@ -5,10 +5,26 @@
     <meta charset="UTF-8">
     <title>Gestión de Stock</title>
     <link rel="stylesheet" href="{% static 'style.css' %}">
-</head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
 <body class="page-transition">
+    <header>
+        <button class="menu-btn" id="menu-btn" onclick="openMenu()">☰</button>
+    
+        <div class="sidebar" id="sidebar">
+            <a href="{% url 'historial_movimientos' %}"><button id="historial-btn">Movimientos</button></a>
+            <button id="configButton"  onclick="abrirModalStock()">Stock</button>
+            <input type="file" id="archivoExcel" name="archivo" accept=".xlsx" style="display: none;">
+            <button type="button" id="botonCargarExcel">Productos</button>
+        </div>
+
+        <!-- Overlay -->
+    <div id="overlay" onclick="closeMenu()"></div>
+    </header>
     <div class="header">
-        <h1>Gestión de Stock de Helados</h1>
+        <h2>Gestión de Stock de Helados</h2>
     </div>
     
     <div class="menu">
@@ -17,14 +33,13 @@
             <button id="retirar" onclick="abrirModal('retirar');">Retirar Baldes</button>
         </div>
     </div>
+    <div class="menu-container">
+        <div class="menu-form"></div>
+    </div>
     
-    <div class="menu-form">
-        <a href="{% url 'historial_movimientos' %}"><button>Ver Historial de Movimientos</button></a>
-        <button id="configButton"  onclick="abrirModalStock()">Stock Mínimo</button>
-        <input type="file" id="archivoExcel" name="archivo" accept=".xlsx" style="display: none;">
-        <button type="button" id="botonCargarExcel">Cargar Excel Productos</button>
-        <button id="botonVistaGrupos">Vista Grupos</button>
-        <button id="botonVistaGeneral">Vista General</button>
+</div>
+    
+        
     </div>
 <!--  
     <div class="menu-form">
@@ -41,6 +56,8 @@
 
     <!-- Tabla General -->
     <div id="stockGeneral">
+        <button id="botonVistaGrupos">Vista Grupos</button>
+        <button id="botonVistaGeneral">Vista General</button>
         <table id="stockTable">
             <thead>
                 <tr>
@@ -66,8 +83,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Producto</th>
-                        <th>Cantidad de Baldes</th>
+                       
                     </tr>
                 </thead>
                 <tbody id="clasicos-body"></tbody>
@@ -78,8 +94,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Producto</th>
-                        <th>Cantidad de Baldes</th>
+                        
                     </tr>
                 </thead>
                 <tbody id="chocolates-body"></tbody>
@@ -90,8 +105,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Producto</th>
-                        <th>Cantidad de Baldes</th>
+                        
                     </tr>
                 </thead>
                 <tbody id="dulces-body"></tbody>
@@ -102,8 +116,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Producto</th>
-                        <th>Cantidad de Baldes</th>
+                        
                     </tr>
                 </thead>
                 <tbody id="cremas-body"></tbody>
@@ -114,8 +127,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Producto</th>
-                        <th>Cantidad de Baldes</th>
+                        
                     </tr>
                 </thead>
                 <tbody id="frutas-body"></tbody>
@@ -126,8 +138,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Producto</th>
-                        <th>Cantidad de Baldes</th>
+                       
                     </tr>
                 </thead>
                 <tbody id="otros-body"></tbody>

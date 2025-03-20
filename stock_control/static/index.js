@@ -14,6 +14,8 @@ const closeModal = document.querySelector(".close");
 const codigoScanner = document.getElementById("codigoScanner");
 const contenedorIngresar = document.getElementById("contenedor-input-ingresar");
 const contenedorRetirar = document.getElementById("contenedor-input-retirar");
+const tablaGeneral = document.getElementById("stockTable");
+const vistaGrupos = document.getElementById("vistaGrupos");
 
 codigoScanner.disabled = true;
 
@@ -276,8 +278,61 @@ function actualizarTablas() {
             console.log("✅ Tabla de stock actualizada.");
         })
         .catch(error => console.error("❌ Error al actualizar la tabla de stock:", error));
+
+        
 }
 
+
+function actualizarTablasGrupos() {
+    fetch("/api/obtener_stock/")
+        .then(response => response.json())
+        .then(data => {
+            if (!data || !Array.isArray(data.stock)) {
+                console.error("❌ Error: La respuesta del backend no contiene una lista de stock válida.");
+                return;
+            }
+
+            const gruposBody = {
+                clasicos: document.getElementById("clasicos-body"),
+                chocolates: document.getElementById("chocolates-body"),
+                dulces: document.getElementById("dulces-body"),
+                cremas: document.getElementById("cremas-body"),
+                frutas: document.getElementById("frutas-body"),
+                otros: document.getElementById("otros-body"),
+            };
+
+            // Verificar que cada contenedor exista antes de limpiar
+            Object.keys(gruposBody).forEach(key => {
+                if (gruposBody[key]) {
+                    gruposBody[key].innerHTML = "";
+                }
+            });
+
+            data.stock.forEach(producto => {
+                let grupoAsignado = "otros";
+
+                // Determinar el grupo del producto
+                Object.entries(grupos).forEach(([grupo, productos]) => {
+                    if (productos.includes(producto.nombre.toUpperCase())) {
+                        grupoAsignado = grupo;
+                    }
+                });
+
+                // Crear la fila de la tabla del grupo
+                const fila = document.createElement("tr");
+                fila.className = producto.cantidad < producto.stock_minimo ? "resaltar-bajo-stock" : "";
+                fila.innerHTML = `<td>${producto.nombre}</td><td>${producto.cantidad}</td>`;
+
+                // Agregar la fila a la tabla correspondiente
+                if (gruposBody[grupoAsignado]) {
+                    gruposBody[grupoAsignado].appendChild(fila);
+                }
+            });
+
+            console.log("✅ Tablas de grupos actualizadas.");
+        })
+        .catch(error => console.error("❌ Error al obtener y actualizar los grupos:", error));
+}
 
 
 
@@ -398,6 +453,7 @@ function confirmarAgregarProductos() {
             cerrarModal("ingresar");
             productosEscaneados = []; // Vaciar la lista después de confirmar 
             actualizarTablas();
+            actualizarTablasGrupos();
         }
     })
     .catch(error => console.error("⚠️ Error al agregar productos:", error));
@@ -440,6 +496,7 @@ async function confirmarRetirarProductos() {
         cerrarModal("retirar");
         productosEscaneados = []; // Vaciar la lista después de confirmar
         actualizarTablas();
+        actualizarTablasGrupos();
     })
     .catch(error => console.error("❌ Error al retirar productos:", error));
 }
@@ -550,9 +607,25 @@ const grupos = {
 function mostrarVistaGrupos() {
     console.log("🔄 Mostrando vista de grupos...");
 
+    
+
+    tablaGeneral.classList.add("fade-out");
+
+    setTimeout(() => {
+        document.getElementById("stockTable").style.display = "none";
+        tablaGeneral.classList.remove("fade-out");
+        
+        // Mostrar Vista de Grupos con transición suave
+        document.getElementById("vistaGrupos").style.display = "flex";
+        requestAnimationFrame(() => {
+            vistaGrupos.classList.add("fade-in");
+            setTimeout(() => vistaGrupos.classList.remove("fade-in"), 300);
+        });
+    }, 300);
+
     // Ocultar tabla general y mostrar la vista de grupos
-    document.getElementById("stockTable").style.display = "none";
-    document.getElementById("vistaGrupos").style.display = "flex";
+    
+    
 
     const gruposBody = {
         clasicos: document.getElementById("clasicos-body"),
@@ -598,18 +671,67 @@ function mostrarVistaGrupos() {
         }
     });
 }
-
+ 
 function mostrarVistaGeneral() {
+
     console.log("🔄 Mostrando vista general...");
 
-    // Mostrar la tabla general
-    document.getElementById("stockTable").style.display = "table";
+    // Aplicar animación de fade-out a la vista de grupos
+    vistaGrupos.classList.add("fade-out");
 
-    // Ocultar la vista de grupos
-    document.getElementById("vistaGrupos").style.display = "none";
+    setTimeout(() => {
+        document.getElementById("vistaGrupos").style.display = "none";
+        vistaGrupos.classList.remove("fade-out");
+
+        // Mostrar la tabla general con transición suave
+        document.getElementById("stockTable").style.display = "table";
+        requestAnimationFrame(() => {
+            tablaGeneral.classList.add("fade-in");
+            setTimeout(() => tablaGeneral.classList.remove("fade-in"), 300);
+        });
+    }, 300);
+
 }
 
 document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("botonVistaGrupos").addEventListener("click", mostrarVistaGrupos);
     document.getElementById("botonVistaGeneral").addEventListener("click", mostrarVistaGeneral);
+    
+});
+
+function openMenu() {
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("overlay");
+
+    sidebar.classList.add("open");
+    overlay.classList.add("active");
+}
+
+function closeMenu() {
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("overlay");
+
+    sidebar.classList.remove("open");
+    overlay.classList.remove("active");
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const menuBtn = document.getElementById("menu-btn");
+    const closeBtn = document.getElementById("close-btn");
+    const sidebar = document.getElementById("sidebar");
+    const overlay = document.getElementById("overlay");
+
+    // ✅ Evento para abrir menú
+    menuBtn.addEventListener("click", function () {
+        sidebar.classList.add("open");
+        overlay.classList.add("active");
+    });
+
+    
+
+    // ✅ Cerrar menú si se hace clic fuera
+    overlay.addEventListener("click", function () {
+        sidebar.classList.remove("open");
+        overlay.classList.remove("active");
+    });
 });
