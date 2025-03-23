@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
 
 <body class="page-transition">
     <header>
@@ -16,8 +17,11 @@
         <div class="sidebar" id="sidebar">
             <a href="{% url 'historial_movimientos' %}"><button id="historial-btn">Movimientos</button></a>
             <button id="configButton"  onclick="abrirModalStock()">Stock</button>
+            <button id="configButton"  onclick="abrirModalCrearBoca('ingresar')">Origen</button>
+            <button id="configButton"  onclick="abrirModalCrearBoca('retirar')">Salidas</button>
             <input type="file" id="archivoExcel" name="archivo" accept=".xlsx" style="display: none;">
             <button type="button" id="botonCargarExcel">Productos</button>
+            <button id="installBtn" style="display: none;">📲 Instalar App</button>
         </div>
 
         <!-- Overlay -->
@@ -157,6 +161,7 @@
                 <button id="retirar" onclick="cerrarModal('ingresar')">Cancelar</button>
             </div>
             <div id="contenedor-input-ingresar"></div>
+            <div id="contenedor-boca-ingresar"></div>
             <div id="container-ingresar"></div>
         </div>
     </div>
@@ -170,6 +175,7 @@
                 <button id="retirar" onclick="cerrarModal('retirar')">Cancelar</button>
             </div>
             <div id="contenedor-input-retirar"></div>
+            <div id="contenedor-boca-retirar"></div>
             <div id="container-ingresar"></div>
         </div>
     </div>
@@ -333,6 +339,24 @@
         }
     });
     </script>
+
+    <!-- Modal Crear Boca/Origen -->
+    <div id="modalCrearBoca" class="modal">
+        <div class="modal-content" id="modal-boca">
+            <span class="close" onclick="cerrarModalCrearBoca()">&times;</span>
+            <h2 id="tituloCrearBoca">Crear nueva opción</h2>
+            <input type="text" id="nombreNuevaBoca" placeholder="Nombre..." />
+            <div class="modal-buttons">
+                <button class="btn-primary" onclick="confirmarCreacionBoca()">Crear</button>
+                <button class="btn-close" onclick="cerrarModalCrearBoca()">Cancelar</button>
+            </div>
+            <p id="errorCrearBoca" style="color: red; display: none;"></p>
+
+            <h3>Opciones actuales:</h3>
+            <div id="chipsExistentes" class="bocas-container"></div>
+        </div>
+    </div>
+
     
 </body>
 </html>

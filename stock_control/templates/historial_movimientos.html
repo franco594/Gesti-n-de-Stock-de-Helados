@@ -16,7 +16,12 @@
         <ul class="mov-list">
             {% for movimiento in movimientos %}
             <li class="mov-item" data-id="{{ movimiento.grupo_id }}">
-                <strong>#{{ movimiento.grupo_id }}</strong> - {{ movimiento.tipo }} - {{ movimiento.timestamp|date:"d/m/Y H:i" }}
+                <div>
+                    <strong>#{{ movimiento.grupo_id }}</strong>     -  
+                    <strong>{{ movimiento.tipo|upper }}</strong>    - 
+                    {{ movimiento.timestamp|date:"d/m/Y H:i" }}     - 
+                    <em>📍 {{ movimiento.boca_salida|default:"-" }}</em>
+                </div>
                 <div class="mov-buttons">
                     <button class="btn-view" onclick="verDetalleMovimiento('{{ movimiento.grupo_id }}')">Ver Detalles</button>
                     <button class="btn-delete" onclick="confirmarEliminacion('{{ movimiento.grupo_id }}')">🗑</button>
@@ -25,6 +30,7 @@
             {% endfor %}
         </ul>
     </div>
+    
 
     <!-- Modal de Detalle de Movimiento -->
     <div id="detalleModal" class="modal">
@@ -51,89 +57,126 @@
 
     <script>
 
-    function verDetalleMovimiento(grupoId) {
-        document.getElementById("detalleGrupoId").textContent = `#${grupoId}`;
-        fetch(`/detalle_movimiento/${grupoId}/`)
-            .then(response => response.json())
-            .then(data => {
-                const detalleLista = document.getElementById("detalleLista");
-                detalleLista.innerHTML = "";
-                data.forEach(item => {
-                    const li = document.createElement("li");
-                    li.innerHTML = `<span class="producto">${item.producto}</span>
-                                    <span class="peso">Peso: ${item.peso}g</span>
-                                    <span class="tipo">Tipo: ${item.tipo}</span>
-                                    <span class="fecha">Fecha: ${item.fecha}</span>`;
-                    
-                    li.onclick = function() {
-                        resaltarElemento(li);
-                    };
+        function verDetalleMovimiento(grupoId) {
+            document.getElementById("detalleGrupoId").textContent = `#${grupoId}`;
+            fetch(`/detalle_movimiento/${grupoId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    const detalleLista = document.getElementById("detalleLista");
+                    detalleLista.innerHTML = "";
+                    data.forEach(item => {
+                        const li = document.createElement("li");
+                        li.innerHTML = `<span class="producto">${item.producto}</span>
+                                        <span class="peso">Peso: ${item.peso}g</span>
+                                        <span class="tipo">Tipo: ${item.tipo}</span>
+                                        <span class="fecha">Fecha: ${item.fecha}</span>
+                                        <span class="boca">Origen/Destino: ${item.boca_salida || '-'}</span>`;
+                        
+                        li.onclick = function() {
+                            resaltarElemento(li);
+                        };
 
-                    detalleLista.appendChild(li);
+                        detalleLista.appendChild(li);
+                    });
+                    document.getElementById("detalleModal").style.display = "flex";
                 });
-                document.getElementById("detalleModal").style.display = "flex";
-            });
+        }
+
+        function resaltarElemento(element) {
+            document.querySelectorAll("#detalleLista li").forEach(li => li.classList.remove("resaltado"));
+            element.classList.add("resaltado");
+        }
+
+        function cerrarDetalle() {
+            document.getElementById("detalleModal").style.display = "none";
+        }
+
+        function confirmarEliminacion(grupoId) {
+            movimientoAEliminar = grupoId;
+            document.getElementById("confirmModal").style.display = "flex";
+        }
+
+        function cerrarConfirmacion() {
+            movimientoAEliminar = null;
+            document.getElementById("confirmModal").style.display = "none";
+        }
+
+        document.getElementById("confirmDelete").addEventListener("click", function() {
+    if (!movimientoAEliminar) {
+        console.error("❌ No se encontró el ID del movimiento a eliminar.");
+        return;
     }
 
-    function resaltarElemento(element) {
-        document.querySelectorAll("#detalleLista li").forEach(li => li.classList.remove("resaltado"));
-        element.classList.add("resaltado");
-    }
+    const elemento = document.querySelector(`.mov-item[data-id="${movimientoAEliminar}"]`);
 
-    function cerrarDetalle() {
-        document.getElementById("detalleModal").style.display = "none";
-    }
+        grupoId = movimientoAEliminar;    
 
-    function confirmarEliminacion(grupoId) {
-        movimientoAEliminar = grupoId;
-        document.getElementById("confirmModal").style.display = "flex";
-    }
+        if (!elemento) {
+            console.error(`❌ No se encontró el elemento en el DOM para grupoId: ${movimientoAEliminar}`);
+            return;
+        }
 
-    function cerrarConfirmacion() {
-        movimientoAEliminar = null;
-        document.getElementById("confirmModal").style.display = "none";
-    }
+        console.log("🗑 Eliminando movimiento con grupoId:", movimientoAEliminar);
 
-    document.getElementById("confirmDelete").addEventListener("click", function() {
-        console.log("grupoId: " + movimientoAEliminar);
-        let grupoId = movimientoAEliminar;
-        if (movimientoAEliminar) {
-            fetch(`/eliminar_movimiento/${movimientoAEliminar}/`, { method: "DELETE" })
+        // Aplicar animación antes de eliminar el elemento
+        elemento.style.transition = "transform 0.4s ease-in-out, opacity 0.4s ease-in-out";
+        elemento.style.transform = "translateX(100%)"; // Desplazamiento a la derecha
+        elemento.style.opacity = "0"; // Desvanecer
+
+        setTimeout(() => {
+            fetch(`/eliminar_movimiento/${grupoId}/`, { method: "DELETE" })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        
-                        const elemento = document.querySelector(`.mov-item[data-id="${grupoId}"]`);
                         console.log("✔ Movimiento eliminado correctamente.");
-
-                        // Aplicar animación antes de eliminar el elemento
-                        elemento.style.transition = "transform 0.4s ease-in-out, opacity 0.4s ease-in-out";
-                        elemento.style.transform = "translateX(100%)";
-                        elemento.style.opacity = "0";
-
-                        setTimeout(() => {
-                            elemento.remove(); // Eliminar del DOM después de la animación
-                        }, 400);
-
-                        actualizarHistorial();
+                        elemento.remove(); // Eliminar del DOM después de la animación
+                        
+                        // 🔥 Esperar unos milisegundos antes de actualizar el historial para que la animación se complete
+                        setTimeout(actualizarHistorial, 200);  
                     } else {
+                        console.error("❌ Error al eliminar el movimiento:", data.error);
                         alert("Error al eliminar el movimiento.");
+                        // Restaurar la fila si hay error
+                        elemento.style.transform = "translateX(0)";
+                        elemento.style.opacity = "1";
                     }
                 })
-                .catch(error => console.error("Error:", error));
-        }
+                .catch(error => {
+                    console.error("⚠️ Error en la eliminación:", error);
+                    // Restaurar la fila si hay error
+                    elemento.style.transform = "translateX(0)";
+                    elemento.style.opacity = "1";
+                });
+        }, 400); // 🔴 Asegurar que la animación de salida termine antes de hacer la petición
+
         cerrarConfirmacion();
     });
 
-    function actualizarHistorial() {
-    fetch("/historial/")
-        .then(response => response.text())
-        .then(html => {
-            document.querySelector(".container").innerHTML = 
-                new DOMParser().parseFromString(html, "text/html").querySelector(".container").innerHTML;
-        })
-        .catch(error => console.error("❌ Error al actualizar historial:", error));
-}
+
+        function actualizarHistorial() {
+            fetch("/historial_movimientos/?page=1", { 
+                headers: { "X-Requested-With": "XMLHttpRequest" } 
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, "text/html");
+                const container = doc.querySelector(".container");
+
+                if (!container) {
+                    throw new Error("❌ No se encontró el contenedor de historial en la respuesta.");
+                }
+
+                document.querySelector(".container").innerHTML = container.innerHTML;
+            })
+            .catch(error => console.error("❌ Error al actualizar historial:", error));
+        }
+
     </script>
 
 </body>

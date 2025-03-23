@@ -1,7 +1,7 @@
 
 from django.urls import path
 from app_inventario.views import (
-    api_stock_detallado, buscar_detallado, cargar_productos_excel, detalle_movimiento, eliminar_movimiento, eliminar_producto_temporal, historial_movimientos, importar_productos, index, obtener_productos_temporales, obtener_stock, procesar_codigo, historial, buscar,
+    api_stock_detallado, buscar_detallado, cargar_productos_excel, crear_boca, crear_origen, detalle_movimiento, eliminar_boca_salida, eliminar_movimiento, eliminar_origen, eliminar_producto_temporal, historial_movimientos, importar_productos, index, obtener_bocas_salida, obtener_origenes, obtener_productos_temporales, obtener_stock, procesar_codigo, historial, buscar,
     agregar_productos, retirar_producto, procesar_codigo,
     obtener_codigos, confirmar_codigos, confirmar_retiro, agregar_productos, actualizar_stock_minimo, reiniciar_lista_temporal, 
 )
@@ -29,6 +29,12 @@ urlpatterns = [
     path('detalle_movimiento/<int:grupo_id>/', detalle_movimiento, name='detalle_movimiento'),
     path('eliminar_movimiento/<int:grupo_id>/', eliminar_movimiento, name='eliminar_movimiento'),
     path("cargar_excel/", cargar_productos_excel, name="cargar_excel"),
-    
+    path('api/obtener_bocas_salida/', obtener_bocas_salida, name='obtener_bocas'),
+    path('api/crear_boca/', crear_boca, name='crear_boca'),
+    path("api/crear_boca_salida/", crear_boca, name="crear_boca_salida"),
+    path("api/obtener_origenes/", obtener_origenes, name="obtener_origenes"),
+    path("api/crear_origen/", crear_origen, name="crear_origen"),
+    path('api/eliminar_boca_salida/', eliminar_boca_salida, name="eliminar_boca_salida"),
+    path('api/eliminar_origen/', eliminar_origen, name="eliminar_origen"),
 ]
 

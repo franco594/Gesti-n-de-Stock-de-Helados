@@ -2,6 +2,34 @@ let productosEscaneados = [];
 let modo = '';
 let modalAbierta = false; // Controla si el escaneo está habilitado
 let faltantesSet = new Set();
+let bocaSeleccionada = '';
+
+
+
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/static/sw.js")
+        .then((reg) => console.log("✅ Service Worker registrado:", reg))
+        .catch((err) => console.error("❌ Error registrando Service Worker:", err));
+}
+
+let deferredPrompt;
+
+window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredPrompt = event;
+    document.getElementById("installBtn").style.display = "block";
+});
+
+document.getElementById("installBtn").addEventListener("click", () => {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === "accepted") {
+            console.log("✅ El usuario instaló la app");
+        }
+        deferredPrompt = null;
+    });
+});
+
 
 
 console.log("📢 DOM completamente cargado.");
@@ -60,12 +88,55 @@ function abrirModal(tipo) {
     console.log(`📢 Modal abierta: ${tipo}`);
     codigoScanner.style.visibility = "visible";
 
+    // Agregar input de escaneo al contenedor correcto
+    const contenedorIngresar = document.getElementById("contenedor-input-ingresar");
+    const contenedorRetirar = document.getElementById("contenedor-input-retirar");
+
+    if (tipo === "ingresar") {
+        contenedorIngresar.appendChild(codigoScanner);
+    } else {
+        contenedorRetirar.appendChild(codigoScanner);
+    }
+
+    // Mostrar el campo de boca de salida u origen según el tipo
+    const inputContainer = document.getElementById(`contenedor-boca-${tipo}`);
+    const endpoint = tipo === 'retirar' ? "/api/obtener_bocas_salida/" : "/api/obtener_origenes/";
+
+    console.log(endpoint);
+
+    fetch(endpoint)
+    .then(response => response.json())
+    .then(data => {
+        if (data.lista && data.lista.length > 0) {
+            // 🔁 Reordenar: Portofino primero, el resto después
+            const lista = data.lista.map(nombre => nombre.trim());
+            const preferida = "Portofino";
+            const listaOrdenada = [
+                ...lista.filter(n => n === preferida),
+                ...lista.filter(n => n !== preferida)
+            ];
+
+            const primeraSeleccion = listaOrdenada[0];
+
+            inputContainer.innerHTML = `
+                <label>${tipo === 'retirar' ? 'Boca de salida' : 'Ingresar a'}:</label>
+                <div id="bocas-container-${tipo}" class="bocas-container">
+                    ${listaOrdenada.map((nombre, i) => {
+                        const clase = i === 0 ? "boca-btn seleccionada" : "boca-btn";
+                        return `<button class="${clase}" data-nombre="${nombre}" onclick="seleccionarBoca('${nombre}', '${tipo}')">📍 ${nombre}</button>`;
+                    }).join('')}
+                </div>
+                <input type="hidden" id="input-boca-${tipo}" value="${primeraSeleccion}">
+            `;
+        }
+    });
+
     fetch("/api/reiniciar_lista_temporal/", { method: "POST" })
-    .then(() => {
-        productosEscaneados = [];
-        actualizarListaEscaneados(modo, []);
-    })
-    .catch(error => console.error("Error al reiniciar la lista:", error));
+        .then(() => {
+            productosEscaneados = [];
+            actualizarListaEscaneados(modo, []);
+        })
+        .catch(error => console.error("Error al reiniciar la lista:", error));
 
     const modal = document.getElementById(`modal-${tipo}`);
     if (!modal) {
@@ -73,24 +144,126 @@ function abrirModal(tipo) {
         return;
     }
 
-    if (tipo == "ingresar"){
-
-        contenedorIngresar.appendChild(codigoScanner);
-
-    } else {
-        
-        contenedorRetirar.appendChild(codigoScanner);
-    }
     modal.style.display = "block";
-    modal.classList.remove("fade-out"); // 🔥 Elimina la clase fade-out para evitar conflictos con fade-in
+    modal.classList.remove("fade-out");
 
-    activarInputEscaneo(); 
+    activarInputEscaneo();
     obtenerProductosEscaneados();
 
     setTimeout(() => {
-        codigoScanner.focus();  // 🔥 Asegurar que el input tiene foco
-    }, 100); 
+        codigoScanner.focus();
+    }, 100);
 }
+
+
+let tipoActualCrear = "";
+
+function abrirModalCrearBoca(tipo) {
+    tipoActualCrear = tipo;
+
+    document.getElementById("nombreNuevaBoca").value = "";
+    document.getElementById("errorCrearBoca").style.display = "none";
+
+    document.getElementById("tituloCrearBoca").textContent =
+        tipo === 'retirar' ? "Crear nueva boca de salida" : "Crear nuevo origen";
+
+    // Mostrar la modal
+    document.getElementById("modalCrearBoca").style.display = "block";
+
+    // Obtener chips existentes
+    const endpoint = tipo === 'retirar' ? "/api/obtener_bocas_salida/" : "/api/obtener_origenes/";
+
+    fetch(endpoint)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById("chipsExistentes");
+            container.innerHTML = "";
+
+            if (data.lista && data.lista.length > 0) {
+                data.lista.forEach(nombre => {
+                    const chip = document.createElement("div");
+                    chip.className = "chip";
+                    chip.innerHTML = `📍 ${nombre.trim()} <span class="close-chip" onclick="eliminarBocaDesdeModal('${nombre.trim()}')">&times;</span>`;
+                    container.appendChild(chip);
+                });
+            } else {
+                container.innerHTML = "<p style='font-style: italic;'>No hay opciones creadas.</p>";
+            }
+        });
+}
+
+function cerrarModalCrearBoca() {
+    document.getElementById("modalCrearBoca").style.display = "none";
+}
+
+function confirmarCreacionBoca() {
+    const nombre = document.getElementById("nombreNuevaBoca").value.trim();
+    if (!nombre) {
+        document.getElementById("errorCrearBoca").textContent = "El nombre no puede estar vacío.";
+        document.getElementById("errorCrearBoca").style.display = "block";
+        return;
+    }
+
+    const endpoint = tipoActualCrear === 'retirar' ? "/api/crear_boca_salida/" : "/api/crear_origen/";
+
+    fetch(endpoint, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ nombre })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            abrirModalCrearBoca(tipoActualCrear);  // Recargar chips
+        } else {
+            document.getElementById("errorCrearBoca").textContent = data.error || "Error al crear.";
+            document.getElementById("errorCrearBoca").style.display = "block";
+        }
+    });
+}
+
+function eliminarBocaDesdeModal(nombre) {
+    if (!confirm(`¿Eliminar "${nombre}"?`)) return;
+
+    const endpoint = tipoActualCrear === 'retirar' ? "/api/eliminar_boca_salida/" : "/api/eliminar_origen/";
+
+    fetch(endpoint, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ nombre })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            abrirModalCrearBoca(tipoActualCrear);  // Recargar después de eliminar
+        } else {
+            alert("❌ Error al eliminar: " + (data.error || "Desconocido"));
+        }
+    });
+}
+
+
+function seleccionarBoca(nombre, tipo) {
+    // Quitar la clase seleccionada de todos los botones
+    document.querySelectorAll(`#bocas-container-${tipo} .boca-btn`).forEach(btn => {
+        btn.classList.remove("seleccionada");
+    });
+
+    // Agregar la clase seleccionada al botón actual
+    const botonSeleccionado = document.querySelector(`#bocas-container-${tipo} .boca-btn[data-nombre="${CSS.escape(nombre)}"]`);
+    if (botonSeleccionado) {
+        botonSeleccionado.classList.add("seleccionada");
+    }
+
+    // Actualizar el valor del input oculto
+    document.getElementById(`input-boca-${tipo}`).value = nombre;
+}
+
+
 
 
 // ❌ Modificar la función cerrarModal para deshabilitar el input
@@ -431,17 +604,28 @@ function confirmarAgregarProductos() {
         return;
     }
 
-    const payload = { productos: productosEscaneados };
+    const boca = document.getElementById("input-boca-ingresar")?.value?.trim();
+
+    if (!boca) {
+        mostrarModalDenegado("Por favor, seleccioná un origen.");
+        return;
+    }
+
+    const payload = { 
+        productos: productosEscaneados,
+        origen: boca
+    };
+
     console.log("📤 Enviando datos al backend:", JSON.stringify(payload));
 
     fetch('/api/confirmar_codigos/', {
         method: 'POST',
         headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         },
         body: JSON.stringify(payload)
     })
-    .then(response => response.json().catch(() => response.text())) // Intentar convertir a JSON
+    .then(response => response.json().catch(() => response.text()))
     .then(data => {
         console.log("🔄 Respuesta del servidor:", data);
 
@@ -451,7 +635,7 @@ function confirmarAgregarProductos() {
             console.log("✅ Productos agregados correctamente.");
             mostrarModalConfirmacion(data.message);
             cerrarModal("ingresar");
-            productosEscaneados = []; // Vaciar la lista después de confirmar 
+            productosEscaneados = [];
             actualizarTablas();
             actualizarTablasGrupos();
         }
@@ -461,28 +645,41 @@ function confirmarAgregarProductos() {
 
 
 
+
 // ✅ Confirmar y retirar productos escaneados
 async function confirmarRetirarProductos() {
     const hayStockSuficiente = await validarStockParaRetiro();
     const faltantes = Array.from(faltantesSet).join("\n");
 
     if (!hayStockSuficiente) {
-        console.warn("⛔ No se puede continuar con el retiro porque hay productos sin stock.");
         mostrarModalDenegado(`No se puede continuar con el retiro porque hay productos sin stock:\n${faltantes}`);
-        faltantes = [];
-        return; // 🔴 DETIENE la ejecución si hay productos sin stock
+        return;
     }
 
     if (productosEscaneados.length === 0) {
         mostrarModalDenegado("No hay productos escaneados para retirar.");
-        console.warn("⛔ No hay productos escaneados para retirar.");
         return;
     }
 
+    const boca = document.getElementById("input-boca-retirar")?.value?.trim();
+
+
+    if (!boca) {
+        mostrarModalDenegado("Por favor, seleccioná una boca de salida.");
+        return;
+    }
+
+    const payload = {
+        productos: productosEscaneados,
+        destino: boca  // ✅ esta clave es la que espera la vista en Django
+    };
+
     fetch('/api/confirmar_retiro/', {
         method: 'POST',
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productos: productosEscaneados })
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload)
     })
     .then(response => response.json())
     .then(data => {
@@ -494,7 +691,7 @@ async function confirmarRetirarProductos() {
         console.log("✅ Productos retirados correctamente.");
         mostrarModalConfirmacion(data.message);
         cerrarModal("retirar");
-        productosEscaneados = []; // Vaciar la lista después de confirmar
+        productosEscaneados = [];
         actualizarTablas();
         actualizarTablasGrupos();
     })

@@ -278,7 +278,7 @@ ul li {
 }
 
 /* === RESPONSIVE DESIGN === */
-@media (max-width: 768px) {
+/*@media (max-width: 768px) {
     .container {
         width: 95%;
     }
@@ -295,7 +295,7 @@ ul li {
     button {
         width: 100%;
     }
-}
+}*/
 
 h1, h2 {
     color: #333;
@@ -1168,3 +1168,243 @@ td input {
     display: none;
 }
 
+/* Select */
+
+.form-label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: #444;
+}
+
+.select-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.styled-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background-color: #f9f9f9;
+    font-size: 14px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><polygon points='0,0 10,0 5,5' fill='gray'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.styled-select:focus {
+    outline: none;
+    border-color: #3f51b5;
+    background-color: #fff;
+}
+
+.bocas-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    justify-content: center;
+}
+
+.boca-btn {
+    padding: 0.5em 1em;
+    margin: 0.25em;
+    border: 1px solid #ccc;
+    background-color: #858585;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.boca-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.boca-btn.seleccionada {
+    background-color: #3f51b5;
+    color: white;
+    font-weight: bold;
+}
+
+#modal-boca {
+    align-items: center;
+}
+
+.bocas-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.chip {
+    background-color: #f1f1f1;
+    padding: 6px 12px;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    cursor: default;
+    border: 1px solid #ccc;
+}
+
+.chip .close-chip {
+    margin-left: 8px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+
+/* 📱 MÓVILES PEQUEÑOS (hasta 480px) */
+@media screen and (max-width: 480px) {
+    body {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .container {
+        width: 100%;
+        padding: 10px;
+    }
+
+    .menu-btn {
+        font-size: 16px;
+    }
+
+    .header {
+        font-size: 1.5rem;
+        text-align: center;
+        padding: 15px;
+    }
+
+    button {
+        width: 100%;
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .mov-item {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .mov-buttons {
+        flex-direction: column;
+        gap: 5px;
+        width: 100%;
+    }
+
+    /* Tablas con desplazamiento horizontal en móviles */
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    /* Sidebar en móviles ocupa toda la pantalla */
+    .sidebar {
+        width: 100%;
+        height: 100%;
+        left: -100%;
+    }
+
+    .sidebar.open {
+        left: 0;
+    }
+
+    .modal-content {
+        width: 90%;
+    }
+}
+
+/* 📱 MÓVILES GRANDES Y TABLETS PEQUEÑAS (481px - 768px) */
+@media screen and (max-width: 768px) {
+    body {
+        font-size: 28px;
+    }
+
+    .container {
+        width: 100%;
+        padding: 15px;
+    }
+
+    .menu-btn {
+        font-size: 20px;
+    }
+
+    .header {
+        font-size: 1.6rem;
+        text-align: center;
+        padding: 20px;
+    }
+
+    button {
+        font-size: 28px;
+        padding: 12px;
+    }
+
+    .mov-item {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .mov-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    table {
+        display: block;
+        overflow-x: auto;
+    }
+
+    .sidebar {
+        width: 75%;
+        left: -100%;
+    }
+
+    .sidebar.open {
+        left: 0;
+    }
+
+    .modal-content {
+        width: 85%;
+    }
+}
+
+/* 🖥 PANTALLAS MEDIANAS (769px - 1024px) */
+@media screen and (max-width: 1024px) {
+    .container {
+        width: 90%;
+    }
+
+    .header {
+        font-size: 1.8rem;
+    }
+
+    button {
+        font-size: 18px;
+    }
+
+    .sidebar {
+        width: 50%;
+        left: -100%;
+    }
+
+    .sidebar.open {
+        left: 0;
+    }
+
+    .modal-content {
+        width: 70%;
+    }
+}

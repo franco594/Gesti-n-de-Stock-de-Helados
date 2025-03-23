@@ -5,7 +5,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'tu_clave_secreta'
 DEBUG = True
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 # settings.py
 TIME_ZONE = "America/Argentina/Buenos_Aires"
 USE_TZ = True  # Mantiene los datos en UTC, pero los convierte a la zona local
@@ -54,8 +54,12 @@ WSGI_APPLICATION = 'stock_control.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'gestion_stock',
+        'USER': 'postgres',
+        'PASSWORD': 'admin',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 

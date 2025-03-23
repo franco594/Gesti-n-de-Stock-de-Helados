@@ -6,11 +6,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
 from django.utils.dateparse import parse_date
 from django.core.files.storage import FileSystemStorage
-from .models import ProductoFijo, RegistroMovimiento, StockBalde
+from .models import BocaSalida, OrigenIngreso, ProductoFijo, RegistroMovimiento, StockBalde
 from django.db.models import Max
 import pandas as pd
 import sqlite3
 from django.db.models import Count
+from django.core.paginator import Paginator
+
 
 def conectar_bd():
     """Conectar a la base de datos SQLite."""
@@ -105,7 +107,28 @@ def stock_detallado(request):
     return render(request, "stock_detallado.html", {"stock_detallado": stock})
 
 def historial(request):
-    return render(request, "historial.html")
+    movimientos_list = RegistroMovimiento.objects.all().order_by('-timestamp')
+    paginator = Paginator(movimientos_list, 10)  # Paginar de a 10 movimientos
+    page_number = request.GET.get("page", 1)
+    
+    try:
+        movimientos = paginator.get_page(page_number)
+    except:
+        return JsonResponse({"error": "Página inválida"}, status=400)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Si es una petición AJAX
+        data = [
+            {
+                "grupo_id": mov.grupo_id,
+                "tipo": mov.tipo,
+                "timestamp": mov.timestamp.strftime("%d/%m/%Y %H:%M")
+            }
+            for mov in movimientos
+        ]
+        return JsonResponse({"movimientos": data, "has_next": movimientos.has_next()})
+
+    return render(request, "historial_movimientos.html", {"movimientos": movimientos})
+
 
 
 def historial_movimientos(request):
@@ -122,7 +145,7 @@ def historial_movimientos(request):
     # Obtener el último registro de cada grupo_id para mostrar en el historial
     movimientos_detalle = RegistroMovimiento.objects.filter(
         grupo_id__in=[mov["grupo_id"] for mov in movimientos]
-    ).order_by("-timestamp")
+    ).order_by("-timestamp").select_related("producto")  # agregá esto si querés eficiencia
 
     # Removemos duplicados usando un diccionario
     movimientos_dict = {}
@@ -144,7 +167,8 @@ def detalle_movimiento(request, grupo_id):
             "producto": detalle.producto.nombre,
             "peso": detalle.peso,
             "tipo": detalle.tipo,
-            "fecha": detalle.timestamp.strftime("%d/%m/%Y %H:%M")
+            "fecha": detalle.timestamp.strftime("%d/%m/%Y %H:%M"),
+            "boca_salida": detalle.boca_salida  # 👈 Agregar esto
         }
         for detalle in detalles
     ]
@@ -320,18 +344,15 @@ def reiniciar_lista_temporal(request):
 
 @csrf_exempt
 def confirmar_codigos(request):
-    """
-    Guarda en la base de datos los productos escaneados solo cuando se presiona 'Aceptar' en el modal,
-    e informa qué productos fueron agregados.
-    """
     if request.method == "POST":
         try:
-            productos_temporales = request.session.get("productos_temporales", [])
+            data = json.loads(request.body)
+            origen = data.get("origen")  # 👈 origen enviado desde JS
 
+            productos_temporales = request.session.get("productos_temporales", [])
             if not productos_temporales:
                 return JsonResponse({"error": "No hay productos para confirmar"}, status=400)
 
-            # Obtener el último grupo_id y sumarle 1
             ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
             nuevo_grupo_id = ultimo_grupo + 1
 
@@ -342,12 +363,12 @@ def confirmar_codigos(request):
                     producto_obj = ProductoFijo.objects.get(plu=producto["plu"])
                     StockBalde.objects.create(producto=producto_obj, peso=producto["peso"])
 
-                    # Guardar en el historial de movimientos
                     RegistroMovimiento.objects.create(
                         grupo_id=nuevo_grupo_id,
                         producto=producto_obj,
                         peso=producto["peso"],
-                        tipo="ingreso"
+                        tipo="ingreso",
+                        boca_salida=origen  # 👈 guardar origen como boca_salida
                     )
 
                     productos_agregados.append(producto_obj.nombre)
@@ -355,17 +376,19 @@ def confirmar_codigos(request):
                 except ProductoFijo.DoesNotExist:
                     return JsonResponse({"error": f"Producto con PLU {producto['plu']} no encontrado"}, status=404)
 
-            request.session["productos_temporales"] = []  # Vaciar la lista en la sesión
+            request.session["productos_temporales"] = []
             request.session.modified = True
 
             return JsonResponse({
-                "message": f"Productos agregados correctamente:\n\n {'\n'.join(productos_agregados)}"
-            }, status=200)
+                "success": True,
+                "message": f"Productos agregados correctamente:\n\n {'\\n'.join(productos_agregados)}"
+            })
 
         except Exception as e:
             return JsonResponse({"error": f"Error al confirmar productos: {str(e)}"}, status=500)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
+
 
 
 @csrf_exempt
@@ -483,7 +506,8 @@ def confirmar_retiro(request):
                         grupo_id=nuevo_grupo_id,
                         producto=producto_obj,
                         peso=balde.peso,
-                        tipo="retiro"
+                        tipo="retiro",
+                        boca_salida=data.get("destino")
                     )
                     productos_retirados.append(producto_obj.nombre)
 
@@ -544,3 +568,108 @@ def actualizar_stock_minimo(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
+
+
+# Bocas de Salida
+
+@csrf_exempt
+def obtener_bocas(request):
+    if request.method == "GET":
+        bocas = list(BocaSalida.objects.values_list("nombre", flat=True))
+        return JsonResponse({"bocas": bocas})
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+
+
+@csrf_exempt
+def crear_boca(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            nombre = data.get("nombre", "").strip()
+
+            if not nombre:
+                return JsonResponse({"success": False, "error": "El nombre no puede estar vacío"}, status=400)
+
+            if BocaSalida.objects.filter(nombre__iexact=nombre).exists():
+                return JsonResponse({"success": False, "error": "Ya existe una boca con ese nombre"}, status=400)
+
+            BocaSalida.objects.create(nombre=nombre)
+            return JsonResponse({"success": True})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+
+@csrf_exempt
+def crear_origen(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            nombre = data.get("nombre", "").strip()
+
+            if not nombre:
+                return JsonResponse({"success": False, "error": "El nombre no puede estar vacío"}, status=400)
+
+            if OrigenIngreso.objects.filter(nombre__iexact=nombre).exists():
+                return JsonResponse({"success": False, "error": "Ya existe un origen con ese nombre"}, status=400)
+
+            OrigenIngreso.objects.create(nombre=nombre)
+            return JsonResponse({"success": True})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+
+def obtener_bocas_salida(request):
+    if request.method == "GET":
+        bocas = list(BocaSalida.objects.values_list("nombre", flat=True).order_by("nombre"))
+        return JsonResponse({"lista": bocas})
+    
+def obtener_origenes(request):
+    if request.method == "GET":
+        origenes = list(OrigenIngreso.objects.values_list("nombre", flat=True).order_by("nombre"))
+        return JsonResponse({"lista": origenes})
+
+
+@csrf_exempt
+def eliminar_boca_salida(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            nombre = data.get("nombre", "").strip()
+
+            if not nombre:
+                return JsonResponse({"success": False, "error": "Nombre no proporcionado"}, status=400)
+
+            boca = BocaSalida.objects.filter(nombre__iexact=nombre).first()
+            if boca:
+                boca.delete()
+                return JsonResponse({"success": True})
+            else:
+                return JsonResponse({"success": False, "error": "Boca no encontrada"}, status=404)
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+
+
+@csrf_exempt
+def eliminar_origen(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            nombre = data.get("nombre", "").strip()
+
+            if not nombre:
+                return JsonResponse({"success": False, "error": "Nombre no proporcionado"}, status=400)
+
+            origen = OrigenIngreso.objects.filter(nombre__iexact=nombre).first()
+            if origen:
+                origen.delete()
+                return JsonResponse({"success": True})
+            else:
+                return JsonResponse({"success": False, "error": "Origen no encontrado"}, status=404)
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+    return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
