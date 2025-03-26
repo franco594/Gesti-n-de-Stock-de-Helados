@@ -1,8 +1,8 @@
 
 from django.urls import path
 from app_inventario.views import (
-    api_stock_detallado, buscar_detallado, cargar_productos_excel, crear_boca, crear_origen, detalle_movimiento, eliminar_boca_salida, eliminar_movimiento, eliminar_origen, eliminar_producto_temporal, historial_movimientos, importar_productos, index, obtener_bocas_salida, obtener_origenes, obtener_productos_temporales, obtener_stock, procesar_codigo, historial, buscar,
-    agregar_productos, retirar_producto, procesar_codigo,
+    api_stock_detallado, buscar_detallado, cargar_productos_excel, crear_boca, crear_origen, descargar_backup, detalle_movimiento, eliminar_boca_salida, eliminar_movimiento, eliminar_origen, eliminar_producto_temporal, historial_movimientos, importar_backup, importar_productos, index, obtener_bocas_salida, obtener_origenes, obtener_productos_temporales, obtener_stock, procesar_codigo, historial, buscar,
+    agregar_productos, reiniciar_stock, retirar_producto, procesar_codigo,
     obtener_codigos, confirmar_codigos, confirmar_retiro, agregar_productos, actualizar_stock_minimo, reiniciar_lista_temporal, 
 )
 
@@ -36,5 +36,9 @@ urlpatterns = [
     path("api/crear_origen/", crear_origen, name="crear_origen"),
     path('api/eliminar_boca_salida/', eliminar_boca_salida, name="eliminar_boca_salida"),
     path('api/eliminar_origen/', eliminar_origen, name="eliminar_origen"),
+    path('descargar_backup/', descargar_backup, name='descargar_backup'),
+    path('importar_backup/', importar_backup, name='importar_backup'),
+    path("reiniciar_stock/", reiniciar_stock, name="reiniciar_stock"),
+
 ]
 

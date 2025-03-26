@@ -1,10 +1,13 @@
 {% load static %}
+{% load compress %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <title>Gestión de Stock</title>
+    {% compress css %}
     <link rel="stylesheet" href="{% static 'style.css' %}">
+    {% endcompress %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
@@ -21,6 +24,15 @@
             <button id="configButton"  onclick="abrirModalCrearBoca('retirar')">Salidas</button>
             <input type="file" id="archivoExcel" name="archivo" accept=".xlsx" style="display: none;">
             <button type="button" id="botonCargarExcel">Productos</button>
+            <a href="{% url 'descargar_backup' %}"><button id="configButton">Exportar BD</button></a>
+            <form id="formImportarBackup" enctype="multipart/form-data">
+                <input type="file" id="archivoBackup" name="archivo" accept=".sqlite3" style="display: none;">
+                <button type="button" id="configButton" onclick="document.getElementById('archivoBackup').click();">Importar BD</button>
+            </form> 
+            <form id="formImportarBackup">
+                <button type="button" id="configButton" onclick="reiniciarStock()">Reiniciar BD</button>
+            </form>            
+
             <button id="installBtn" style="display: none;">📲 Instalar App</button>
         </div>
 
@@ -73,7 +85,7 @@
                 {% for producto in stock_resumido %}
                 <tr class="{% if producto.stock_minimo > producto.stockbalde_set.count %}resaltar-bajo-stock{% endif %}">
                     <td>{{ producto.nombre }}</td>
-                    <td>{{ producto.stockbalde_set.count }}</td>
+                    <td>{{ producto.cantidad }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -235,9 +247,12 @@
         </div>
     </div>
 
-
+    {% compress js %}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
+    {% endcompress %}
+    {% compress js %}
     <script src="{% static 'index.js' %}"></script>
+    {% endcompress %}
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const scannerInput = document.getElementById("codigoScanner");
@@ -338,6 +353,45 @@
             .catch(error => console.error("Error al subir el archivo:", error));
         }
     });
+    </script>
+
+    <script>
+        document.getElementById("archivoBackup").addEventListener("change", function () {
+            const archivo = this.files[0];
+            if (archivo) {
+                const formData = new FormData();
+                formData.append("archivo", archivo);
+
+                fetch("/importar_backup/", {
+                    method: "POST",
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message || data.error);
+                    if (data.success) {
+                        location.reload();
+                    }
+                })
+                .catch(error => console.error("Error al importar backup:", error));
+            }
+        });
+
+        function reiniciarStock() {
+            if (confirm("⚠️ ¿Estás seguro de que querés reiniciar todo el stock a cero? Esta acción no se puede deshacer.")) {
+                fetch("/reiniciar_stock/", {
+                    method: "POST"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message || data.error);
+                    if (data.success) {
+                        location.reload();
+                    }
+                })
+                .catch(error => console.error("Error al reiniciar el stock:", error));
+            }
+        }
     </script>
 
     <!-- Modal Crear Boca/Origen -->

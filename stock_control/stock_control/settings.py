@@ -1,17 +1,18 @@
-# settings.py (Configuraciones de Django)
 import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 SECRET_KEY = 'tu_clave_secreta'
+
 DEBUG = True
+
 ALLOWED_HOSTS = ['*']
-# settings.py
+
 TIME_ZONE = "America/Argentina/Buenos_Aires"
-USE_TZ = True  # Mantiene los datos en UTC, pero los convierte a la zona local
+USE_TZ = True
 
-
-
+# ✅ Asegurate de no sobreescribir INSTALLED_APPS al final del archivo
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -19,7 +20,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
     'app_inventario',
+    'compressor',  # Añadido correctamente acá
 ]
 
 MIDDLEWARE = [
@@ -30,6 +33,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    #'compression_middleware.middleware.CompressionMiddleware',
 ]
 
 ROOT_URLCONF = 'stock_control.urls'
@@ -59,6 +63,24 @@ DATABASES = {
     }
 }
 
-# Configuración de archivos estáticos
+# Archivos estáticos
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# django-compressor
+COMPRESS_ROOT = STATIC_ROOT
+
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    'compressor.finders.CompressorFinder',
+]
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'stock_control_cache',
+    }
+}
+

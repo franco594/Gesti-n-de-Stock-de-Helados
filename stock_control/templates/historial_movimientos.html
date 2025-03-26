@@ -4,15 +4,22 @@
     <meta charset="UTF-8">
     <title>Historial de Movimientos</title>
     {% load static %}
+    {% load compress %}
+    {% compress css %}
     <link rel="stylesheet" href="{% static 'style.css' %}">
+    {% endcompress %}
 </head>
 <body class="page-transition">
 
     <div class="header">
         <h1>Historial de Movimientos</h1>
     </div>
+
+    
+
     
     <div class="container">
+        <button class="btn-volver" onclick="window.history.back()">⬅ Volver</button>
         <ul class="mov-list">
             {% for movimiento in movimientos %}
             <li class="mov-item" data-id="{{ movimiento.grupo_id }}">
@@ -29,6 +36,17 @@
             </li>
             {% endfor %}
         </ul>
+        <div id="paginacion">
+            {% if movimientos.has_previous %}
+                <button onclick="cargarPagina('{{ movimientos.previous_page_number }}')">⬅ Anterior</button>
+            {% endif %}
+        
+            <span>Página {{ movimientos.number }} de {{ movimientos.paginator.num_pages }}</span>
+        
+            {% if movimientos.has_next %}
+                <button onclick="cargarPagina('{{ movimientos.next_page_number }}')">Siguiente ➡</button>
+            {% endif %}
+        </div>        
     </div>
     
 
@@ -54,6 +72,7 @@
             </div>
         </div>
     </div>
+
 
     <script>
 
@@ -176,6 +195,64 @@
             })
             .catch(error => console.error("❌ Error al actualizar historial:", error));
         }
+
+        function cargarPagina(pagina) {
+            fetch(`/historial/?page=${pagina}`, {
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const lista = document.querySelector(".mov-list");
+                lista.innerHTML = "";  // Vacía la lista actual
+
+                data.movimientos.forEach(mov => {
+                    const li = document.createElement("li");
+                    li.className = "mov-item";
+                    li.setAttribute("data-id", mov.grupo_id);
+                    li.innerHTML = `
+                        <div>
+                            <strong>#${mov.grupo_id}</strong> -
+                            <strong>${mov.tipo.toUpperCase()}</strong> -
+                            ${mov.timestamp}
+                        </div>
+                        <div class="mov-buttons">
+                            <button class="btn-view" onclick="verDetalleMovimiento('${mov.grupo_id}')">Ver Detalles</button>
+                            <button class="btn-delete" onclick="confirmarEliminacion('${mov.grupo_id}')">🗑</button>
+                        </div>
+                    `;
+                    lista.appendChild(li);
+                });
+
+                // Volver a cargar los botones de paginación
+                const paginacion = document.getElementById("paginacion");
+                paginacion.innerHTML = "";
+
+                if (data.has_previous) {
+                    const prevBtn = document.createElement("button");
+                    prevBtn.textContent = "⬅ Anterior";
+                    prevBtn.onclick = () => cargarPagina(pagina - 1);
+                    paginacion.appendChild(prevBtn);
+                }
+
+                const span = document.createElement("span");
+                span.textContent = `Página ${pagina}`;
+                paginacion.appendChild(span);
+
+                if (data.has_next) {
+                    const nextBtn = document.createElement("button");
+                    nextBtn.textContent = "Siguiente ➡";
+                    nextBtn.onclick = () => cargarPagina(pagina + 1);
+                    paginacion.appendChild(nextBtn);
+                }
+            })
+            .catch(error => {
+                console.error("❌ Error al cargar página:", error);
+                alert("No se pudo cargar la página.");
+            });
+        }
+
 
     </script>
 

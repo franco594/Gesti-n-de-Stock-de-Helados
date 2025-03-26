@@ -109,6 +109,18 @@
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\app_inventario\\views.py',
    'PYMODULE'),
+  ('appconf',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\appconf\\__init__.py',
+   'PYMODULE'),
+  ('appconf.base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\appconf\\base.py',
+   'PYMODULE'),
+  ('appconf.utils',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\appconf\\utils.py',
+   'PYMODULE'),
   ('apscheduler',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\__init__.py',
@@ -396,6 +408,10 @@
   ('bisect',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\bisect.py',
    'PYMODULE'),
+  ('brotli',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\brotli.py',
+   'PYMODULE'),
   ('bz2',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\bz2.py',
    'PYMODULE'),
@@ -450,6 +466,234 @@
    'PYMODULE'),
   ('codeop',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\codeop.py',
+   'PYMODULE'),
+  ('compressor',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\__init__.py',
+   'PYMODULE'),
+  ('compressor.base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\base.py',
+   'PYMODULE'),
+  ('compressor.cache',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\cache.py',
+   'PYMODULE'),
+  ('compressor.conf',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\conf.py',
+   'PYMODULE'),
+  ('compressor.contrib',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\contrib\\__init__.py',
+   'PYMODULE'),
+  ('compressor.contrib.jinja2ext',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\contrib\\jinja2ext.py',
+   'PYMODULE'),
+  ('compressor.contrib.sekizai',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\contrib\\sekizai.py',
+   'PYMODULE'),
+  ('compressor.css',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\css.py',
+   'PYMODULE'),
+  ('compressor.exceptions',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\exceptions.py',
+   'PYMODULE'),
+  ('compressor.filters',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\filters\\__init__.py',
+   'PYMODULE'),
+  ('compressor.filters.base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\filters\\base.py',
+   'PYMODULE'),
+  ('compressor.filters.cleancss',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\filters\\cleancss.py',
+   'PYMODULE'),
+  ('compressor.filters.closure',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\filters\\closure.py',
+   'PYMODULE'),
+  ('compressor.filters.css_default',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\filters\\css_default.py',
+   'PYMODULE'),
+  ('compressor.filters.cssmin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\filters\\cssmin\\__init__.py',
+   'PYMODULE'),
+  ('compressor.filters.jsmin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\filters\\jsmin\\__init__.py',
+   'PYMODULE'),
+  ('compressor.filters.template',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\filters\\template.py',
+   'PYMODULE'),
+  ('compressor.filters.yuglify',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\filters\\yuglify.py',
+   'PYMODULE'),
+  ('compressor.filters.yui',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\filters\\yui.py',
+   'PYMODULE'),
+  ('compressor.finders',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\finders.py',
+   'PYMODULE'),
+  ('compressor.js',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\js.py',
+   'PYMODULE'),
+  ('compressor.management',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\management\\__init__.py',
+   'PYMODULE'),
+  ('compressor.management.commands',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\management\\commands\\__init__.py',
+   'PYMODULE'),
+  ('compressor.management.commands.compress',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\management\\commands\\compress.py',
+   'PYMODULE'),
+  ('compressor.management.commands.mtime_cache',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\management\\commands\\mtime_cache.py',
+   'PYMODULE'),
+  ('compressor.models',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\models.py',
+   'PYMODULE'),
+  ('compressor.offline',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\offline\\__init__.py',
+   'PYMODULE'),
+  ('compressor.offline.django',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\offline\\django.py',
+   'PYMODULE'),
+  ('compressor.offline.jinja2',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\offline\\jinja2.py',
+   'PYMODULE'),
+  ('compressor.parser',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\parser\\__init__.py',
+   'PYMODULE'),
+  ('compressor.parser.base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\parser\\base.py',
+   'PYMODULE'),
+  ('compressor.parser.beautifulsoup',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\parser\\beautifulsoup.py',
+   'PYMODULE'),
+  ('compressor.parser.default_htmlparser',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\parser\\default_htmlparser.py',
+   'PYMODULE'),
+  ('compressor.parser.html5lib',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\parser\\html5lib.py',
+   'PYMODULE'),
+  ('compressor.parser.lxml',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\parser\\lxml.py',
+   'PYMODULE'),
+  ('compressor.signals',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\signals.py',
+   'PYMODULE'),
+  ('compressor.storage',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\storage.py',
+   'PYMODULE'),
+  ('compressor.templatetags',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\templatetags\\__init__.py',
+   'PYMODULE'),
+  ('compressor.templatetags.compress',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\templatetags\\compress.py',
+   'PYMODULE'),
+  ('compressor.test_settings',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\test_settings.py',
+   'PYMODULE'),
+  ('compressor.tests',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\__init__.py',
+   'PYMODULE'),
+  ('compressor.tests.precompiler',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\precompiler.py',
+   'PYMODULE'),
+  ('compressor.tests.test_base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_base.py',
+   'PYMODULE'),
+  ('compressor.tests.test_conf',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_conf.py',
+   'PYMODULE'),
+  ('compressor.tests.test_filters',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_filters.py',
+   'PYMODULE'),
+  ('compressor.tests.test_finder',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_finder.py',
+   'PYMODULE'),
+  ('compressor.tests.test_jinja2ext',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_jinja2ext.py',
+   'PYMODULE'),
+  ('compressor.tests.test_mtime_cache',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_mtime_cache.py',
+   'PYMODULE'),
+  ('compressor.tests.test_offline',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_offline.py',
+   'PYMODULE'),
+  ('compressor.tests.test_parsers',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_parsers.py',
+   'PYMODULE'),
+  ('compressor.tests.test_sekizai',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_sekizai.py',
+   'PYMODULE'),
+  ('compressor.tests.test_signals',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_signals.py',
+   'PYMODULE'),
+  ('compressor.tests.test_storages',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_storages.py',
+   'PYMODULE'),
+  ('compressor.tests.test_templatetags',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_templatetags.py',
+   'PYMODULE'),
+  ('compressor.tests.test_utils',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\tests\\test_utils.py',
+   'PYMODULE'),
+  ('compressor.utils',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\utils\\__init__.py',
+   'PYMODULE'),
+  ('compressor.utils.staticfiles',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\compressor\\utils\\staticfiles.py',
    'PYMODULE'),
   ('concurrent',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\concurrent\\__init__.py',
@@ -5744,6 +5988,9 @@
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\venv\\Lib\\site-packages\\openpyxl\\xml\\functions.py',
    'PYMODULE'),
+  ('optparse',
+   'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\optparse.py',
+   'PYMODULE'),
   ('packaging',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\venv\\Lib\\site-packages\\packaging\\__init__.py',
@@ -8356,4 +8603,12 @@
    'PYMODULE'),
   ('zoneinfo._zoneinfo',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\zoneinfo\\_zoneinfo.py',
+   'PYMODULE'),
+  ('zstandard',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\zstandard\\__init__.py',
+   'PYMODULE'),
+  ('zstandard.backend_cffi',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\zstandard\\backend_cffi.py',
    'PYMODULE')])

@@ -12,6 +12,9 @@ import pandas as pd
 import sqlite3
 from django.db.models import Count
 from django.core.paginator import Paginator
+from django.views.decorators.cache import cache_page
+from django.http import FileResponse
+from django.conf import settings
 
 
 def conectar_bd():
@@ -21,9 +24,14 @@ def conectar_bd():
     return conn
 
 
+from django.db.models import Count
+
 def index(request):
-    stock_resumido = ProductoFijo.objects.all()
+    stock_resumido = ProductoFijo.objects.annotate(
+        cantidad=Count('stockbalde')
+    )
     return render(request, "index.html", {"stock_resumido": stock_resumido})
+
 
 
 def cargar_productos_desde_excel():
@@ -87,6 +95,7 @@ def importar_productos(request):
     resultado = cargar_productos_desde_excel()
     return JsonResponse(resultado)
 
+@cache_page(60)  # Cachear por 60 segundos
 def obtener_stock(request):
     try:
         # Obtener el stock de cada producto contando los baldes disponibles
@@ -673,3 +682,36 @@ def eliminar_origen(request):
             return JsonResponse({"success": False, "error": str(e)}, status=500)
 
     return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+
+
+# Backups  
+
+def descargar_backup(request):
+    db_path = settings.DATABASES["default"]["NAME"]
+    if os.path.exists(db_path):
+        return FileResponse(open(db_path, 'rb'), as_attachment=True, filename='backup.sqlite3')
+    return JsonResponse({"error": "No se encontró la base de datos"}, status=404)
+
+
+@csrf_exempt
+def importar_backup(request):
+    if request.method == "POST" and request.FILES.get("archivo"):
+        try:
+            with open("db.sqlite3", "wb+") as destino:
+                for chunk in request.FILES["archivo"].chunks():
+                    destino.write(chunk)
+            return JsonResponse({"success": True, "message": "Backup restaurado correctamente"})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)})
+    return JsonResponse({"error": "❌ Método no permitido o archivo no enviado"}, status=400)
+
+@csrf_exempt
+def reiniciar_stock(request):
+    if request.method == "POST":
+        try:
+            StockBalde.objects.all().delete()
+            return JsonResponse({"success": True, "message": "✅ Todos los baldes fueron eliminados. El stock ahora está en cero."})
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=500)
+    return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+

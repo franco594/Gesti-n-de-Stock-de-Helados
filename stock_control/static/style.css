@@ -1064,7 +1064,7 @@ td input {
 /* Aplica desenfoque a todo el contenedor excepto la div en hover */
 .grupos-container:has(.grupo:hover) > *:not(:hover) {
     filter: blur(2px);
-    opacity: 0.5;
+    opacity: 0.8;
     transition: filter 0.4s ease-in-out, opacity 0.4s ease-in-out;
 }
 
@@ -1262,6 +1262,31 @@ td input {
     cursor: pointer;
     font-weight: bold;
 }
+
+#formImportarBackup {
+    margin: 0;
+}
+
+.paginacion {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 18px;
+}
+
+.paginacion a {
+    padding: 8px 12px;
+    background-color: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    margin: 0 5px;
+    transition: background-color 0.3s ease;
+}
+
+.paginacion a:hover {
+    background-color: #0056b3;
+}
+
 
 
 /* 📱 MÓVILES PEQUEÑOS (hasta 480px) */
