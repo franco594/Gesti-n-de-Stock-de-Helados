@@ -237,7 +237,7 @@
                 }
 
                 const span = document.createElement("span");
-                span.textContent = `Página ${pagina}`;
+                span.textContent = `Página ${data.current_page} de ${data.num_pages}`;
                 paginacion.appendChild(span);
 
                 if (data.has_next) {

@@ -115,17 +115,19 @@ def stock_detallado(request):
     stock = StockBalde.objects.select_related("producto").all()
     return render(request, "stock_detallado.html", {"stock_detallado": stock})
 
+
+
 def historial(request):
     movimientos_list = RegistroMovimiento.objects.all().order_by('-timestamp')
-    paginator = Paginator(movimientos_list, 10)  # Paginar de a 10 movimientos
+    paginator = Paginator(movimientos_list, 10)
     page_number = request.GET.get("page", 1)
-    
+
     try:
         movimientos = paginator.get_page(page_number)
     except:
         return JsonResponse({"error": "Página inválida"}, status=400)
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Si es una petición AJAX
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         data = [
             {
                 "grupo_id": mov.grupo_id,
@@ -134,9 +136,16 @@ def historial(request):
             }
             for mov in movimientos
         ]
-        return JsonResponse({"movimientos": data, "has_next": movimientos.has_next()})
+        return JsonResponse({
+            "movimientos": data,
+            "has_next": movimientos.has_next(),
+            "has_previous": movimientos.has_previous(),
+            "current_page": movimientos.number,
+            "num_pages": movimientos.paginator.num_pages,
+        })
 
     return render(request, "historial_movimientos.html", {"movimientos": movimientos})
+
 
 
 
