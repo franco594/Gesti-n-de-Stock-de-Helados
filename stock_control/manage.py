@@ -6,6 +6,8 @@ from django.core.management import execute_from_command_line
 import webbrowser
 import time
 
+# hola
+
 def abrir_navegador():
     time.sleep(1)  # Espera 1 segundo para asegurarse de que el servidor esté corriendo
     webbrowser.open("http://127.0.0.1:8000")  # Cambia la URL si usas otro puerto

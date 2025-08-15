@@ -8182,7 +8182,7 @@
    'PYMODULE'),
   ('typing_extensions',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
-   'Helados\\stock_control\\venv\\Lib\\site-packages\\setuptools\\_vendor\\typing_extensions.py',
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\typing_extensions.py',
    'PYMODULE'),
   ('tzdata',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '

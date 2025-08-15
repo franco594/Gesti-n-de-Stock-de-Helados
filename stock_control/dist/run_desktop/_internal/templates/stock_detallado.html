@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Stock Detallado</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+    <h1>Stock Detallado de Baldes</h1>
+    <a href="{% url 'index' %}">Volver a la página principal</a>
+
+    <h2>Buscar en Stock Detallado</h2>
+    <form action="{% url 'buscar_detallado' %}" method="post">
+        {% csrf_token %}
+        <input type="text" name="termino_busqueda" placeholder="Buscar por nombre o PLU">
+        <input type="date" name="fecha" placeholder="Fecha de ingreso">
+        <button type="submit">Buscar</button>
+    </form>
+
+    {% if stock_detallado %}
+    <table>
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Peso (g)</th>
+                <th>Fecha de Ingreso</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in stock_detallado %}
+            <tr>
+                <td>{{ item.producto.nombre }}</td>
+                <td>{{ item.peso|floatformat:3 }}g</td>
+                <td>{{ item.timestamp|date:"Y-m-d H:i:s" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No hay baldes en stock.</p>
+    {% endif %}
+</body>
+</html>
