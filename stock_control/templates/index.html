@@ -12,7 +12,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <link rel="manifest" href="{% static 'manifest.json' %}">
-
+    <script>
+        // Helper CSRF disponible globalmente
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+        }
+        window.CSRF_TOKEN = getCookie('csrftoken');
+    </script>
+</head>
 <body class="page-transition">
     <header>
         <button class="menu-btn" id="menu-btn" onclick="openMenu()">☰</button>
@@ -83,7 +92,8 @@
             </thead>
             <tbody>
                 {% for producto in stock_resumido %}
-                <tr class="{% if producto.stock_minimo > producto.stockbalde_set.count %}resaltar-bajo-stock{% endif %}">
+                <tr class="{% if producto.cantidad < producto.stock_minimo %}resaltar-bajo-stock{% endif %}">
+
                     <td>{{ producto.nombre }}</td>
                     <td>{{ producto.cantidad }}</td>
                 </tr>
@@ -94,15 +104,15 @@
 
     <!-- Contenedor de la Vista de Grupos (Inicialmente Oculto) -->
     <div id="vistaGrupos" class="grupos-container" style="display: none;">
-        <div class="grupo" id="clasicos">
-            <h3>CLÁSICOS</h3>
+        <div class="grupo" id="jarabe">
+            <h3>JARABE</h3>
             <table>
                 <thead>
                     <tr>
                        
                     </tr>
                 </thead>
-                <tbody id="clasicos-body"></tbody>
+                <tbody id="jarabe-body"></tbody>
             </table>
         </div>
         <div class="grupo" id="chocolates">
@@ -127,37 +137,48 @@
                 <tbody id="dulces-body"></tbody>
             </table>
         </div>
-        <div class="grupo" id="cremas">
-            <h3>CREMAS</h3>
+        <div class="grupo" id="blanca">
+            <h3>BLANCA</h3>
             <table>
                 <thead>
                     <tr>
                         
                     </tr>
                 </thead>
-                <tbody id="cremas-body"></tbody>
+                <tbody id="blanca-body"></tbody>
             </table>
         </div>
-        <div class="grupo" id="frutas">
-            <h3>FRUTAS</h3>
+        <div class="grupo" id="blanca">
+            <h3>NEUTRA</h3>
             <table>
                 <thead>
                     <tr>
                         
                     </tr>
                 </thead>
-                <tbody id="frutas-body"></tbody>
+                <tbody id="neutra-body"></tbody>
             </table>
         </div>
-        <div class="grupo" id="otros">
-            <h3>OTROS SABORES</h3>
+        <div class="grupo" id="zambayon">
+            <h3>ZAMBAYON</h3>
             <table>
                 <thead>
                     <tr>
                        
                     </tr>
                 </thead>
-                <tbody id="otros-body"></tbody>
+                <tbody id="zambayon-body"></tbody>
+            </table>
+        </div>
+        <div class="grupo" id="oleosa">
+            <h3>OLEOSA</h3>
+            <table>
+                <thead>
+                    <tr>
+                       
+                    </tr>
+                </thead>
+                <tbody id="oleosa-body"></tbody>
             </table>
         </div>
     </div>

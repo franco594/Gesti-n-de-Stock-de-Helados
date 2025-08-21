@@ -466,12 +466,13 @@ function actualizarTablasGrupos() {
             }
 
             const gruposBody = {
-                clasicos: document.getElementById("clasicos-body"),
+                jarabe: document.getElementById("jarabe-body"),
                 chocolates: document.getElementById("chocolates-body"),
                 dulces: document.getElementById("dulces-body"),
-                cremas: document.getElementById("cremas-body"),
-                frutas: document.getElementById("frutas-body"),
-                otros: document.getElementById("otros-body"),
+                blanca: document.getElementById("blanca-body"),
+                neutra: document.getElementById("neutra-body"),
+                zambayon: document.getElementById("zambayon-body"),
+                oleosa: document.getElementById("oleosa-body"),
             };
 
             // Verificar que cada contenedor exista antes de limpiar
@@ -793,12 +794,13 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 const grupos = {
-    clasicos: ["AMERICANA", "CHOCOLATE", "VAINILLA", "LIMON", "DCE LECHE", "FRUTILLA AL AGUA"],
-    chocolates: ["CHOCOLAE BLOCK", "CH. CABSHA", "AMARGO", "CH. ALMENDRAS", "CH. PASAS RHUM", "CHOCOLAT PORTOFINO", "CHOCOLATE INTENSO", "CHOCOLAT DEBILIDAD", "CHOC. BLANCO", "ROCHER", "TOFFEE BLANCO"],
-    dulces: ["DCE. LECHE NUEZ", "DCE. GRANIZADO", "SUPER DCE LECHE", "DCE. VAUQUITA", "D. LECHE PORTOFINO", "DCE. LECHE COOKIES", "BASE DULCE LECHE", "CHOCOTORTA"],
-    cremas: ["TRAMONTANA", "ALMENDRADO", "CREMA RUSA", "GRANIZADO", "MENTA GRANIZADA", "CREMA FLAN", "FRUTOS DEL BOSQUE", "CREMA DEL CIELO", "PANNACOTA", "MASCARPONE", "CAPUCCINO", "MARROC", "OREO", "SNIKERS", "SAMBAYON", "SAMBAYON PORTOFINO"],
-    frutas: ["CEREZA", "FRUTILLA CREMA", "BANANA SPLIT", "MARACUYA", "ANANA AL CHANTILLY", "FRAMBUESA C/ CHOCO", "KINOTOS AL WHISKY", "DURAZNOS AL OPORTO", "MANZANA VERDE", "LEMON PIE", "LIMON C/MARACUYA", "FRAMBUESA C/CHOCO"],
-    otros: [] // El resto de los productos se asignarán automáticamente aquí
+    jarabe: ["LIMON", "FRUTILLA AL AGUA", "DURAZNO"],
+    chocolates: ["CHOCOLATE","CHOCOLAE BLOCK", "CH. CABSHA", "AMARGO", "CH. ALMENDRAS", "CH. PASAS RHUM", "CHOCOLAT PORTOFINO", "CHOCOLATE INTENSO", "CHOCOLAT DEBILIDAD", "CHOC. BLANCO", "ROCHER", "TOFFEE BLANCO"],
+    dulces: ["DCE LECHE","DCE. LECHE NUEZ", "DCE. GRANIZADO", "SUPER DCE LECHE", "DCE. VAUQUITA", "D. LECHE PORTOFINO", "DCE. LECHE COOKIES", "BASE DULCE LECHE", "CHOCOTORTA"],
+    blanca: ["AMERICANA","VAINILLA","TRAMONTANA","GRANIZADO", "MENTA GRANIZADA", "CREMA FLAN", "FRUTOS DEL BOSQUE", "CREMA DEL CIELO", "PANNACOTA", "MASCARPONE", "CAPUCCINO","OREO", "SNIKERS"],
+    neutra: ["CEREZA", "FRUTILLA CREMA", "BANANA SPLIT", "MARACUYA", "ANANA AL CHANTILLY", "FRAMBUESA C/ CHOCO", "KINOTOS AL WHISKY", "DURAZNOS AL OPORTO", "MANZANA VERDE", "LEMON PIE", "LIMON C/MARACUYA", "FRAMBUESA C/CHOCO"],
+    zambayon: ["SAMBAYON", "SAMBAYON PORTOFINO"], // El resto de los productos se asignarán automáticamente aquí
+    oleosa: ["ALMENDRADO", "CREMA RUSA", "MARROC" ] // El resto de los productos se asignarán automáticamente aquí
 };
 
 function mostrarVistaGrupos() {
@@ -825,12 +827,13 @@ function mostrarVistaGrupos() {
     
 
     const gruposBody = {
-        clasicos: document.getElementById("clasicos-body"),
+        jarabe: document.getElementById("jarabe-body"),
         chocolates: document.getElementById("chocolates-body"),
         dulces: document.getElementById("dulces-body"),
-        cremas: document.getElementById("cremas-body"),
-        frutas: document.getElementById("frutas-body"),
-        otros: document.getElementById("otros-body"),
+        blanca: document.getElementById("blanca-body"),
+        neutra: document.getElementById("neutra-body"),
+        zambayon: document.getElementById("zambayon-body"),
+        oleosa: document.getElementById("oleosa-body"),
     };
 
     // Limpiar contenido de las tablas antes de agregar contenido nuevo
