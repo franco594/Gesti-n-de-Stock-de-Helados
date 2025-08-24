@@ -15,10 +15,31 @@
         <h1>Historial de Movimientos</h1>
     </div>
 
-    
-
-    
     <div class="container">
+            <!-- Filtros -->
+        <form id="filtrosForm" class="filtros" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;">
+        <div>
+            <label>Desde</label>
+            <input type="date" id="desde" name="desde">
+        </div>
+        <div>
+            <label>Hasta</label>
+            <input type="date" id="hasta" name="hasta">
+        </div>
+        <div>
+            <label>Local</label>
+            <input type="text" id="local" name="local" placeholder="Portofino, Local 1, etc.">
+        </div>
+        <div>
+            <label>Tipo</label>
+            <select id="tipo" name="tipo">
+            <option value="">Todos</option>
+            <option value="ingreso">Ingreso</option>
+            <option value="retiro">Retiro</option>
+            </select>
+        </div>
+        <button type="submit">Filtrar</button>
+        </form>
         <button class="btn-volver" onclick="window.history.back()">⬅ Volver</button>
         <ul class="mov-list">
             {% for movimiento in movimientos %}
@@ -75,6 +96,79 @@
 
 
     <script>
+
+        // Helpers de query-string
+        function qs(params) {
+        const u = new URLSearchParams();
+        Object.entries(params).forEach(([k,v]) => { if (v !== undefined && v !== null && v !== '') u.set(k,v); });
+        return u.toString();
+        }
+        function leerFiltros() {
+        return {
+            desde: document.getElementById('desde')?.value,
+            hasta: document.getElementById('hasta')?.value,
+            local: document.getElementById('local')?.value?.trim(),
+            tipo:  document.getElementById('tipo')?.value
+        };
+        }
+
+        // Interceptar submit para recargar con filtros por AJAX
+        document.getElementById('filtrosForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        actualizarHistorialFiltrado(1);
+        });
+
+        
+        // Cargar con filtros (reemplaza a actualizarHistorial() cuando uses filtros)
+        function actualizarHistorialFiltrado(page=1) {
+        const f = leerFiltros();
+        const query = qs({ page, ...f });
+
+        fetch(`/historial_movimientos/?${query}`, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+            .then(res => res.text())
+            .then(html => {
+            const doc = new DOMParser().parseFromString(html, "text/html");
+            const container = doc.querySelector(".container");
+            document.querySelector(".container").innerHTML = container.innerHTML;
+            // reinyectar handlers necesarios
+            wireEliminarHandlers();
+            wirePaginacionConFiltros(f);
+            })
+            .catch(err => console.error("❌ Error al actualizar historial:", err));
+        }
+
+        // Reasignar eventos tras repintar
+        function wireEliminarHandlers() {
+        // ya tenés un addEventListener para #confirmDelete en tu template;
+        // si se pierde tras repintar, podés volver a enlazarlo acá.
+        }
+
+        // Paginación respetando filtros
+        function wirePaginacionConFiltros(f) {
+        const paginacion = document.getElementById("paginacion");
+        if (!paginacion) return;
+        paginacion.querySelectorAll("button").forEach(btn => {
+            const go = btn.onclick;
+            btn.onclick = () => {
+            // detecta si es Anterior/Siguiente leyendo el texto o inyectando data-page;
+            // si usas tu JSON de la función cargarPagina, podés migrarla a usar actualizarHistorialFiltrado
+            const txt = btn.textContent.toLowerCase();
+            const span = paginacion.querySelector("span")?.textContent || "";
+            const m = span.match(/Página\s+(\d+)\s+de\s+(\d+)/i);
+            let current = m ? parseInt(m[1],10) : 1;
+            let next = current;
+            if (txt.includes('anterior')) next = Math.max(1, current - 1);
+            else if (txt.includes('siguiente')) next = current + 1;
+            actualizarHistorialFiltrado(next);
+            };
+        });
+        }
+
+        // Si querés que cargue filtrado al entrar (opcional), llamá:
+        document.addEventListener("DOMContentLoaded", () => {
+        // actualizarHistorialFiltrado(1);
+        });
+
 
         function verDetalleMovimiento(grupoId) {
             document.getElementById("detalleGrupoId").textContent = `#${grupoId}`;
@@ -197,62 +291,23 @@
         }
 
         function cargarPagina(pagina) {
-            fetch(`/historial/?page=${pagina}`, {
-                headers: {
-                    "X-Requested-With": "XMLHttpRequest"
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                const lista = document.querySelector(".mov-list");
-                lista.innerHTML = "";  // Vacía la lista actual
+            const f = leerFiltros();
+            const query = qs({ page: pagina, ...f });
 
-                data.movimientos.forEach(mov => {
-                    const li = document.createElement("li");
-                    li.className = "mov-item";
-                    li.setAttribute("data-id", mov.grupo_id);
-                    li.innerHTML = `
-                        <div>
-                            <strong>#${mov.grupo_id}</strong> -
-                            <strong>${mov.tipo.toUpperCase()}</strong> -
-                            ${mov.timestamp}
-                        </div>
-                        <div class="mov-buttons">
-                            <button class="btn-view" onclick="verDetalleMovimiento('${mov.grupo_id}')">Ver Detalles</button>
-                            <button class="btn-delete" onclick="confirmarEliminacion('${mov.grupo_id}')">🗑</button>
-                        </div>
-                    `;
-                    lista.appendChild(li);
-                });
-
-                // Volver a cargar los botones de paginación
-                const paginacion = document.getElementById("paginacion");
-                paginacion.innerHTML = "";
-
-                if (data.has_previous) {
-                    const prevBtn = document.createElement("button");
-                    prevBtn.textContent = "⬅ Anterior";
-                    prevBtn.onclick = () => cargarPagina(pagina - 1);
-                    paginacion.appendChild(prevBtn);
-                }
-
-                const span = document.createElement("span");
-                span.textContent = `Página ${data.current_page} de ${data.num_pages}`;
-                paginacion.appendChild(span);
-
-                if (data.has_next) {
-                    const nextBtn = document.createElement("button");
-                    nextBtn.textContent = "Siguiente ➡";
-                    nextBtn.onclick = () => cargarPagina(pagina + 1);
-                    paginacion.appendChild(nextBtn);
-                }
-            })
-            .catch(error => {
+            fetch(`/historial_movimientos/?${query}`, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+                .then(r => r.text())
+                .then(html => {
+                const doc = new DOMParser().parseFromString(html, "text/html");
+                const container = doc.querySelector(".container");
+                document.querySelector(".container").innerHTML = container.innerHTML;
+                wireEliminarHandlers();
+                wirePaginacionConFiltros(f);
+                })
+                .catch(error => {
                 console.error("❌ Error al cargar página:", error);
                 alert("No se pudo cargar la página.");
-            });
+                });
         }
-
 
     </script>
 

@@ -80,7 +80,7 @@
 
 
     <!-- Tabla General -->
-    <div id="stockGeneral">
+    <div id="stockGeneral" style="display: none;">
         <button id="botonVistaGrupos">Vista Grupos</button>
         <button id="botonVistaGeneral">Vista General</button>
         <table id="stockTable">
@@ -103,7 +103,7 @@
     </div>
 
     <!-- Contenedor de la Vista de Grupos (Inicialmente Oculto) -->
-    <div id="vistaGrupos" class="grupos-container" style="display: none;">
+    <div id="vistaGrupos" class="grupos-container" style="display: flex;">
         <div class="grupo" id="jarabe">
             <h3>JARABE</h3>
             <table>
@@ -148,7 +148,7 @@
                 <tbody id="blanca-body"></tbody>
             </table>
         </div>
-        <div class="grupo" id="blanca">
+        <div class="grupo" id="neutra">
             <h3>NEUTRA</h3>
             <table>
                 <thead>
@@ -274,6 +274,24 @@
     {% compress js %}
     <script src="{% static 'index.js' %}"></script>
     {% endcompress %}
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+        // mostrar grupos y ocultar general
+        const general = document.getElementById("stockGeneral");
+        const grupos = document.getElementById("vistaGrupos");
+        if (general) general.style.display = "none";
+        if (grupos) grupos.style.display = "flex";
+
+        // dispara la carga de datos
+        if (typeof mostrarVistaGrupos === "function") {
+            mostrarVistaGrupos();             // esta ya llama a actualizarTablasGrupos()
+        } else if (typeof actualizarTablasGrupos === "function") {
+            await actualizarTablasGrupos();   // llamar directo
+        }
+        });
+    </script>
+
+
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const scannerInput = document.getElementById("codigoScanner");

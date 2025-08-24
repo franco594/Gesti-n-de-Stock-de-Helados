@@ -15,6 +15,8 @@ from django.core.paginator import Paginator
 from django.views.decorators.cache import cache_page
 from django.http import FileResponse
 from django.conf import settings
+from django.db.models import Q
+from django.utils.dateparse import parse_date
 
 
 def conectar_bd():
@@ -95,7 +97,7 @@ def importar_productos(request):
     resultado = cargar_productos_desde_excel()
     return JsonResponse(resultado)
 
-@cache_page(60)  # Cachear por 60 segundos
+@cache_page(5)  # Cachear por 5 segundos
 def obtener_stock(request):
     try:
         # Obtener el stock de cada producto contando los baldes disponibles
@@ -149,29 +151,83 @@ def historial(request):
 
 
 
+# views.py
+from django.db.models import Q, Max, OuterRef, Subquery
+from django.core.paginator import Paginator
+from django.utils.dateparse import parse_date
 def historial_movimientos(request):
     """
-    Obtiene una lista de movimientos únicos agrupados por grupo_id.
-    Muestra solo el último movimiento de cada grupo_id para evitar duplicados.
+    Lista de movimientos agrupados por grupo_id mostrando SOLO el último
+    movimiento de cada grupo, con filtros por fecha, local y tipo.
     """
-    movimientos = (
-        RegistroMovimiento.objects.values("grupo_id")
-        .annotate(ultimo_movimiento=Max("timestamp"))
-        .order_by("-ultimo_movimiento")
+    base_qs = RegistroMovimiento.objects.all()
+
+    # --- Filtros ---
+    desde_str = request.GET.get("desde")
+    hasta_str = request.GET.get("hasta")
+    local = (request.GET.get("local") or "").strip()
+    tipo = request.GET.get("tipo")
+
+    # Fecha (inclusiva por día)
+    if desde_str:
+        d = parse_date(desde_str)
+        if d:
+            base_qs = base_qs.filter(timestamp__date__gte=d)
+    if hasta_str:
+        h = parse_date(hasta_str)
+        if h:
+            base_qs = base_qs.filter(timestamp__date__lte=h)
+
+    # Local (CharFields + FK destino.nombre)
+    if local:
+        base_qs = base_qs.filter(
+            Q(boca_salida__icontains=local) |   # legado que mostrabas en el template
+            Q(origen__icontains=local)       |  # para ingresos
+            Q(destino__nombre__icontains=local) # FK -> BocaSalida.nombre
+        )
+
+    # Tipo
+    if tipo in ("ingreso", "retiro"):
+        base_qs = base_qs.filter(tipo=tipo)
+
+    # --- Último movimiento por grupo_id (respetando filtros) ---
+    latest_in_group = (
+        base_qs.filter(grupo_id=OuterRef("grupo_id"))
+               .order_by("-timestamp", "-id")
+               .values("id")[:1]
+    )
+    latest_ids_subq = (
+        base_qs.values("grupo_id")
+               .annotate(latest_id=Subquery(latest_in_group))
+               .values("latest_id")
     )
 
-    # Obtener el último registro de cada grupo_id para mostrar en el historial
-    movimientos_detalle = RegistroMovimiento.objects.filter(
-        grupo_id__in=[mov["grupo_id"] for mov in movimientos]
-    ).order_by("-timestamp").select_related("producto")  # agregá esto si querés eficiencia
+    movimientos_qs = (
+        RegistroMovimiento.objects
+        .filter(id__in=Subquery(latest_ids_subq))
+        .select_related("producto", "destino")  # destino es FK -> BocaSalida
+        .order_by("-timestamp", "-id")
+    )
 
-    # Removemos duplicados usando un diccionario
-    movimientos_dict = {}
-    for mov in movimientos_detalle:
-        if mov.grupo_id not in movimientos_dict:
-            movimientos_dict[mov.grupo_id] = mov  # Guardamos solo el primer registro de cada grupo_id
+    # --- Paginación ---
+    page_number = request.GET.get("page", 1)
+    paginator = Paginator(movimientos_qs, 20)
+    movimientos_page = paginator.get_page(page_number)
 
-    return render(request, "historial_movimientos.html", {"movimientos": movimientos_dict.values()})
+    return render(
+        request,
+        "historial_movimientos.html",
+        {
+            "movimientos": movimientos_page,
+            "filtros": {
+                "desde": desde_str or "",
+                "hasta": hasta_str or "",
+                "local": local,
+                "tipo": tipo or "",
+            },
+        },
+    )
+
 
 
 def detalle_movimiento(request, grupo_id):
@@ -399,7 +455,7 @@ def confirmar_codigos(request):
 
             return JsonResponse({
                 "success": True,
-                "message": f"Productos agregados correctamente:\n\n {'\\n'.join(productos_agregados)}"
+                "message": f"Productos agregados correctamente:\n\n {'\n'.join(productos_agregados)}"
             })
 
         except Exception as e:
