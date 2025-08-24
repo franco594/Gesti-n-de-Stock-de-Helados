@@ -39,6 +39,7 @@ urlpatterns = [
     path('descargar_backup/', descargar_backup, name='descargar_backup'),
     path('importar_backup/', importar_backup, name='importar_backup'),
     path("reiniciar_stock/", reiniciar_stock, name="reiniciar_stock"),
+    path("movimientos/<int:grupo_id>/", detalle_movimiento, name="movimientos_detalle_json"),
 
 ]
 

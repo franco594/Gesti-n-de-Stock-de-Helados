@@ -76,6 +76,10 @@
         <div class="modal-content">
             <span class="close" onclick="cerrarDetalle()">&times;</span>
             <h2>Detalle de Movimiento <strong id="detalleGrupoId"></strong></h2>
+            <!-- 🔽 NUEVO: resumen del movimiento -->
+            <div id="detalleResumen" class="muted" style="margin-bottom:10px;">
+            <!-- acá inyectamos: Total, Baldes, Origen/Destino -->
+            </div>
             <ul id="detalleLista"></ul>
             <button class="btn-close" onclick="cerrarDetalle()">Cerrar</button>
         </div>
@@ -171,29 +175,50 @@
 
 
         function verDetalleMovimiento(grupoId) {
-            document.getElementById("detalleGrupoId").textContent = `#${grupoId}`;
-            fetch(`/detalle_movimiento/${grupoId}/`)
-                .then(response => response.json())
-                .then(data => {
-                    const detalleLista = document.getElementById("detalleLista");
-                    detalleLista.innerHTML = "";
-                    data.forEach(item => {
-                        const li = document.createElement("li");
-                        li.innerHTML = `<span class="producto">${item.producto}</span>
-                                        <span class="peso">Peso: ${item.peso}g</span>
-                                        <span class="tipo">Tipo: ${item.tipo}</span>
-                                        <span class="fecha">Fecha: ${item.fecha}</span>
-                                        <span class="boca">Origen/Destino: ${item.boca_salida || '-'}</span>`;
-                        
-                        li.onclick = function() {
-                            resaltarElemento(li);
-                        };
+        document.getElementById("detalleGrupoId").textContent = `#${grupoId}`;
 
-                        detalleLista.appendChild(li);
-                    });
-                    document.getElementById("detalleModal").style.display = "flex";
-                });
+        // ← Ajustá la ruta a la que tengas en urls.py. Ej: /movimientos/<id>/?format=json
+        fetch(`/movimientos/${grupoId}/?format=json`, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+            .then(r => r.json())
+            .then(data => {
+            /*
+                data esperado:
+                {
+                grupo_id, tipo, origen, destino,
+                total_peso, cantidad_items,
+                items: [{producto, peso}, ...]
+                }
+            */
+
+            // 1) Resumen (Total, Baldes, Origen/Destino)
+            const resumen = document.getElementById("detalleResumen");
+            const esIngreso = (data.tipo === "ingreso");
+            resumen.innerHTML = `
+                <strong>Total:</strong> ${Number(data.total_peso || 0).toFixed(2)} kg
+                · <strong>Baldes:</strong> ${data.cantidad_items ?? 0}
+                ${esIngreso
+                ? `· <strong>Origen:</strong> ${data.origen ?? "-"}`
+                : `· <strong>Destino:</strong> ${data.destino ?? "-"}`}
+            `;
+
+            // 2) Lista de ítems del grupo
+            const detalleLista = document.getElementById("detalleLista");
+            detalleLista.innerHTML = (data.items || []).map(it => `
+                <li>
+                <span class="producto">${it.producto}</span>
+                <span class="peso"> — ${Number(it.peso || 0).toFixed(2)} kg</span>
+                </li>
+            `).join("");
+
+            // 3) Mostrar modal
+            document.getElementById("detalleModal").style.display = "flex";
+            })
+            .catch(err => {
+            console.error("No se pudo cargar el detalle:", err);
+            alert("No se pudo cargar el detalle del movimiento.");
+            });
         }
+
 
         function resaltarElemento(element) {
             document.querySelectorAll("#detalleLista li").forEach(li => li.classList.remove("resaltado"));

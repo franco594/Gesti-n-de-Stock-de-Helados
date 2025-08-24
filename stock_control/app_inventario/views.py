@@ -17,6 +17,17 @@ from django.http import FileResponse
 from django.conf import settings
 from django.db.models import Q
 from django.utils.dateparse import parse_date
+from django.db.models import Sum, Count
+from app_inventario.models import RegistroMovimiento, GrupoMovimiento, BocaSalida
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.db import transaction
+from django.db.models import Max, Count
+import json
+from django.shortcuts import render
+from django.http import JsonResponse, Http404
+from django.db.models import Sum, Count, Max
+from .models import RegistroMovimiento, GrupoMovimiento, BocaSalida
 
 
 def conectar_bd():
@@ -230,24 +241,88 @@ def historial_movimientos(request):
 
 
 
-def detalle_movimiento(request, grupo_id):
-    """
-    Devuelve solo los registros del grupo_id específico.
-    """
-    detalles = RegistroMovimiento.objects.filter(grupo_id=grupo_id).order_by("timestamp")
 
-    data = [
-        {
-            "producto": detalle.producto.nombre,
-            "peso": detalle.peso,
-            "tipo": detalle.tipo,
-            "fecha": detalle.timestamp.strftime("%d/%m/%Y %H:%M"),
-            "boca_salida": detalle.boca_salida  # 👈 Agregar esto
+def _actualizar_total_grupo(grupo_id, tipo, origen=None, destino_nombre=None):
+    agg = (RegistroMovimiento.objects
+           .filter(grupo_id=grupo_id)
+           .aggregate(total=Sum('peso'), cantidad=Count('id')))
+    total = agg['total'] or 0
+    cant = agg['cantidad'] or 0
+
+    destino_obj = None
+    if destino_nombre:
+        destino_obj = BocaSalida.objects.filter(nombre=destino_nombre).first()
+
+    GrupoMovimiento.objects.update_or_create(
+        grupo_id=grupo_id,
+        defaults={
+            'tipo': tipo,
+            'origen': origen if tipo=='ingreso' else None,
+            'destino': destino_obj if tipo=='salida' else None,
+            'total_peso': total,
+            'cantidad_items': cant,
         }
-        for detalle in detalles
-    ]
-    
-    return JsonResponse(data, safe=False)
+    )
+
+
+
+
+def detalle_movimiento(request, grupo_id: int):
+    # Items del grupo (los baldes)
+    items = (RegistroMovimiento.objects
+             .filter(grupo_id=grupo_id)
+             .select_related("producto", "destino")
+             .order_by("timestamp", "id"))
+
+    if not items.exists():
+        raise Http404("Movimiento no encontrado")
+
+    # Header persistido (si lo tienes)
+    header = GrupoMovimiento.objects.filter(grupo_id=grupo_id).select_related("destino").first()
+    if header:
+        total_peso = header.total_peso or 0
+        cantidad_items = header.cantidad_items or items.count()
+        tipo = header.tipo
+        origen = header.origen
+        destino = header.destino  # FK a BocaSalida o None
+    else:
+        # Fallback: calcular al vuelo (si aún no migraste/actualizaste)
+        agg = items.aggregate(total=Sum("peso"), cantidad=Count("id"),
+                              tipo_any=Max("tipo"),
+                              origen_any=Max("origen"),
+                              destino_any=Max("destino"))
+        total_peso = agg["total"] or 0
+        cantidad_items = agg["cantidad"] or 0
+        tipo = agg["tipo_any"]
+        origen = agg["origen_any"]
+        destino = None
+        if agg["destino_any"]:
+            destino = BocaSalida.objects.filter(pk=agg["destino_any"]).first()
+
+    # Soporte HTML o JSON (útil para modal por AJAX)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.GET.get("format") == "json":
+        return JsonResponse({
+            "grupo_id": grupo_id,
+            "tipo": tipo,
+            "origen": origen,
+            "destino": destino.nombre if destino else None,
+            "total_peso": round(float(total_peso), 2),
+            "cantidad_items": int(cantidad_items),
+            "items": [
+                {"producto": i.producto.nombre, "peso": float(i.peso)}
+                for i in items
+            ],
+        })
+
+    return render(request, "detalle_movimiento.html", {
+        "grupo_id": grupo_id,
+        "tipo": tipo,
+        "origen": origen,
+        "destino": destino,
+        "total_peso": total_peso,
+        "cantidad_items": cantidad_items,
+        "items": items,
+    })
 
 
 @csrf_exempt  # Se usa para pruebas, en producción mejor manejar CSRF correctamente
@@ -416,52 +491,113 @@ def reiniciar_lista_temporal(request):
     return JsonResponse({"message": "Lista de productos escaneados reiniciada"})
 
 
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.db import transaction
+from django.db.models import Max
+import json
+
 @csrf_exempt
 def confirmar_codigos(request):
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            origen = data.get("origen")  # 👈 origen enviado desde JS
+    """
+    Confirma INGRESO de productos (baldes), agrupando todo en un nuevo grupo_id.
+    - Valida payload.
+    - Usa transacción para coherencia.
+    - Crea StockBalde por cada balde ingresado.
+    - Registra RegistroMovimiento por cada balde (tipo='ingreso') con 'origen'.
+    - Actualiza total de peso del grupo en GrupoMovimiento.
+    - Limpia productos temporales de la sesión.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
 
-            productos_temporales = request.session.get("productos_temporales", [])
-            if not productos_temporales:
-                return JsonResponse({"error": "No hay productos para confirmar"}, status=400)
+    # --- Parseo payload ---
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Formato JSON inválido"}, status=400)
 
-            ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
-            nuevo_grupo_id = ultimo_grupo + 1
+    productos = data.get("productos", [])
+    origen = (data.get("origen") or "").strip()
 
-            productos_agregados = []
+    # Si no vienen en el body, intentamos desde la sesión (flujo actual)
+    if not productos:
+        productos = request.session.get("productos_temporales", [])
 
-            for producto in productos_temporales:
+    if not productos:
+        return JsonResponse({"error": "No hay productos para ingresar"}, status=400)
+
+    if not origen:
+        return JsonResponse({"error": "Debe indicar un origen"}, status=400)
+
+    # --- Determinar nuevo grupo_id ---
+    ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
+    nuevo_grupo_id = ultimo_grupo + 1
+
+    # --- Ejecutar ingreso en transacción ---
+    nombres_ingresados = []
+
+    try:
+        with transaction.atomic():
+            for p in productos:
+                plu = (p or {}).get("plu")
+                nombre = (p or {}).get("nombre")
+                peso = (p or {}).get("peso")
+
+                if not plu:
+                    return JsonResponse({"error": "Producto sin PLU"}, status=400)
+                if not peso:
+                    return JsonResponse({"error": f"Producto {nombre or plu} sin peso"}, status=400)
+
+                # Producto catálogo
                 try:
-                    producto_obj = ProductoFijo.objects.get(plu=producto["plu"])
-                    StockBalde.objects.create(producto=producto_obj, peso=producto["peso"])
-
-                    RegistroMovimiento.objects.create(
-                        grupo_id=nuevo_grupo_id,
-                        producto=producto_obj,
-                        peso=producto["peso"],
-                        tipo="ingreso",
-                        boca_salida=origen  # 👈 guardar origen como boca_salida
-                    )
-
-                    productos_agregados.append(producto_obj.nombre)
-
+                    producto_obj = ProductoFijo.objects.get(plu=plu)
                 except ProductoFijo.DoesNotExist:
-                    return JsonResponse({"error": f"Producto con PLU {producto['plu']} no encontrado"}, status=404)
+                    return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
-            request.session["productos_temporales"] = []
-            request.session.modified = True
+                # 1) Crear balde en stock
+                StockBalde.objects.create(producto=producto_obj, peso=float(peso))
 
-            return JsonResponse({
-                "success": True,
-                "message": f"Productos agregados correctamente:\n\n {'\n'.join(productos_agregados)}"
-            })
+                # 2) Registrar movimiento (ingreso)
+                RegistroMovimiento.objects.create(
+                    grupo_id=nuevo_grupo_id,
+                    producto=producto_obj,
+                    peso=float(peso),
+                    tipo="ingreso",
+                    origen=origen,            # origen (CharField)
+                    boca_salida=origen        # compatibilidad con campo legado si lo usabas para mostrar
+                )
 
-        except Exception as e:
-            return JsonResponse({"error": f"Error al confirmar productos: {str(e)}"}, status=500)
+                nombres_ingresados.append(producto_obj.nombre)
 
-    return JsonResponse({"error": "Método no permitido"}, status=405)
+            # 3) Actualizar totales del grupo (persistente)
+            _actualizar_total_grupo(
+                nuevo_grupo_id,
+                tipo="ingreso",
+                origen=origen
+            )
+
+            # 4) Limpiar lista temporal de la sesión
+            if "productos_temporales" in request.session:
+                request.session["productos_temporales"] = []
+                request.session.modified = True
+
+    except Exception as e:
+        return JsonResponse({"error": f"Error al confirmar ingreso: {e}"}, status=500)
+
+    # Respuesta: mensaje con \n (el front lo puede transformar a <br> o a <ul>)
+    msg = "Productos agregados correctamente:\n\n" + "\n".join(nombres_ingresados)
+    return JsonResponse(
+        {
+            "success": True,
+            "grupo_id": nuevo_grupo_id,
+            "origen": origen,
+            "productos": nombres_ingresados,
+            "message": msg
+        },
+        status=200
+    )
+
 
 
 
@@ -546,59 +682,111 @@ def retirar_producto(request):
 @csrf_exempt
 def confirmar_retiro(request):
     """
-    Confirma el retiro de productos, asegurándose de agruparlos en un nuevo grupo_id.
+    Confirma el retiro de productos (baldes), agrupando todo en un nuevo grupo_id.
+    - Valida stock antes de modificar.
+    - Usa transacción para coherencia.
+    - Registra destino (FK) y mantiene boca_salida (texto) para compatibilidad.
+    - Actualiza total de peso del grupo.
     """
-    if request.method == "POST":
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Formato JSON inválido"}, status=400)
+
+    productos = data.get("productos", [])
+    destino_nombre = (data.get("destino") or "").strip()
+
+    if not productos:
+        return JsonResponse({"error": "No hay productos para retirar"}, status=400)
+    if not destino_nombre:
+        return JsonResponse({"error": "Debe indicar un destino"}, status=400)
+
+    # --- Lookup de destino (FK) ---
+    destino_obj = BocaSalida.objects.filter(nombre=destino_nombre).first()
+    if not destino_obj:
+        return JsonResponse({"error": f"Destino '{destino_nombre}' no existe"}, status=400)
+
+    # --- Agrupar por PLU para validar stock antes de tocar BD ---
+    # contar cuántos baldes quiere retirar por producto
+    pedidos_por_plu = {}
+    for p in productos:
+        plu = (p or {}).get("plu")
+        if not plu:
+            return JsonResponse({"error": "Producto sin PLU"}, status=400)
+        pedidos_por_plu[plu] = pedidos_por_plu.get(plu, 0) + 1
+
+    # Validación de stock: si falta alguno, abortamos antes de borrar
+    nombres_sin_stock = []
+    productos_resueltos = {}  # plu -> (producto_obj, queryset baldes para retirar)
+    for plu, qty in pedidos_por_plu.items():
         try:
-            data = json.loads(request.body)
-            productos = data.get("productos", [])
+            producto_obj = ProductoFijo.objects.get(plu=plu)
+        except ProductoFijo.DoesNotExist:
+            return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
-            if not productos:
-                return JsonResponse({"error": "No hay productos para retirar"}, status=400)
+        disponibles = StockBalde.objects.filter(producto=producto_obj).order_by("-timestamp")
+        if disponibles.count() < qty:
+            nombres_sin_stock.append(producto_obj.nombre)
+        else:
+            productos_resueltos[plu] = (producto_obj, disponibles[:qty])
 
-            # Obtener el último grupo_id y sumarle 1
-            ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
-            nuevo_grupo_id = ultimo_grupo + 1
+    if nombres_sin_stock:
+        return JsonResponse(
+            {"error": f"No hay stock disponible para: {', '.join(nombres_sin_stock)}"},
+            status=400
+        )
 
-            productos_sin_stock = []
-            productos_retirados = []
+    # --- Obtener nuevo grupo_id ---
+    ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
+    nuevo_grupo_id = ultimo_grupo + 1
 
-            for producto in productos:
-                plu = producto.get("plu")
-                try:
-                    producto_obj = ProductoFijo.objects.get(plu=plu)
-                    balde = StockBalde.objects.filter(producto=producto_obj).order_by("-timestamp").first()
+    # --- Ejecutar retiro en transacción ---
+    productos_retirados = []
 
-                    if not balde:
-                        productos_sin_stock.append(producto_obj.nombre)
-                        continue  # ❌ No intentar eliminar si no hay stock
-
+    try:
+        with transaction.atomic():
+            for plu, (producto_obj, baldes_qs) in productos_resueltos.items():
+                for balde in baldes_qs:
+                    peso = balde.peso
+                    # eliminar el balde de stock
                     balde.delete()
-
-                    # Guardar en el historial de movimientos
+                    # registrar movimiento
                     RegistroMovimiento.objects.create(
                         grupo_id=nuevo_grupo_id,
                         producto=producto_obj,
-                        peso=balde.peso,
-                        tipo="retiro",
-                        boca_salida=data.get("destino")
+                        peso=peso,
+                        tipo="salida",
+                        destino=destino_obj,             # FK correcto
+                        boca_salida=destino_nombre       # compatibilidad con campo texto legado
                     )
                     productos_retirados.append(producto_obj.nombre)
 
-                except ProductoFijo.DoesNotExist:
-                    return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
+            # actualizar totales del grupo (persistente)
+            _actualizar_total_grupo(
+                nuevo_grupo_id,
+                tipo="salida",
+                destino_nombre=destino_nombre
+            )
 
-            if productos_sin_stock:
-                return JsonResponse({
-                    "error": f"No hay stock disponible para los siguientes productos: {', '.join(productos_sin_stock)}"
-                }, status=400)
+    except Exception as e:
+        return JsonResponse({"error": f"Error al retirar productos: {e}"}, status=500)
 
-            return JsonResponse({"message": f"Productos retirados correctamente:\n\n {'\n'.join(productos_retirados)} "}, status=200)
+    # Respuesta: mensaje con saltos \n (el front puede reemplazar por <br>)
+    msg = "Productos retirados correctamente:\n\n" + "\n".join(productos_retirados)
+    return JsonResponse(
+        {
+            "success": True,
+            "grupo_id": nuevo_grupo_id,
+            "destino": destino_nombre,
+            "productos": productos_retirados,
+            "message": msg
+        },
+        status=200
+    )
 
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "Formato JSON inválido"}, status=400)
-
-    return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
 productos_temporales = []  # Lista temporal de productos escaneados

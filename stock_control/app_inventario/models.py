@@ -51,4 +51,18 @@ class RegistroMovimiento(models.Model):
             origen=origen if tipo == "ingreso" else None,
             destino=destino if tipo == "retiro" else None
         )
+    
+
+class GrupoMovimiento(models.Model):
+    grupo_id = models.IntegerField(primary_key=True)  # mismo número que ya usás
+    tipo = models.CharField(max_length=10, choices=[("ingreso","Ingreso"),("salida","Retiro")])
+    origen = models.CharField(max_length=100, blank=True, null=True)
+    destino = models.ForeignKey('BocaSalida', on_delete=models.SET_NULL, blank=True, null=True)
+    total_peso = models.FloatField(default=0)
+    cantidad_items = models.IntegerField(default=0)
+    fecha = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Grupo {self.grupo_id} - {self.tipo} - {self.total_peso:.2f} kg"
+
 
