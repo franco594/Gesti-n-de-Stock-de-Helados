@@ -10,7 +10,7 @@ class ProductoFijo(models.Model):
 
 class StockBalde(models.Model):
     producto = models.ForeignKey(ProductoFijo, on_delete=models.CASCADE)
-    peso = models.FloatField()
+    peso = models.DecimalField(max_digits=5, decimal_places=2)
     timestamp = models.DateTimeField(auto_now_add=True)
 
 class BocaSalida(models.Model):
@@ -29,7 +29,7 @@ class OrigenIngreso(models.Model):
 class RegistroMovimiento(models.Model):
     grupo_id = models.IntegerField()
     producto = models.ForeignKey(ProductoFijo, on_delete=models.CASCADE)
-    peso = models.FloatField()
+    peso = models.DecimalField(max_digits=5, decimal_places=2)
     tipo = models.CharField(max_length=10, choices=[("ingreso", "Ingreso"), ("retiro", "Retiro")])
     timestamp = models.DateTimeField(auto_now_add=True)
     boca_salida = models.CharField(max_length=100, blank=True, null=True)  # 👈 importante
@@ -58,7 +58,7 @@ class GrupoMovimiento(models.Model):
     tipo = models.CharField(max_length=10, choices=[("ingreso","Ingreso"),("salida","Retiro")])
     origen = models.CharField(max_length=100, blank=True, null=True)
     destino = models.ForeignKey('BocaSalida', on_delete=models.SET_NULL, blank=True, null=True)
-    total_peso = models.FloatField(default=0)
+    total_peso = models.DecimalField(max_digits=5, decimal_places=2)
     cantidad_items = models.IntegerField(default=0)
     fecha = models.DateTimeField(auto_now_add=True)
 
