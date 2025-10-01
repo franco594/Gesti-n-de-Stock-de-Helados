@@ -1,6 +1,326 @@
 ('C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
  'Helados\\stock_control\\build\\run\\PYZ-00.pyz',
- [('__future__',
+ [('PIL',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\__init__.py',
+   'PYMODULE'),
+  ('PIL.AvifImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\AvifImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.BlpImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\BlpImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.BmpImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\BmpImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.BufrStubImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\BufrStubImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.CurImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\CurImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.DcxImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\DcxImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.DdsImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\DdsImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.EpsImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\EpsImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.ExifTags',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ExifTags.py',
+   'PYMODULE'),
+  ('PIL.FitsImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\FitsImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.FliImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\FliImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.FpxImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\FpxImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.FtexImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\FtexImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.GbrImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\GbrImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.GifImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\GifImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.GimpGradientFile',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\GimpGradientFile.py',
+   'PYMODULE'),
+  ('PIL.GimpPaletteFile',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\GimpPaletteFile.py',
+   'PYMODULE'),
+  ('PIL.GribStubImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\GribStubImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.Hdf5StubImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\Hdf5StubImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.IcnsImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\IcnsImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.IcoImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\IcoImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.ImImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.Image',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\Image.py',
+   'PYMODULE'),
+  ('PIL.ImageChops',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageChops.py',
+   'PYMODULE'),
+  ('PIL.ImageCms',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageCms.py',
+   'PYMODULE'),
+  ('PIL.ImageColor',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageColor.py',
+   'PYMODULE'),
+  ('PIL.ImageDraw',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageDraw.py',
+   'PYMODULE'),
+  ('PIL.ImageDraw2',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageDraw2.py',
+   'PYMODULE'),
+  ('PIL.ImageFile',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageFile.py',
+   'PYMODULE'),
+  ('PIL.ImageFilter',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageFilter.py',
+   'PYMODULE'),
+  ('PIL.ImageFont',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageFont.py',
+   'PYMODULE'),
+  ('PIL.ImageMath',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageMath.py',
+   'PYMODULE'),
+  ('PIL.ImageMode',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageMode.py',
+   'PYMODULE'),
+  ('PIL.ImageOps',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageOps.py',
+   'PYMODULE'),
+  ('PIL.ImagePalette',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImagePalette.py',
+   'PYMODULE'),
+  ('PIL.ImagePath',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImagePath.py',
+   'PYMODULE'),
+  ('PIL.ImageQt',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageQt.py',
+   'PYMODULE'),
+  ('PIL.ImageSequence',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageSequence.py',
+   'PYMODULE'),
+  ('PIL.ImageShow',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageShow.py',
+   'PYMODULE'),
+  ('PIL.ImageTk',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageTk.py',
+   'PYMODULE'),
+  ('PIL.ImageWin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImageWin.py',
+   'PYMODULE'),
+  ('PIL.ImtImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\ImtImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.IptcImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\IptcImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.Jpeg2KImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\Jpeg2KImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.JpegImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\JpegImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.JpegPresets',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\JpegPresets.py',
+   'PYMODULE'),
+  ('PIL.McIdasImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\McIdasImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.MicImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\MicImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.MpegImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\MpegImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.MpoImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\MpoImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.MspImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\MspImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.PaletteFile',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\PaletteFile.py',
+   'PYMODULE'),
+  ('PIL.PalmImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\PalmImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.PcdImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\PcdImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.PcxImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\PcxImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.PdfImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\PdfImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.PdfParser',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\PdfParser.py',
+   'PYMODULE'),
+  ('PIL.PixarImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\PixarImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.PngImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\PngImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.PpmImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\PpmImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.PsdImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\PsdImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.QoiImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\QoiImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.SgiImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\SgiImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.SpiderImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\SpiderImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.SunImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\SunImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.TgaImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\TgaImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.TiffImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\TiffImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.TiffTags',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\TiffTags.py',
+   'PYMODULE'),
+  ('PIL.WebPImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\WebPImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.WmfImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\WmfImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.XVThumbImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\XVThumbImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.XbmImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\XbmImagePlugin.py',
+   'PYMODULE'),
+  ('PIL.XpmImagePlugin',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\XpmImagePlugin.py',
+   'PYMODULE'),
+  ('PIL._binary',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\_binary.py',
+   'PYMODULE'),
+  ('PIL._deprecate',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\_deprecate.py',
+   'PYMODULE'),
+  ('PIL._typing',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\_typing.py',
+   'PYMODULE'),
+  ('PIL._util',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\_util.py',
+   'PYMODULE'),
+  ('PIL._version',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\_version.py',
+   'PYMODULE'),
+  ('PIL.features',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PIL\\features.py',
+   'PYMODULE'),
+  ('__future__',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\__future__.py',
    'PYMODULE'),
   ('_aix_support',
@@ -97,9 +417,22 @@
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\app_inventario\\migrations\\0009_registromovimiento_boca_salida.py',
    'PYMODULE'),
+  ('app_inventario.migrations.0010_backfill_grupos',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\app_inventario\\migrations\\0010_backfill_grupos.py',
+   'PYMODULE'),
   ('app_inventario.models',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\app_inventario\\models.py',
+   'PYMODULE'),
+  ('app_inventario.services', '-', 'PYMODULE'),
+  ('app_inventario.services.printing',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\app_inventario\\services\\printing.py',
+   'PYMODULE'),
+  ('app_inventario.signals',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\app_inventario\\signals.py',
    'PYMODULE'),
   ('app_inventario.tests',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
@@ -399,6 +732,78 @@
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\venv\\Lib\\site-packages\\setuptools\\_vendor\\backports\\__init__.py',
    'PYMODULE'),
+  ('barcode',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\__init__.py',
+   'PYMODULE'),
+  ('barcode.base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\base.py',
+   'PYMODULE'),
+  ('barcode.charsets',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\charsets\\__init__.py',
+   'PYMODULE'),
+  ('barcode.charsets.codabar',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\charsets\\codabar.py',
+   'PYMODULE'),
+  ('barcode.charsets.code128',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\charsets\\code128.py',
+   'PYMODULE'),
+  ('barcode.charsets.code39',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\charsets\\code39.py',
+   'PYMODULE'),
+  ('barcode.charsets.ean',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\charsets\\ean.py',
+   'PYMODULE'),
+  ('barcode.charsets.itf',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\charsets\\itf.py',
+   'PYMODULE'),
+  ('barcode.charsets.upc',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\charsets\\upc.py',
+   'PYMODULE'),
+  ('barcode.codabar',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\codabar.py',
+   'PYMODULE'),
+  ('barcode.codex',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\codex.py',
+   'PYMODULE'),
+  ('barcode.ean',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\ean.py',
+   'PYMODULE'),
+  ('barcode.errors',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\errors.py',
+   'PYMODULE'),
+  ('barcode.isxn',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\isxn.py',
+   'PYMODULE'),
+  ('barcode.itf',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\itf.py',
+   'PYMODULE'),
+  ('barcode.upc',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\upc.py',
+   'PYMODULE'),
+  ('barcode.version',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\version.py',
+   'PYMODULE'),
+  ('barcode.writer',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\barcode\\writer.py',
+   'PYMODULE'),
   ('base64',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\base64.py',
    'PYMODULE'),
@@ -466,6 +871,33 @@
    'PYMODULE'),
   ('codeop',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\codeop.py',
+   'PYMODULE'),
+  ('colorama',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\colorama\\__init__.py',
+   'PYMODULE'),
+  ('colorama.ansi',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\colorama\\ansi.py',
+   'PYMODULE'),
+  ('colorama.ansitowin32',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\colorama\\ansitowin32.py',
+   'PYMODULE'),
+  ('colorama.initialise',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\colorama\\initialise.py',
+   'PYMODULE'),
+  ('colorama.win32',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\colorama\\win32.py',
+   'PYMODULE'),
+  ('colorama.winterm',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\colorama\\winterm.py',
+   'PYMODULE'),
+  ('colorsys',
+   'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\colorsys.py',
    'PYMODULE'),
   ('compressor',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
@@ -4410,6 +4842,82 @@
   ('email.utils',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\email\\utils.py',
    'PYMODULE'),
+  ('escpos',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\__init__.py',
+   'PYMODULE'),
+  ('escpos.capabilities',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\capabilities.py',
+   'PYMODULE'),
+  ('escpos.codepages',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\codepages.py',
+   'PYMODULE'),
+  ('escpos.constants',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\constants.py',
+   'PYMODULE'),
+  ('escpos.escpos',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\escpos.py',
+   'PYMODULE'),
+  ('escpos.exceptions',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\exceptions.py',
+   'PYMODULE'),
+  ('escpos.image',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\image.py',
+   'PYMODULE'),
+  ('escpos.magicencode',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\magicencode.py',
+   'PYMODULE'),
+  ('escpos.printer',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\printer\\__init__.py',
+   'PYMODULE'),
+  ('escpos.printer.cups',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\printer\\cups.py',
+   'PYMODULE'),
+  ('escpos.printer.dummy',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\printer\\dummy.py',
+   'PYMODULE'),
+  ('escpos.printer.file',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\printer\\file.py',
+   'PYMODULE'),
+  ('escpos.printer.lp',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\printer\\lp.py',
+   'PYMODULE'),
+  ('escpos.printer.network',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\printer\\network.py',
+   'PYMODULE'),
+  ('escpos.printer.serial',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\printer\\serial.py',
+   'PYMODULE'),
+  ('escpos.printer.usb',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\printer\\usb.py',
+   'PYMODULE'),
+  ('escpos.printer.win32raw',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\printer\\win32raw.py',
+   'PYMODULE'),
+  ('escpos.types',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\types\\__init__.py',
+   'PYMODULE'),
+  ('escpos.version',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\escpos\\version.py',
+   'PYMODULE'),
   ('et_xmlfile',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\venv\\Lib\\site-packages\\et_xmlfile\\__init__.py',
@@ -4571,6 +5079,50 @@
    'PYMODULE'),
   ('importlib.util',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\importlib\\util.py',
+   'PYMODULE'),
+  ('importlib_resources',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\importlib_resources\\__init__.py',
+   'PYMODULE'),
+  ('importlib_resources._adapters',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\importlib_resources\\_adapters.py',
+   'PYMODULE'),
+  ('importlib_resources._common',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\importlib_resources\\_common.py',
+   'PYMODULE'),
+  ('importlib_resources._functional',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\importlib_resources\\_functional.py',
+   'PYMODULE'),
+  ('importlib_resources._itertools',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\importlib_resources\\_itertools.py',
+   'PYMODULE'),
+  ('importlib_resources.abc',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\importlib_resources\\abc.py',
+   'PYMODULE'),
+  ('importlib_resources.compat',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\importlib_resources\\compat\\__init__.py',
+   'PYMODULE'),
+  ('importlib_resources.compat.py39',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\importlib_resources\\compat\\py39.py',
+   'PYMODULE'),
+  ('importlib_resources.future',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\importlib_resources\\future\\__init__.py',
+   'PYMODULE'),
+  ('importlib_resources.future.adapters',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\importlib_resources\\future\\adapters.py',
+   'PYMODULE'),
+  ('importlib_resources.readers',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\importlib_resources\\readers.py',
    'PYMODULE'),
   ('inspect',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\inspect.py',
@@ -7279,6 +7831,87 @@
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\venv\\Lib\\site-packages\\pytz\\tzinfo.py',
    'PYMODULE'),
+  ('pywin32_system32', '-', 'PYMODULE'),
+  ('pywintypes',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\win32\\lib\\pywintypes.py',
+   'PYMODULE'),
+  ('qrcode',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\__init__.py',
+   'PYMODULE'),
+  ('qrcode.LUT',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\LUT.py',
+   'PYMODULE'),
+  ('qrcode.base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\base.py',
+   'PYMODULE'),
+  ('qrcode.compat',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\compat\\__init__.py',
+   'PYMODULE'),
+  ('qrcode.compat.png',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\compat\\png.py',
+   'PYMODULE'),
+  ('qrcode.constants',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\constants.py',
+   'PYMODULE'),
+  ('qrcode.exceptions',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\exceptions.py',
+   'PYMODULE'),
+  ('qrcode.image',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\image\\__init__.py',
+   'PYMODULE'),
+  ('qrcode.image.base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\image\\base.py',
+   'PYMODULE'),
+  ('qrcode.image.pil',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\image\\pil.py',
+   'PYMODULE'),
+  ('qrcode.image.pure',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\image\\pure.py',
+   'PYMODULE'),
+  ('qrcode.image.styledpil',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\image\\styledpil.py',
+   'PYMODULE'),
+  ('qrcode.image.styles',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\image\\styles\\__init__.py',
+   'PYMODULE'),
+  ('qrcode.image.styles.colormasks',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\image\\styles\\colormasks.py',
+   'PYMODULE'),
+  ('qrcode.image.styles.moduledrawers',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\image\\styles\\moduledrawers\\__init__.py',
+   'PYMODULE'),
+  ('qrcode.image.styles.moduledrawers.base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\image\\styles\\moduledrawers\\base.py',
+   'PYMODULE'),
+  ('qrcode.image.styles.moduledrawers.pil',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\image\\styles\\moduledrawers\\pil.py',
+   'PYMODULE'),
+  ('qrcode.main',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\main.py',
+   'PYMODULE'),
+  ('qrcode.util',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\qrcode\\util.py',
+   'PYMODULE'),
   ('queue',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\queue.py',
    'PYMODULE'),
@@ -7367,6 +8000,34 @@
    'PYMODULE'),
   ('selectors',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\selectors.py',
+   'PYMODULE'),
+  ('serial',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\serial\\__init__.py',
+   'PYMODULE'),
+  ('serial.serialcli',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\serial\\serialcli.py',
+   'PYMODULE'),
+  ('serial.serialjava',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\serial\\serialjava.py',
+   'PYMODULE'),
+  ('serial.serialposix',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\serial\\serialposix.py',
+   'PYMODULE'),
+  ('serial.serialutil',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\serial\\serialutil.py',
+   'PYMODULE'),
+  ('serial.serialwin32',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\serial\\serialwin32.py',
+   'PYMODULE'),
+  ('serial.win32',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\serial\\win32.py',
    'PYMODULE'),
   ('setuptools',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
@@ -8487,11 +9148,83 @@
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\venv\\Lib\\site-packages\\urllib3\\util\\wait.py',
    'PYMODULE'),
+  ('usb',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\__init__.py',
+   'PYMODULE'),
+  ('usb._debug',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\_debug.py',
+   'PYMODULE'),
+  ('usb._interop',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\_interop.py',
+   'PYMODULE'),
+  ('usb._lookup',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\_lookup.py',
+   'PYMODULE'),
+  ('usb._objfinalizer',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\_objfinalizer.py',
+   'PYMODULE'),
+  ('usb._version',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\_version.py',
+   'PYMODULE'),
+  ('usb.backend',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\backend\\__init__.py',
+   'PYMODULE'),
+  ('usb.backend.libusb0',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\backend\\libusb0.py',
+   'PYMODULE'),
+  ('usb.backend.libusb1',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\backend\\libusb1.py',
+   'PYMODULE'),
+  ('usb.backend.openusb',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\backend\\openusb.py',
+   'PYMODULE'),
+  ('usb.control',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\control.py',
+   'PYMODULE'),
+  ('usb.core',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\core.py',
+   'PYMODULE'),
+  ('usb.legacy',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\legacy.py',
+   'PYMODULE'),
+  ('usb.libloader',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\libloader.py',
+   'PYMODULE'),
+  ('usb.util',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\usb\\util.py',
+   'PYMODULE'),
   ('uuid',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\uuid.py',
    'PYMODULE'),
   ('webbrowser',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\webbrowser.py',
+   'PYMODULE'),
+  ('win32con',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\win32\\lib\\win32con.py',
+   'PYMODULE'),
+  ('win32evtlogutil',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\win32\\lib\\win32evtlogutil.py',
+   'PYMODULE'),
+  ('winerror',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\win32\\lib\\winerror.py',
    'PYMODULE'),
   ('wsgiref',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\wsgiref\\__init__.py',
@@ -8579,6 +9312,74 @@
    'PYMODULE'),
   ('xmlrpc.client',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\xmlrpc\\client.py',
+   'PYMODULE'),
+  ('yaml',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\__init__.py',
+   'PYMODULE'),
+  ('yaml.composer',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\composer.py',
+   'PYMODULE'),
+  ('yaml.constructor',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\constructor.py',
+   'PYMODULE'),
+  ('yaml.cyaml',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\cyaml.py',
+   'PYMODULE'),
+  ('yaml.dumper',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\dumper.py',
+   'PYMODULE'),
+  ('yaml.emitter',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\emitter.py',
+   'PYMODULE'),
+  ('yaml.error',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\error.py',
+   'PYMODULE'),
+  ('yaml.events',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\events.py',
+   'PYMODULE'),
+  ('yaml.loader',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\loader.py',
+   'PYMODULE'),
+  ('yaml.nodes',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\nodes.py',
+   'PYMODULE'),
+  ('yaml.parser',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\parser.py',
+   'PYMODULE'),
+  ('yaml.reader',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\reader.py',
+   'PYMODULE'),
+  ('yaml.representer',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\representer.py',
+   'PYMODULE'),
+  ('yaml.resolver',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\resolver.py',
+   'PYMODULE'),
+  ('yaml.scanner',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\scanner.py',
+   'PYMODULE'),
+  ('yaml.serializer',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\serializer.py',
+   'PYMODULE'),
+  ('yaml.tokens',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\yaml\\tokens.py',
    'PYMODULE'),
   ('zipfile',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\zipfile\\__init__.py',

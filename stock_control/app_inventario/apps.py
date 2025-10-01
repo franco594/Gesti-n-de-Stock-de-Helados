@@ -13,3 +13,10 @@ class AppInventarioConfig(AppConfig):
             scheduler = BackgroundScheduler()
             scheduler.add_job(backup_postgresql, 'cron', hour=10, minute=0)
             scheduler.start()
+
+
+class AppInventarioConfig(AppConfig):
+    name = "app_inventario"
+
+    def ready(self):
+        from . import signals  # noqa: F401  (importa y registra)

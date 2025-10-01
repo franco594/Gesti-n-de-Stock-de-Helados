@@ -1,5 +1,7 @@
 from django.db import models
 
+TIPO_CHOICES = (("ingreso", "Ingreso"), ("retiro", "Retiro"))
+
 class ProductoFijo(models.Model):
     plu = models.CharField(max_length=3, primary_key=True)
     nombre = models.CharField(max_length=255)
@@ -30,7 +32,7 @@ class RegistroMovimiento(models.Model):
     grupo_id = models.IntegerField()
     producto = models.ForeignKey(ProductoFijo, on_delete=models.CASCADE)
     peso = models.DecimalField(max_digits=5, decimal_places=2)
-    tipo = models.CharField(max_length=10, choices=[("ingreso", "Ingreso"), ("retiro", "Retiro")])
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
     timestamp = models.DateTimeField(auto_now_add=True)
     boca_salida = models.CharField(max_length=100, blank=True, null=True)  # 👈 importante
 
@@ -54,11 +56,11 @@ class RegistroMovimiento(models.Model):
     
 
 class GrupoMovimiento(models.Model):
-    grupo_id = models.IntegerField(primary_key=True)  # mismo número que ya usás
-    tipo = models.CharField(max_length=10, choices=[("ingreso","Ingreso"),("salida","Retiro")])
+    grupo_id = models.IntegerField(primary_key=True)
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
     origen = models.CharField(max_length=100, blank=True, null=True)
     destino = models.ForeignKey('BocaSalida', on_delete=models.SET_NULL, blank=True, null=True)
-    total_peso = models.DecimalField(max_digits=5, decimal_places=2)
+    total_peso = models.DecimalField(max_digits=10, decimal_places=3, default=0)
     cantidad_items = models.IntegerField(default=0)
     fecha = models.DateTimeField(auto_now_add=True)
 

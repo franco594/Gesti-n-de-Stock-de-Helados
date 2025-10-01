@@ -8,11 +8,38 @@
     {% compress css %}
     <link rel="stylesheet" href="{% static 'style.css' %}">
     {% endcompress %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 </head>
 <body class="page-transition">
 
+    <header>
+        
+        <div class="sidebar" id="sidebar">
+            <a href="{% url 'historial_movimientos' %}"><button id="historial-btn">Movimientos</button></a>
+            <button id="configButton"  onclick="abrirModalStock()">Stock</button>
+            <button id="configButton"  onclick="abrirModalCrearBoca('ingresar')">Origen</button>
+            <button id="configButton"  onclick="abrirModalCrearBoca('retirar')">Salidas</button>
+            <input type="file" id="archivoExcel" name="archivo" accept=".xlsx" style="display: none;">
+            <button type="button" id="botonCargarExcel">Productos</button>
+            <a href="{% url 'descargar_backup' %}"><button id="configButton">Exportar BD</button></a>
+            <form id="formImportarBackup" enctype="multipart/form-data">
+                <input type="file" id="archivoBackup" name="archivo" accept=".sqlite3" style="display: none;">
+                <button type="button" id="configButton" onclick="document.getElementById('archivoBackup').click();">Importar BD</button>
+            </form> 
+            <form id="formImportarBackup">
+                <button type="button" id="configButton" onclick="reiniciarStock()">Reiniciar BD</button>
+            </form>            
+
+            <button id="installBtn" style="display: none;">📲 Instalar App</button>
+        </div>
+
+        <!-- Overlay -->
+    <div id="overlay" onclick="closeMenu()"></div>
+    </header>
     <div class="header">
-        <h1>Historial de Movimientos</h1>
+        <h2>Historial de Movimientos</h2>
     </div>
 
     <div class="container">
@@ -49,9 +76,14 @@
                     <strong>{{ movimiento.tipo|upper }}</strong>    - 
                     {{ movimiento.timestamp|date:"d/m/Y H:i" }}     - 
                     <em>📍 {{ movimiento.boca_salida|default:"-" }}</em>
+                    <strong>{{ movimiento.tipo|upper }}</strong>
                 </div>
                 <div class="mov-buttons">
                     <button class="btn-view" onclick="verDetalleMovimiento('{{ movimiento.grupo_id }}')">Ver Detalles</button>
+                    <button type="button"
+        class="btn btn-sm btn-secondary js-reimprimir"
+        data-grupo="{{ movimiento.grupo_id }}"
+        title="Reimprimir comprobante">📄</button>
                     <button class="btn-delete" onclick="confirmarEliminacion('{{ movimiento.grupo_id }}')">🗑</button>
                 </div>
             </li>
@@ -98,8 +130,58 @@
         </div>
     </div>
 
-
+    <script src="{% static 'index.js' %}"></script>
     <script>
+
+        // Obtener CSRF (si ya tenés esta función, usá la tuya)
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+                }
+            }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        // Delegación de evento para todos los botones Reimprimir
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.js-reimprimir');
+            if (!btn) return;
+
+            const grupoId = btn.dataset.grupo;
+            if (!grupoId) return;
+
+            const prevText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Imprimiendo...';
+
+            try {
+            const resp = await fetch(`/api/movimientos/${grupoId}/reimprimir/`, {
+                method: 'POST',
+                headers: {
+                'X-CSRFToken': csrftoken,
+                },
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+                throw new Error(data.error || `HTTP ${resp.status}`);
+            }
+            alert(data.message || 'Reimpresión enviada');
+            } catch (err) {
+            console.error(err);
+            alert('No se pudo reimprimir el comprobante. Revisá la conexión con la impresora.');
+            } finally {
+            btn.disabled = false;
+            btn.textContent = prevText;
+            }
+        });
 
         // Helpers de query-string
         function qs(params) {

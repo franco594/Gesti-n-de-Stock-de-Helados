@@ -84,3 +84,13 @@ CACHES = {
     }
 }
 
+EPSON_BACKEND = os.getenv("EPSON_BACKEND", "spooler")
+EPSON_PRINTER_NAME = os.getenv("EPSON_PRINTER_NAME", "EPSON TM-T88V Receipt")
+NOMBRE_COMERCIO = os.getenv("NOMBRE_COMERCIO", "Gestión de Stock")
+PRINT_COPIAS = int(os.getenv("PRINT_COPIAS", "1"))
+PRINT_LOGO_PATH = os.getenv("PRINT_LOGO_PATH", "")
+PRINT_QR = os.getenv("PRINT_QR", "false").lower() == "true"
+
+PRINT_FROM_VIEWS = True
+PRINT_COPIAS = 1  # o las copias que quieras
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
