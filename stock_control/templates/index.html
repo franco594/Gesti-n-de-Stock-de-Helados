@@ -293,85 +293,104 @@
 
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const scannerInput = document.getElementById("codigoScanner");
-    
-            // Enfocar el input al cargar la página para capturar escaneos automáticamente
-            scannerInput.focus();
-    
-            // Capturar códigos escaneados
-            document.addEventListener("paste", async (event) => {
-                let clipboardData = event.clipboardData || window.clipboardData;
-                let pastedText = clipboardData.getData("Text").trim();
-    
-                if (pastedText.length === 13 && !isNaN(pastedText)) {
-                    console.log("📌 Código escaneado:", pastedText);
-                    procesarCodigoEscaneado(pastedText);
-                } else {
-                    console.warn("⚠️ Código no válido:", pastedText);
-                }
-            });
-    
-            // Evitar que el usuario pierda el foco del input
-            document.addEventListener("click", () => scannerInput.focus());
-        });
+    document.addEventListener("DOMContentLoaded", function () {
+    const scannerInput = document.getElementById("codigoScanner");
+    scannerInput?.focus();
 
-        function abrirModalStock() {
-            document.getElementById("modalStockMinimo").style.display = "flex"; // Muestra el modal
+    // Captura de escáner (pegado)
+    document.addEventListener("paste", (event) => {
+        const clip = event.clipboardData || window.clipboardData;
+        const text = (clip.getData("Text") || "").trim();
+        if (text.length === 13 && /^\d{13}$/.test(text)) {
+        console.log("📌 Código escaneado:", text);
+        event.preventDefault();          // evita que se pegue en el input y duplique
+        procesarCodigoEscaneado(text);   // tu función
+        } else {
+        console.warn("⚠️ Código no válido:", text);
         }
+    });
 
-        function cerrarModalStockMinimo() {
+    // Mantener foco en el input
+    document.addEventListener("click", () => scannerInput?.focus());
+    });
 
-            document.getElementById("modalStockMinimo").classList.add("zoom-out"); // Oculta el modal
-            document.getElementById("modalStockMinimo").classList.add("fade-out"); // Oculta el modal
-
-            // Esperar el tiempo de la animación antes de ocultar la modal
-            setTimeout(() => {
-                document.getElementById("modalStockMinimo").style.display = "none"; // Oculta el modal 
-                document.getElementById("modalStockMinimo").classList.remove("fade-out"); // Elimina la clase para la próxima vez que se abra
-                document.getElementById("modalStockMinimo").classList.remove("zoom-out");
-               
-            }, 300); // Debe coincidir con la duración de fadeOut en CSS
-           
-        }
-
-
-        function guardarStockMinimo() {
-        const productos = [];
-        document.querySelectorAll("input[id^='nuevo-stock-']").forEach(input => {
-            const plu = input.id.replace("nuevo-stock-", "");
-            const nuevoStock = input.value;
-            productos.push({ plu: plu, stock_minimo: nuevoStock });
-        });
-
-        fetch("api/actualizar_stock_minimo/", {  
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": "{{ csrf_token }}"  
-            },
-            body: JSON.stringify({ productos: productos })
-        })
-        .then(response => response.json())  
-        .then(data => {
-            if (data.success) {
-                productos.forEach(producto => {
-                    const stockElement = document.getElementById(`nuevo-stock-${producto.plu}`)
-                    if (stockElement) {  // ✅ Verificamos que el elemento exista antes de modificarlo
-                        stockElement.innerText = producto.stock_minimo;
-                        
-                    } else {
-                        console.warn(`⚠️ No se encontró el elemento con id stock-minimo-${producto.plu}`);
-                    }
-                });
-                cerrarModalStockMinimo();
-            } else {
-                alert("Error al actualizar stock mínimo: " + data.error);
-            }
-        })
-        .catch(error => console.error("Error:", error));
+    // Modal
+    function abrirModalStock() {
+    const m = document.getElementById("modalStockMinimo");
+    if (m) m.style.display = "flex";
     }
-    </script>
+
+    function cerrarModalStockMinimo() {
+    const m = document.getElementById("modalStockMinimo");
+    if (!m) return;
+    m.classList.add("zoom-out", "fade-out");
+    setTimeout(() => {
+        m.style.display = "none";
+        m.classList.remove("fade-out", "zoom-out");
+    }, 300);
+    }
+
+    // CSRF
+    function getCookie(name) {
+    const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+    return m ? decodeURIComponent(m[1]) : "";
+    }
+
+    // Guardar stock mínimo
+    async function guardarStockMinimo() {
+    const productos = [];
+    document.querySelectorAll("input[id^='nuevo-stock-']").forEach(input => {
+        const plu = input.id.replace("nuevo-stock-", "");
+        const nuevoStock = Number(input.value);
+        if (!Number.isNaN(nuevoStock)) {
+        productos.push({ plu, stock_minimo: nuevoStock });
+        }
+    });
+
+    if (productos.length === 0) {
+        alert("No hay cambios para guardar.");
+        return;
+    }
+
+    try {
+        const res = await fetch("/api/actualizar_stock_minimo/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({ productos }),
+        });
+
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); }
+        catch { throw new Error(`HTTP ${res.status}: ${text.slice(0,120)}...`); }
+
+        if (!res.ok || !data.success) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
+        }
+
+        // Reflejar en la UI (si tus inputs siguen editables, no hace falta tocar value)
+        productos.forEach(p => {
+        const el = document.getElementById(`nuevo-stock-${p.plu}`);
+        if (!el) return;
+        // Si es input:
+        if ("value" in el) el.value = p.stock_minimo;
+        // Si fuera span/div con ese id:
+        else el.innerText = p.stock_minimo;
+        });
+
+        cerrarModalStockMinimo();
+    } catch (err) {
+        console.error("Error:", err);
+        alert("Error al actualizar stock mínimo: " + err.message);
+    }
+    }
+</script>
+
     
 <script>
     document.getElementById("botonCargarExcel").addEventListener("click", function() {

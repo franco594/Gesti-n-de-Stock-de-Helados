@@ -3,6 +3,7 @@ from app_inventario.views import (
     # Home / stock
     index, cargar_productos_excel, importar_productos,
     obtener_stock, api_stock_detallado, stock_detallado,
+    actualizar_stock_minimo,
 
     # Historial / movimientos
     historial, historial_movimientos, detalle_movimiento, eliminar_movimiento,
@@ -36,6 +37,7 @@ urlpatterns = [
     path('api/stock_detallado/', api_stock_detallado, name="api_stock_detallado"),
     path('stock/detallado/', stock_detallado, name="stock_detallado"),
     path('cargar_excel/', cargar_productos_excel, name="cargar_excel"),
+    path("api/actualizar_stock_minimo/", actualizar_stock_minimo, name="actualizar_stock_minimo"),
 
     # Historial / movimientos agrupados
     path('historial/', historial, name="historial"),

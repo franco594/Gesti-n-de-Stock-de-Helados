@@ -1,937 +1,879 @@
-let productosEscaneados = [];
-let modo = '';
-let modalAbierta = false; // Controla si el escaneo está habilitado
-let faltantesSet = new Set();
-let bocaSeleccionada = '';
+"use strict";
+/**
+ * index.js — App de Gestión de Stock (Frontend)
+ * ------------------------------------------------------------
+ * Propósito: manejar UI, escaneo de códigos de barras, modales y
+ * comunicación con endpoints Django.
+ *
+ * Cambios clave en este refactor:
+ *  - Estructura por secciones y utilidades reutilizables (DOM, fetch, UI).
+ *  - Reemplazo de .then() por async/await para mayor legibilidad.
+ *  - Validaciones defensivas de elementos del DOM.
+ *  - Consolidación de listeners duplicados y setInterval con early exit.
+ *  - Exposición explícita en window de funciones que se usan desde HTML.
+ *  - Correcciones menores (p. ej., endpoint sin "/" inicial en actualizarProductosEscaneados).
+ *
+ * Posibles mejoras (TODO):
+ *  - Centralizar estado en un Store (Patrón Observer) para evitar múltiples fetches.
+ *  - Reemplazar polling (setInterval) por Server‑Sent Events/WebSocket o señales de UI.
+ *  - Manejo offline más robusto (Background Sync; colas de requests;
+ *    cache de catálogo/stock en IndexedDB).
+ *  - Migrar chips de bocas/orígenes a <button type="button"> con
+ *    event delegation en lugar de onClick inline.
+ *  - Tipado con JSDoc/TypeScript para prevenir errores de datos.
+ *  - Unificar render de tablas (general vs grupos) con una sola función
+ *    parametrizable.
+ *  - Accesibilidad (focus management en modales; ARIA attributes).
+ */
 
+/********************
+ * 1) Estado global *
+ ********************/
+let productosEscaneados = [];                // Lista corriente de productos en sesión
+let modo = "";                               // "ingresar" | "retirar"
+let modalAbierta = false;                    // Controla si el escaneo está habilitado
+let faltantesSet = new Set();                // Productos sin stock suficiente (solo retiro)
+let tipoActualCrear = "";                    // Contexto para modal de creación (retirar|ingresar)
+let bocaSeleccionada = "";                   // Última boca/origen seleccionado
+let deferredPrompt = null;                   // PWA install prompt
 
+/********************************
+ * 2) Constantes y selectores   *
+ ********************************/
+const SELECTORS = {
+  installBtn: "#installBtn",
+  codigoScanner: "#codigoScanner",
+  contenedorIngresar: "#contenedor-input-ingresar",
+  contenedorRetirar: "#contenedor-input-retirar",
+  stockTable: "#stockTable",
+  vistaGrupos: "#vistaGrupos",
+  modalPrefix: "#modal-", // se concatena con tipo
+  modalContentPrefix: "#modal-content-", // idem
+  modalConfirmacion: "#modal-confirmacion",
+  mensajeConfirmacion: "#mensajeConfirmacion",
+  modalDenegado: "#modal-denegado",
+  mensajeDenegado: "#mensajeDenegado",
+  botonVistaGrupos: "#botonVistaGrupos",
+  botonVistaGeneral: "#botonVistaGeneral",
+  sidebar: "#sidebar",
+  overlay: "#overlay",
+  menuBtn: "#menu-btn",
+  closeBtn: "#close-btn",
+  listaRetiro: "#listaEscaneadosRetiro",
+  listaIngreso: "#listaEscaneadosIngreso",
+  botonRetiro: "#boton-retirar",
+  mensajeError: "#mensaje-error",
+};
 
-if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/static/sw.js")
-        .then((reg) => console.log("✅ Service Worker registrado:", reg))
-        .catch((err) => console.error("❌ Error registrando Service Worker:", err));
+// Endpoints (centralizados)
+const API = {
+  reiniciarLista: "/api/reiniciar_lista_temporal/",
+  obtenerTemporales: "/api/obtener_productos_temporales/",
+  procesarCodigo: "/api/procesar_codigo/",
+  confirmarIngreso: "/api/confirmar_codigos/",
+  confirmarRetiro: "/api/confirmar_retiro/",
+  obtenerStock: "/api/obtener_stock/",
+  stockDetallado: "/api/stock_detallado/",
+  obtenerCodigos: "/api/obtener_codigos", // corregido (agregar "/" si falta en backend)
+  obtenerBocas: "/api/obtener_bocas_salida/",
+  obtenerOrigenes: "/api/obtener_origenes/",
+  crearBoca: "/api/crear_boca_salida/",
+  crearOrigen: "/api/crear_origen/",
+  eliminarBoca: "/api/eliminar_boca_salida/",
+  eliminarOrigen: "/api/eliminar_origen/",
+  eliminarTemporal: "/api/eliminar_producto_temporal/",
+};
+
+/********************************
+ * 3) Utilidades generales      *
+ ********************************/
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+function byId(id) {
+  return document.getElementById(id);
 }
 
-let deferredPrompt;
+function ensureEl(sel) {
+  const el = $(sel);
+  if (!el) console.warn(`Elemento no encontrado: ${sel}`);
+  return el;
+}
 
-window.addEventListener("beforeinstallprompt", (event) => {
+function setVisible(el, visible) {
+  if (!el) return;
+  el.style.display = visible ? "block" : "none";
+}
+
+function setDisabled(el, disabled) {
+  if (!el) return;
+  el.disabled = !!disabled;
+}
+
+async function getJSON(url) {
+  const res = await fetch(url);
+  // defensivo: intentar JSON, y si falla, retornar objeto con error
+  try { return await res.json(); } catch { return { error: true, status: res.status }; }
+}
+
+async function postJSON(url, bodyObj) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(bodyObj ?? {}),
+  });
+  try { return await res.json(); } catch { return { error: true, status: res.status }; }
+}
+
+/********************************
+ * 4) Service Worker / PWA      *
+ ********************************/
+(function setupPWA() {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/static/sw.js")
+      .then((reg) => console.log("✅ Service Worker registrado:", reg))
+      .catch((err) => console.error("❌ Error registrando Service Worker:", err));
+  }
+
+  window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
     deferredPrompt = event;
-    document.getElementById("installBtn").style.display = "block";
-});
+    const installBtn = ensureEl(SELECTORS.installBtn);
+    if (installBtn) installBtn.style.display = "block";
+  });
 
-document.getElementById("installBtn").addEventListener("click", () => {
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then((choiceResult) => {
-        if (choiceResult.outcome === "accepted") {
-            console.log("✅ El usuario instaló la app");
-        }
-        deferredPrompt = null;
+  const installBtn = ensureEl(SELECTORS.installBtn);
+  if (installBtn) {
+    installBtn.addEventListener("click", async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const choiceResult = await deferredPrompt.userChoice;
+      if (choiceResult?.outcome === "accepted") {
+        console.log("✅ El usuario instaló la app");
+      }
+      deferredPrompt = null;
     });
-});
+  }
+})();
 
+/********************************
+ * 5) Escaneo y modales         *
+ ********************************/
+const codigoScanner = ensureEl(SELECTORS.codigoScanner);
+if (codigoScanner) {
+  setDisabled(codigoScanner, true);
+}
 
-
-console.log("📢 DOM completamente cargado.");
-
-// Obtener elementos del DOM
-const stockModal = document.getElementById("stockModal");
-const stockTable = document.getElementById("stockTable");
-const configButton = document.getElementById("configButton");
-const closeModal = document.querySelector(".close");
-const codigoScanner = document.getElementById("codigoScanner");
-const contenedorIngresar = document.getElementById("contenedor-input-ingresar");
-const contenedorRetirar = document.getElementById("contenedor-input-retirar");
-const tablaGeneral = document.getElementById("stockTable");
-const vistaGrupos = document.getElementById("vistaGrupos");
-
-codigoScanner.disabled = true;
-
-// ✅ Función para activar el input de escaneo cuando la modal está abierta
 function activarInputEscaneo() {
-    codigoScanner.disabled = false;
-    codigoScanner.focus();
+  if (!codigoScanner) return;
+  setDisabled(codigoScanner, false);
+  codigoScanner.focus();
 }
 
-// ❌ Función para desactivar el input de escaneo cuando la modal se cierra
 function desactivarInputEscaneo() {
-    codigoScanner.disabled = true;
-    codigoScanner.blur();
+  if (!codigoScanner) return;
+  setDisabled(codigoScanner, true);
+  codigoScanner.blur();
 }
 
-// ✅ Escanear solo si la modal está abierta y actualizar en tiempo real
-codigoScanner.addEventListener("keydown", function(event) {
-    console.log("🔍 Evento detectado. Modal abierta:", modalAbierta, "| Tecla presionada:", event.key);
-
+// Entrada por Enter cuando la modal está abierta
+if (codigoScanner) {
+  codigoScanner.addEventListener("keydown", async (event) => {
+    // Nota: Hay dos listeners iguales en el código original; consolidado en uno.
     if (!modalAbierta) {
-        console.warn("⛔ Escaneo bloqueado porque la modal está cerrada.");
-        return; // No procesar si la modal está cerrada
+      console.warn("⛔ Escaneo bloqueado porque la modal está cerrada.");
+      return;
     }
-
     if (event.key === "Enter") {
-        event.preventDefault();
-        const codigo = codigoScanner.value.trim();
-
-        if (codigo.length === 13 && !isNaN(codigo)) {
-            console.log("📡 Código escaneado:", codigo);
-            procesarCodigoEscaneado(codigo);
-            codigoScanner.value = ""; // Limpiar el input después de procesarlo
-        } else {
-            console.warn("⚠️ Código inválido:", codigo);
-        }
+      event.preventDefault();
+      const codigo = codigoScanner.value.trim();
+      if (codigo.length === 13 && !isNaN(Number(codigo))) {
+        console.log("📡 Código escaneado:", codigo);
+        await procesarCodigoEscaneado(codigo);
+        codigoScanner.value = "";
+      } else {
+        console.warn("⚠️ Código inválido:", codigo);
+      }
     }
-});
+  });
+}
 
-function abrirModal(tipo) {
-    modo = tipo;
-    modalAbierta = true;
-    console.log(`📢 Modal abierta: ${tipo}`);
-    codigoScanner.style.visibility = "visible";
+async function abrirModal(tipo) {
+  modo = tipo; // "ingresar" | "retirar"
+  modalAbierta = true;
+  console.log(`📢 Modal abierta: ${tipo}`);
 
-    // Agregar input de escaneo al contenedor correcto
-    const contenedorIngresar = document.getElementById("contenedor-input-ingresar");
-    const contenedorRetirar = document.getElementById("contenedor-input-retirar");
+  if (!codigoScanner) return;
+  codigoScanner.style.visibility = "visible";
 
-    if (tipo === "ingresar") {
-        contenedorIngresar.appendChild(codigoScanner);
-    } else {
-        contenedorRetirar.appendChild(codigoScanner);
+  const contenedorIngresar = ensureEl(SELECTORS.contenedorIngresar);
+  const contenedorRetirar = ensureEl(SELECTORS.contenedorRetirar);
+  if (tipo === "ingresar") {
+    contenedorIngresar?.appendChild(codigoScanner);
+  } else {
+    contenedorRetirar?.appendChild(codigoScanner);
+  }
+
+  // Cargar chips (bocas/orígenes) con preferencia por "Portofino"
+  const inputContainer = byId(`contenedor-boca-${tipo}`);
+  const endpoint = tipo === "retirar" ? API.obtenerBocas : API.obtenerOrigenes;
+  try {
+    const data = await getJSON(endpoint);
+    if (data?.lista?.length > 0) {
+      const lista = data.lista.map((n) => String(n).trim());
+      const preferida = "Portofino";
+      const listaOrdenada = [
+        ...lista.filter((n) => n === preferida),
+        ...lista.filter((n) => n !== preferida),
+      ];
+      const primera = listaOrdenada[0] ?? "";
+      if (inputContainer) {
+        inputContainer.innerHTML = `
+          <label>${tipo === "retirar" ? "Boca de salida" : "Ingresar a"}:</label>
+          <div id="bocas-container-${tipo}" class="bocas-container">
+            ${listaOrdenada
+              .map((nombre, i) => {
+                const clase = i === 0 ? "boca-btn seleccionada" : "boca-btn";
+                // Nota: usamos onclick inline por compatibilidad con plantilla existente
+                return `<button class="${clase}" data-nombre="${nombre}" onclick="seleccionarBoca('${nombre.replace(/'/g, "\\'")}', '${tipo}')">📍 ${nombre}</button>`;
+              })
+              .join("")}
+          </div>
+          <input type="hidden" id="input-boca-${tipo}" value="${primera}">
+        `;
+      }
     }
+  } catch (e) {
+    console.error("Error cargando bocas/orígenes:", e);
+  }
 
-    // Mostrar el campo de boca de salida u origen según el tipo
-    const inputContainer = document.getElementById(`contenedor-boca-${tipo}`);
-    const endpoint = tipo === 'retirar' ? "/api/obtener_bocas_salida/" : "/api/obtener_origenes/";
+  // Reiniciar lista temporal en backend + limpiar UI
+  try {
+    await postJSON(API.reiniciarLista);
+    productosEscaneados = [];
+    actualizarListaEscaneados(modo, []);
+  } catch (e) {
+    console.error("Error al reiniciar la lista:", e);
+  }
 
-    console.log(endpoint);
+  // Mostrar modal y activar escaneo
+  const modal = byId(`modal-${tipo}`);
+  if (!modal) {
+    console.error(`⚠️ No se encontró la modal: modal-${tipo}`);
+    return;
+  }
+  const modalContent = byId(`modal-content-${tipo}`);
+  modal.style.display = "block";
+  modal.classList.remove("fade-out");
+  modalContent?.classList.remove("zoom-out");
 
-    fetch(endpoint)
-    .then(response => response.json())
-    .then(data => {
-        if (data.lista && data.lista.length > 0) {
-            // 🔁 Reordenar: Portofino primero, el resto después
-            const lista = data.lista.map(nombre => nombre.trim());
-            const preferida = "Portofino";
-            const listaOrdenada = [
-                ...lista.filter(n => n === preferida),
-                ...lista.filter(n => n !== preferida)
-            ];
-
-            const primeraSeleccion = listaOrdenada[0];
-
-            inputContainer.innerHTML = `
-                <label>${tipo === 'retirar' ? 'Boca de salida' : 'Ingresar a'}:</label>
-                <div id="bocas-container-${tipo}" class="bocas-container">
-                    ${listaOrdenada.map((nombre, i) => {
-                        const clase = i === 0 ? "boca-btn seleccionada" : "boca-btn";
-                        return `<button class="${clase}" data-nombre="${nombre}" onclick="seleccionarBoca('${nombre}', '${tipo}')">📍 ${nombre}</button>`;
-                    }).join('')}
-                </div>
-                <input type="hidden" id="input-boca-${tipo}" value="${primeraSeleccion}">
-            `;
-        }
-    });
-
-    fetch("/api/reiniciar_lista_temporal/", { method: "POST" })
-        .then(() => {
-            productosEscaneados = [];
-            actualizarListaEscaneados(modo, []);
-        })
-        .catch(error => console.error("Error al reiniciar la lista:", error));
-
-    const modal = document.getElementById(`modal-${tipo}`);
-    if (!modal) {
-        console.error(`⚠️ No se encontró la modal: modal-${tipo}`);
-        return;
-    }
-
-    modal.style.display = "block";
-    modal.classList.remove("fade-out");
-
-    activarInputEscaneo();
-    obtenerProductosEscaneados();
-
-    setTimeout(() => {
-        codigoScanner.focus();
-    }, 100);
+  activarInputEscaneo();
+  await obtenerProductosEscaneados();
+  setTimeout(() => codigoScanner?.focus(), 100);
 }
 
-
-let tipoActualCrear = "";
-
-function abrirModalCrearBoca(tipo) {
-    tipoActualCrear = tipo;
-
-    document.getElementById("nombreNuevaBoca").value = "";
-    document.getElementById("errorCrearBoca").style.display = "none";
-
-    document.getElementById("tituloCrearBoca").textContent =
-        tipo === 'retirar' ? "Crear nueva boca de salida" : "Crear nuevo origen";
-
-    // Mostrar la modal
-    document.getElementById("modalCrearBoca").style.display = "block";
-
-    // Obtener chips existentes
-    const endpoint = tipo === 'retirar' ? "/api/obtener_bocas_salida/" : "/api/obtener_origenes/";
-
-    fetch(endpoint)
-        .then(response => response.json())
-        .then(data => {
-            const container = document.getElementById("chipsExistentes");
-            container.innerHTML = "";
-
-            if (data.lista && data.lista.length > 0) {
-                data.lista.forEach(nombre => {
-                    const chip = document.createElement("div");
-                    chip.className = "chip";
-                    chip.innerHTML = `📍 ${nombre.trim()} <span class="close-chip" onclick="eliminarBocaDesdeModal('${nombre.trim()}')">&times;</span>`;
-                    container.appendChild(chip);
-                });
-            } else {
-                container.innerHTML = "<p style='font-style: italic;'>No hay opciones creadas.</p>";
-            }
-        });
-}
-
-function cerrarModalCrearBoca() {
-    document.getElementById("modalCrearBoca").style.display = "none";
-}
-
-function confirmarCreacionBoca() {
-    const nombre = document.getElementById("nombreNuevaBoca").value.trim();
-    if (!nombre) {
-        document.getElementById("errorCrearBoca").textContent = "El nombre no puede estar vacío.";
-        document.getElementById("errorCrearBoca").style.display = "block";
-        return;
-    }
-
-    const endpoint = tipoActualCrear === 'retirar' ? "/api/crear_boca_salida/" : "/api/crear_origen/";
-
-    fetch(endpoint, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ nombre })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            abrirModalCrearBoca(tipoActualCrear);  // Recargar chips
-        } else {
-            document.getElementById("errorCrearBoca").textContent = data.error || "Error al crear.";
-            document.getElementById("errorCrearBoca").style.display = "block";
-        }
-    });
-}
-
-function eliminarBocaDesdeModal(nombre) {
-    if (!confirm(`¿Eliminar "${nombre}"?`)) return;
-
-    const endpoint = tipoActualCrear === 'retirar' ? "/api/eliminar_boca_salida/" : "/api/eliminar_origen/";
-
-    fetch(endpoint, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ nombre })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            abrirModalCrearBoca(tipoActualCrear);  // Recargar después de eliminar
-        } else {
-            alert("❌ Error al eliminar: " + (data.error || "Desconocido"));
-        }
-    });
-}
-
-
-function seleccionarBoca(nombre, tipo) {
-    // Quitar la clase seleccionada de todos los botones
-    document.querySelectorAll(`#bocas-container-${tipo} .boca-btn`).forEach(btn => {
-        btn.classList.remove("seleccionada");
-    });
-
-    // Agregar la clase seleccionada al botón actual
-    const botonSeleccionado = document.querySelector(`#bocas-container-${tipo} .boca-btn[data-nombre="${CSS.escape(nombre)}"]`);
-    if (botonSeleccionado) {
-        botonSeleccionado.classList.add("seleccionada");
-    }
-
-    // Actualizar el valor del input oculto
-    document.getElementById(`input-boca-${tipo}`).value = nombre;
-}
-
-
-
-
-// ❌ Modificar la función cerrarModal para deshabilitar el input
 function cerrarModal(tipo) {
-    modalAbierta = false;
-    console.log(`❌ Modal cerrada: ${tipo}`);
+  modalAbierta = false;
+  console.log(`❌ Modal cerrada: ${tipo}`);
 
-    const modal = document.getElementById(`modal-${tipo}`);
-    const modalContent = document.getElementById(`modal-content-${tipo}`);
-    if (!modal) {
-        console.error(`⚠️ No se encontró la modal: modal-${tipo}`);
-        return;
-    }
-
-    // Agregar clase fade-out para iniciar la animación
-    modalContent.classList.add("zoom-out");
-    modal.classList.add("fade-out");
-
-    // Esperar el tiempo de la animación antes de ocultar la modal
-    setTimeout(() => {
-        modal.style.display = "none"; // Oculta la modal después de la animación
-        modal.classList.remove("fade-out"); // Elimina la clase para la próxima vez que se abra
-        modalContent.classList.remove("zoom-out");
-        desactivarInputEscaneo(); // Deshabilitar el input de escaneo
-    }, 300); // Debe coincidir con la duración de fadeOut en CSS
+  const modal = byId(`modal-${tipo}`);
+  const modalContent = byId(`modal-content-${tipo}`);
+  if (!modal) {
+    console.error(`⚠️ No se encontró la modal: modal-${tipo}`);
+    return;
+  }
+  modalContent?.classList.add("zoom-out");
+  modal.classList.add("fade-out");
+  setTimeout(() => {
+    modal.style.display = "none";
+    modal.classList.remove("fade-out");
+    modalContent?.classList.remove("zoom-out");
+    desactivarInputEscaneo();
+  }, 300);
 }
 
 function cerrarModalDenegado() {
-    document.getElementById(`modal-denegado`).classList.add("zoom-out"); // Oculta el modal
-    document.getElementById(`modal-denegado`).classList.add("fade-out"); // Oculta el modal
-
-    // Esperar el tiempo de la animación antes de ocultar la modal
-    setTimeout(() => {
-        document.getElementById(`modal-denegado`).style.display = "none"; // Oculta el modal 
-        document.getElementById(`modal-denegado`).classList.remove("fade-out"); // Elimina la clase para la próxima vez que se abra
-        document.getElementById(`modal-denegado`).classList.remove("zoom-out"); 
-    }, 300); // Debe coincidir con la duración de fadeOut en CSS
+  const m = ensureEl(SELECTORS.modalDenegado);
+  m?.classList.add("zoom-out");
+  m?.classList.add("fade-out");
+  setTimeout(() => {
+    if (!m) return;
+    m.style.display = "none";
+    m.classList.remove("fade-out");
+    m.classList.remove("zoom-out");
+  }, 300);
 }
 
 function cerrarModalConfirmacion() {
-    document.getElementById(`modal-confirmacion`).classList.add("zoom-out"); // Oculta el modal
-    document.getElementById(`modal-confirmacion`).classList.add("fade-out"); // Oculta el modal
-
-    // Esperar el tiempo de la animación antes de ocultar la modal
-    setTimeout(() => {
-        document.getElementById(`modal-confirmacion`).style.display = "none"; // Oculta el modal 
-        document.getElementById(`modal-confirmacion`).classList.remove("fade-out"); // Elimina la clase para la próxima vez que se abra
-        document.getElementById(`modal-confirmacion`).classList.remove("zoom-out"); 
-    }, 300); // Debe coincidir con la duración de fadeOut en CSS
+  const m = ensureEl(SELECTORS.modalConfirmacion);
+  m?.classList.add("zoom-out");
+  m?.classList.add("fade-out");
+  setTimeout(() => {
+    if (!m) return;
+    m.style.display = "none";
+    m.classList.remove("fade-out");
+    m.classList.remove("zoom-out");
+  }, 300);
 }
 
-// ✅ Obtener productos escaneados y actualizar modal en tiempo real
-function obtenerProductosEscaneados() {
-    if (!modalAbierta) return; // 🔴 No solicitar datos si la modal está cerrada
-
-    fetch('/api/obtener_productos_temporales/')
-        .then(response => response.json())
-        .then(data => {
-            productosEscaneados = data.productos || [];
-            actualizarListaEscaneados(modo, productosEscaneados);
-        })
-        .catch(error => console.error("Error al obtener productos escaneados:", error));
+/*******************************************
+ * 6) Productos escaneados / listas / UI   *
+ *******************************************/
+async function obtenerProductosEscaneados() {
+  if (!modalAbierta) return; // Evitar fetch cuando la modal está cerrada
+  try {
+    const data = await getJSON(API.obtenerTemporales);
+    productosEscaneados = Array.isArray(data?.productos) ? data.productos : [];
+    actualizarListaEscaneados(modo, productosEscaneados);
+  } catch (e) {
+    console.error("Error al obtener productos escaneados:", e);
+  }
 }
 
-// ✅ Actualizar la lista en la modal en tiempo real
-function actualizarListaEscaneados(modalTipo, productosEscaneados) {
-    if (!modalAbierta) return; // 🔴 No actualizar si la modal está cerrada
-    
-    console.log("📌 Actualizando modal:", modalTipo, productosEscaneados);
-    
-    const lista = modalTipo === "retirar" 
-        ? document.getElementById("listaEscaneadosRetiro")
-        : document.getElementById("listaEscaneadosIngreso");
+function actualizarListaEscaneados(modalTipo, lista) {
+  if (!modalAbierta) return;
+  const listaEl = modalTipo === "retirar" ? $(SELECTORS.listaRetiro) : $(SELECTORS.listaIngreso);
+  if (!listaEl) {
+    console.error("⚠️ No se encontró la lista del modal:", modalTipo);
+    return;
+  }
+  listaEl.innerHTML = "";
+  if (!Array.isArray(lista) || lista.length === 0) {
+    listaEl.innerHTML = "<p style='text-align:center; font-style:italic;'>No hay productos escaneados.</p>";
+    return;
+  }
 
-    if (!lista) {
-        console.error("⚠️ No se encontró la lista del modal:", modalTipo);
-        return;
-    }
+  for (const producto of lista) {
+    const li = document.createElement("li");
+    li.textContent = `Balde: ${producto.nombre}, Peso: ${producto.peso}g`;
 
-    lista.innerHTML = "";
-    
-    if (productosEscaneados.length === 0) {
-        lista.innerHTML = "<p style='text-align:center; font-style:italic;'>No hay productos escaneados.</p>";
-        return;
-    }
-    
-    productosEscaneados.forEach((producto) => {
-        const item = document.createElement("li");
-        item.textContent = `Balde: ${producto.nombre}, Peso: ${producto.peso}g`;
-        
-        const botonEliminar = document.createElement("button");
-        botonEliminar.classList.add("btnEliminar");
-        botonEliminar.textContent = "❌";
-        botonEliminar.style.cursor = "pointer";
-        botonEliminar.onclick = () => eliminarProductoEscaneado(producto.plu, modalTipo);
+    const btn = document.createElement("button");
+    btn.classList.add("btnEliminar");
+    btn.textContent = "❌";
+    btn.style.cursor = "pointer";
+    btn.addEventListener("click", () => eliminarProductoEscaneado(producto.plu, modalTipo));
 
-        item.appendChild(botonEliminar);
-        lista.appendChild(item);
-    });
+    li.appendChild(btn);
+    listaEl.appendChild(li);
+  }
 
-    // 🔴 Validar stock después de actualizar la lista de productos escaneados (solo en retiro)
-    if (modalTipo === "retirar") {
-        validarStockParaRetiro();
-    }
+  if (modalTipo === "retirar") {
+    validarStockParaRetiro();
+  }
 }
 
+async function eliminarProductoEscaneado(plu, modalTipo) {
+  try {
+    const data = await postJSON(API.eliminarTemporal, { plu });
+    if (data?.success) {
+      console.log("🗑 Producto eliminado de la sesión:", plu);
+      await obtenerProductosEscaneados();
+    } else {
+      console.error("❌ Error al eliminar producto:", data?.error);
+    }
+  } catch (e) {
+    console.error("⚠️ Error eliminando producto:", e);
+  }
+}
 
-function eliminarProductoEscaneado(plu, modalTipo) {
-    fetch('/api/eliminar_producto_temporal/', {
-        method: 'POST',
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plu }) // 🔥 Enviar solo el PLU del producto a eliminar
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log("🗑 Producto eliminado de la sesión:", plu);
-            obtenerProductosEscaneados(); // ✅ Volver a cargar la lista desde la sesión
-        } else {
-            console.error("❌ Error al eliminar producto:", data.error);
+async function actualizarTablas() {
+  console.log("🔄 Actualizando tabla general de stock...");
+  const tablaStock = ensureEl(SELECTORS.stockTable);
+  if (!tablaStock) return;
+  try {
+    const data = await getJSON(API.obtenerStock);
+    if (!Array.isArray(data?.stock)) {
+      console.error("❌ Respuesta sin 'stock' válido.");
+      return;
+    }
+    const encabezado = `
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Cantidad de Baldes</th>
+        </tr>
+      </thead>`;
+
+    let body = "<tbody>";
+    if (data.stock.length === 0) {
+      body += `
+        <tr>
+          <td colspan="2" style="text-align:center; font-style:italic; color:gray;">No hay productos en stock.</td>
+        </tr>`;
+    } else {
+      for (const item of data.stock) {
+        const rowClass = item.cantidad < item.stock_minimo ? "resaltar-bajo-stock" : "";
+        body += `<tr class="${rowClass}"><td>${item.nombre}</td><td>${item.cantidad}</td></tr>`;
+      }
+    }
+    body += "</tbody>";
+    tablaStock.innerHTML = encabezado + body;
+    console.log("✅ Tabla de stock actualizada.");
+  } catch (e) {
+    console.error("❌ Error al actualizar la tabla de stock:", e);
+  }
+}
+
+async function actualizarTablasGrupos() {
+  try {
+    const data = await getJSON(API.obtenerStock);
+    if (!Array.isArray(data?.stock)) {
+      console.error("❌ Respuesta sin 'stock' válido.");
+      return;
+    }
+    const gruposBody = {
+      jarabe: byId("jarabe-body"),
+      chocolates: byId("chocolates-body"),
+      dulces: byId("dulces-body"),
+      blanca: byId("blanca-body"),
+      neutra: byId("neutra-body"),
+      zambayon: byId("zambayon-body"),
+      oleosa: byId("oleosa-body"),
+    };
+    Object.values(gruposBody).forEach((el) => el && (el.innerHTML = ""));
+
+    for (const producto of data.stock) {
+      let grupoAsignado = "otros";
+      for (const [grupo, productos] of Object.entries(GRUPOS)) {
+        if (productos.includes(String(producto.nombre).toUpperCase())) {
+          grupoAsignado = grupo;
+          break;
         }
-    })
-    .catch(error => console.error("⚠️ Error en la petición:", error));
+      }
+      const tr = document.createElement("tr");
+      tr.className = producto.cantidad < producto.stock_minimo ? "resaltar-bajo-stock" : "";
+      tr.innerHTML = `<td>${producto.nombre}</td><td>${producto.cantidad}</td>`;
+      gruposBody[grupoAsignado]?.appendChild(tr);
+    }
+    console.log("✅ Tablas de grupos actualizadas.");
+  } catch (e) {
+    console.error("❌ Error al obtener/actualizar grupos:", e);
+  }
 }
 
-
-function actualizarTablas() {
-    console.log("🔄 Actualizando tablas...");
-
-    fetch('/api/obtener_stock/')
-        .then(response => response.json())
-        .then(data => {
-            const tablaStock = document.getElementById("stockTable");
-
-            if (!tablaStock) {
-                console.error("⚠️ No se encontró la tabla de stock.");
-                return;
-            }
-
-            // Verificar si la respuesta del backend es válida
-            if (!data.stock || !Array.isArray(data.stock)) {
-                console.error("❌ Error: La respuesta del backend no contiene una lista de stock.");
-                return;
-            }
-
-            // Guardar el encabezado actual para que no se pierda
-            const encabezado = `
-                <thead>
-                    <tr>
-                        <th>Producto</th>
-                        <th>Cantidad de Baldes</th>
-                    </tr>
-                </thead>
-            `;
-
-            let contenido = "<tbody>";
-
-            if (data.stock.length === 0) {
-                contenido += `
-                    <tr>
-                        <td colspan="2" style="text-align: center; font-style: italic; color: gray;">
-                            No hay productos en stock.
-                        </td>
-                    </tr>
-                `;
-            } else {
-                data.stock.forEach(item => {
-                    // Aplicar la misma lógica de Jinja para resaltar stock bajo
-                    let rowClass = item.cantidad < item.stock_minimo ? "resaltar-bajo-stock" : "";
-
-                    contenido += `
-                        <tr class="${rowClass}">
-                            <td>${item.nombre}</td>
-                            <td>${item.cantidad}</td>
-                        </tr>
-                    `;
-                });
-            }
-
-            contenido += "</tbody>";
-
-            // Mantener el encabezado y actualizar solo el cuerpo de la tabla
-            tablaStock.innerHTML = encabezado + contenido;
-
-            console.log("✅ Tabla de stock actualizada.");
-        })
-        .catch(error => console.error("❌ Error al actualizar la tabla de stock:", error));
-
-        
+/*******************************************
+ * 7) Comunicación con backend (acciones)  *
+ *******************************************/
+async function procesarCodigoEscaneado(codigo) {
+  try {
+    const data = await postJSON(API.procesarCodigo, { codigo });
+    if (data?.error) {
+      console.error("❌ Error procesando código:", data.error);
+    } else {
+      console.log("✔ Código procesado con éxito:", data);
+      await actualizarProductosEscaneados();
+      await validarStockParaRetiro();
+    }
+  } catch (e) {
+    console.error("⚠️ Error en la petición de procesar código:", e);
+  }
 }
 
-
-function actualizarTablasGrupos() {
-    fetch("/api/obtener_stock/")
-        .then(response => response.json())
-        .then(data => {
-            if (!data || !Array.isArray(data.stock)) {
-                console.error("❌ Error: La respuesta del backend no contiene una lista de stock válida.");
-                return;
-            }
-
-            const gruposBody = {
-                jarabe: document.getElementById("jarabe-body"),
-                chocolates: document.getElementById("chocolates-body"),
-                dulces: document.getElementById("dulces-body"),
-                blanca: document.getElementById("blanca-body"),
-                neutra: document.getElementById("neutra-body"),
-                zambayon: document.getElementById("zambayon-body"),
-                oleosa: document.getElementById("oleosa-body"),
-            };
-
-            // Verificar que cada contenedor exista antes de limpiar
-            Object.keys(gruposBody).forEach(key => {
-                if (gruposBody[key]) {
-                    gruposBody[key].innerHTML = "";
-                }
-            });
-
-            data.stock.forEach(producto => {
-                let grupoAsignado = "otros";
-
-                // Determinar el grupo del producto
-                Object.entries(grupos).forEach(([grupo, productos]) => {
-                    if (productos.includes(producto.nombre.toUpperCase())) {
-                        grupoAsignado = grupo;
-                    }
-                });
-
-                // Crear la fila de la tabla del grupo
-                const fila = document.createElement("tr");
-                fila.className = producto.cantidad < producto.stock_minimo ? "resaltar-bajo-stock" : "";
-                fila.innerHTML = `<td>${producto.nombre}</td><td>${producto.cantidad}</td>`;
-
-                // Agregar la fila a la tabla correspondiente
-                if (gruposBody[grupoAsignado]) {
-                    gruposBody[grupoAsignado].appendChild(fila);
-                }
-            });
-
-            console.log("✅ Tablas de grupos actualizadas.");
-        })
-        .catch(error => console.error("❌ Error al obtener y actualizar los grupos:", error));
+async function actualizarProductosEscaneados() {
+  try {
+    const data = await getJSON(API.obtenerCodigos);
+    if (!Array.isArray(data?.productos)) {
+      console.error("❌ API obtener_codigos sin array 'productos'.");
+      return;
+    }
+    productosEscaneados = data.productos;
+  } catch (e) {
+    console.error("Error al obtener productos escaneados:", e);
+  }
 }
 
+async function confirmarAgregarProductos() {
+  console.log("📢 Intentando confirmar productos. Lista actual:", productosEscaneados);
+  if (!productosEscaneados || productosEscaneados.length === 0) {
+    mostrarModalDenegado("No hay productos escaneados para agregar.");
+    return;
+  }
+  const boca = byId("input-boca-ingresar")?.value?.trim();
+  if (!boca) {
+    mostrarModalDenegado("Por favor, seleccioná un origen.");
+    return;
+  }
+  const payload = { productos: productosEscaneados, origen: boca };
+  try {
+    const data = await postJSON(API.confirmarIngreso, payload);
+    if (data?.error) {
+      console.error("❌ Error al confirmar productos:", data.error);
+    } else {
+      console.log("✅ Productos agregados correctamente.");
+      mostrarModalConfirmacion(data.message ?? "Productos agregados");
+      cerrarModal("ingresar");
+      productosEscaneados = [];
+      await actualizarTablas();
+      await actualizarTablasGrupos();
+    }
+  } catch (e) {
+    console.error("⚠️ Error al agregar productos:", e);
+  }
+}
 
+async function confirmarRetirarProductos() {
+  const ok = await validarStockParaRetiro();
+  const faltantes = Array.from(faltantesSet).join("\n");
+  if (!ok) {
+    mostrarModalDenegado(
+      `No se puede continuar con el retiro porque hay productos sin stock:\n${faltantes}`
+    );
+    return;
+  }
+  if (!productosEscaneados?.length) {
+    mostrarModalDenegado("No hay productos escaneados para retirar.");
+    return;
+  }
+  const boca = byId("input-boca-retirar")?.value?.trim();
+  if (!boca) {
+    mostrarModalDenegado("Por favor, seleccioná una boca de salida.");
+    return;
+  }
+  const payload = { productos: productosEscaneados, destino: boca };
+  try {
+    const data = await postJSON(API.confirmarRetiro, payload);
+    if (data?.error) {
+      console.error("❌ Error al retirar productos:", data.error);
+      return;
+    }
+    console.log("✅ Productos retirados correctamente.");
+    mostrarModalConfirmacion(data.message ?? "Productos retirados");
+    cerrarModal("retirar");
+    productosEscaneados = [];
+    await actualizarTablas();
+    await actualizarTablasGrupos();
+  } catch (e) {
+    console.error("❌ Error al retirar productos:", e);
+  }
+}
 
-// Enviar el código al servidor Django para su procesamiento
-function procesarCodigoEscaneado(codigo) {
-    fetch("/api/procesar_codigo/", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ codigo: codigo })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            console.error("❌ Error procesando código:", data.error);
-        } else {
-            console.log("✔ Código procesado con éxito:", data);
-            actualizarProductosEscaneados();  // Refrescar la lista de productos escaneados
-            validarStockParaRetiro();
+/*******************************************
+ * 8) Validación de stock (retiro)         *
+ *******************************************/
+async function validarStockParaRetiro() {
+  try {
+    const dataStock = await getJSON(API.stockDetallado);
+    const dataEscaneados = await getJSON(API.obtenerTemporales);
+    if (!Array.isArray(dataStock?.stock_detallado) || !Array.isArray(dataEscaneados?.productos)) {
+      console.error("Error al obtener stock o productos escaneados.");
+      return false;
+    }
+    const stockProductos = dataStock.stock_detallado;
+    const listaEscaneados = dataEscaneados.productos;
+
+    faltantesSet.clear();
+    let hayStockInsuficiente = false;
+
+    for (const prod of listaEscaneados) {
+      const pStock = stockProductos.find((p) => p.nombre === prod.nombre);
+      if (pStock) {
+        const cantDisponible = pStock.cantidad;
+        const cantRetirar = listaEscaneados.filter((p) => p.nombre === prod.nombre).length;
+        if (cantDisponible < cantRetirar) {
+          faltantesSet.add(`${prod.nombre} ❗`);
+          hayStockInsuficiente = true;
+          const fila = document.querySelector(`.producto-fila[data-nombre="${prod.nombre}"]`);
+          fila?.classList.add("sin-stock");
         }
-    })
-    .catch(error => console.error("⚠️ Error en la petición:", error));
+      }
+    }
+
+    const botonRetiro = ensureEl(SELECTORS.botonRetiro);
+    const mensajeError = ensureEl(SELECTORS.mensajeError);
+
+    if (hayStockInsuficiente) {
+      if (mensajeError) {
+        mensajeError.innerText = "⚠️ Algunos productos no tienen stock suficiente.";
+        mensajeError.style.display = "block";
+      }
+      setDisabled(botonRetiro, true);
+      return false;
+    } else {
+      if (mensajeError) mensajeError.style.display = "none";
+      setDisabled(botonRetiro, false);
+      return true;
+    }
+  } catch (e) {
+    console.error("Error validando stock:", e);
+    return false;
+  }
 }
 
-function actualizarProductosEscaneados() {
-    fetch('api/obtener_codigos')
-        .then(response => response.json())
-        .then(data => {
-
-            // Verifica si 'productos' existe y es un array
-            if (!data.productos || !Array.isArray(data.productos)) {
-                console.error("❌ Error: La respuesta de la API no contiene un array válido.");
-                return;
-            }
-            productosEscaneados = data || []; // Actualizar la lista con los productos escaneados
-        })
-        .catch(error => console.error("Error al obtener productos escaneados:", error));
-}
-
-// ✅ Capturar eventos de input para el escaneo cuando el modal está abierto
-codigoScanner.addEventListener("keydown", function(event) {
-    console.log("🔍 Evento detectado. Modal abierta:", modalAbierta, "| Tecla presionada:", event.key);
-
-    if (!modalAbierta) {
-        console.warn("⛔ Escaneo bloqueado porque la modal está cerrada.");
-        return; // No procesar si la modal está cerrada
-    }
-
-    if (event.key === "Enter") {
-        event.preventDefault();
-        const codigo = codigoScanner.value.trim();
-
-        if (codigo.length === 13 && !isNaN(codigo)) {
-            console.log("📡 Código escaneado:", codigo);
-            procesarCodigoEscaneado(codigo);
-            codigoScanner.value = ""; // Limpiar el input después de procesarlo
-        } else {
-            console.warn("⚠️ Código inválido:", codigo);
-        }
-    }
-});
-
-
-// 🚀 Verificar cada 500ms si la modal está abierta antes de permitir escaneo y obtener datos actualizados
-setInterval(() => {
-    if (modalAbierta) {
-        obtenerProductosEscaneados();
-    }
-}, 500);
-
-// ✅ Mostrar modal de confirmación
+/*******************************************
+ * 9) UI: modales de feedback              *
+ *******************************************/
 function mostrarModalConfirmacion(mensaje) {
-    const modal = document.getElementById("modal-confirmacion");
-    const mensajeElemento = document.getElementById("mensajeConfirmacion");
-    mensajeElemento.innerText = mensaje;
-    modal.style.display = "block";
-    
+  const modal = ensureEl(SELECTORS.modalConfirmacion);
+  const texto = ensureEl(SELECTORS.mensajeConfirmacion);
+  if (!modal || !texto) return;
+  texto.innerText = mensaje;
+  modal.style.display = "block";
 }
 
 function mostrarModalDenegado(mensaje) {
-    const modal = document.getElementById("modal-denegado");
-    const mensajeElemento = document.getElementById("mensajeDenegado");
-    mensajeElemento.innerText = mensaje;
-    modal.style.display = "block";
-    
+  const modal = ensureEl(SELECTORS.modalDenegado);
+  const texto = ensureEl(SELECTORS.mensajeDenegado);
+  if (!modal || !texto) return;
+  texto.innerText = mensaje;
+  modal.style.display = "block";
 }
 
-// ✅ Confirmar y agregar los productos escaneados al servidor
-function confirmarAgregarProductos() {
-    console.log("📢 Intentando confirmar productos. Lista actual:", productosEscaneados);
-
-    if (!productosEscaneados || productosEscaneados.length === 0) {
-        mostrarModalDenegado("No hay productos escaneados para agregar.");
-        console.warn("⛔ No hay productos escaneados para agregar.");
-        return;
-    }
-
-    const boca = document.getElementById("input-boca-ingresar")?.value?.trim();
-
-    if (!boca) {
-        mostrarModalDenegado("Por favor, seleccioná un origen.");
-        return;
-    }
-
-    const payload = { 
-        productos: productosEscaneados,
-        origen: boca
-    };
-
-    console.log("📤 Enviando datos al backend:", JSON.stringify(payload));
-
-    fetch('/api/confirmar_codigos/', {
-        method: 'POST',
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(response => response.json().catch(() => response.text()))
-    .then(data => {
-        console.log("🔄 Respuesta del servidor:", data);
-
-        if (data.error) {
-            console.error("❌ Error al confirmar productos:", data.error);
-        } else {  
-            console.log("✅ Productos agregados correctamente.");
-            mostrarModalConfirmacion(data.message);
-            cerrarModal("ingresar");
-            productosEscaneados = [];
-            actualizarTablas();
-            actualizarTablasGrupos();
-        }
-    })
-    .catch(error => console.error("⚠️ Error al agregar productos:", error));
-}
-
-
-
-
-// ✅ Confirmar y retirar productos escaneados
-async function confirmarRetirarProductos() {
-    const hayStockSuficiente = await validarStockParaRetiro();
-    const faltantes = Array.from(faltantesSet).join("\n");
-
-    if (!hayStockSuficiente) {
-        mostrarModalDenegado(`No se puede continuar con el retiro porque hay productos sin stock:\n${faltantes}`);
-        return;
-    }
-
-    if (productosEscaneados.length === 0) {
-        mostrarModalDenegado("No hay productos escaneados para retirar.");
-        return;
-    }
-
-    const boca = document.getElementById("input-boca-retirar")?.value?.trim();
-
-
-    if (!boca) {
-        mostrarModalDenegado("Por favor, seleccioná una boca de salida.");
-        return;
-    }
-
-    const payload = {
-        productos: productosEscaneados,
-        destino: boca  // ✅ esta clave es la que espera la vista en Django
-    };
-
-    fetch('/api/confirmar_retiro/', {
-        method: 'POST',
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            console.error("❌ Error al retirar productos:", data.error);
-            return;
-        }
-
-        console.log("✅ Productos retirados correctamente.");
-        mostrarModalConfirmacion(data.message);
-        cerrarModal("retirar");
-        productosEscaneados = [];
-        actualizarTablas();
-        actualizarTablasGrupos();
-    })
-    .catch(error => console.error("❌ Error al retirar productos:", error));
-}
-
-
-
-async function validarStockParaRetiro() {
-    try {
-        const responseStock = await fetch('/api/stock_detallado/');
-        const dataStock = await responseStock.json();
-
-        const responseEscaneados = await fetch('/api/obtener_productos_temporales/');
-        const dataEscaneados = await responseEscaneados.json();
-
-        if (!dataStock || !dataStock.stock_detallado || !dataEscaneados || !dataEscaneados.productos) {
-            console.error("Error al obtener los datos de stock o productos escaneados.");
-            return false;
-        }
-
-        const stockProductos = dataStock.stock_detallado;
-        const productosEscaneados = dataEscaneados.productos;
-        let hayStockInsuficiente = false;
-
-        productosEscaneados.forEach(producto => {
-            const productoStock = stockProductos.find(p => p.nombre === producto.nombre);
-            if (productoStock) {
-                const cantidadDisponible = productoStock.cantidad;
-                const cantidadRetirar = productosEscaneados.filter(p => p.nombre === producto.nombre).length;
-
-                if (cantidadDisponible < cantidadRetirar) {
-                    faltantesSet.add(`${producto.nombre} ❗`); // ✅ Agrega al Set (evita duplicados)
-                    hayStockInsuficiente = true;
-
-                    const filaProducto = document.querySelector(`.producto-fila[data-nombre="${producto.nombre}"]`);
-                    if (filaProducto) {
-                        filaProducto.classList.add("sin-stock");
-                    }
-                }
-            }
-            
-        });
-
-        const botonRetiro = document.getElementById("boton-retirar");
-        const mensajeError = document.getElementById("mensaje-error");
-
-        if (hayStockInsuficiente) {
-            if (mensajeError) {
-                mensajeError.innerText = "⚠️ Algunos productos no tienen stock suficiente.";
-                mensajeError.style.display = "block";
-            }
-            if (botonRetiro) {
-                botonRetiro.disabled = true;
-            }
-            return false; // 🔴 Indica que hay productos sin stock
-        } else {
-            if (mensajeError) mensajeError.style.display = "none";
-            if (botonRetiro) botonRetiro.disabled = false;
-            return true; // ✅ Indica que se puede proceder
-        }
-
-    } catch (error) {
-        console.error("Error al validar el stock para retiro:", error);
-        return false;
-    }
-}
-
-
-/* Transición suave de Salida */ 
-
-document.addEventListener("DOMContentLoaded", function () {
-    // Transición de entrada cuando la página se carga
-    document.body.classList.add("page-transition");
-
-    // Transición de salida antes de cambiar de página
-    document.querySelectorAll("a").forEach(link => {
-        link.addEventListener("click", function (event) {
-            const href = this.getAttribute("href");
-
-            // Evita la transición si es un enlace externo o #
-            if (!href || href.startsWith("#") || href.includes("javascript")) return;
-
-            event.preventDefault(); // Detiene la navegación
-
-            // Agrega la animación de salida
-            document.body.style.opacity = "0";
-
-            // Espera el tiempo de la animación antes de cambiar la página
-            setTimeout(() => {
-                window.location.href = href;
-            }, 300);
-        });
-    });
-});
-
-document.addEventListener("DOMContentLoaded", function () {
-    document.getElementById("botonVistaGrupos").addEventListener("click", mostrarVistaGrupos);
-});
-
-const grupos = {
-    jarabe: ["LIMON", "FRUTILLA AL AGUA", "DURAZNO"],
-    chocolates: ["CHOCOLATE","CHOCOLAE BLOCK", "CH. CABSHA", "AMARGO", "CH. ALMENDRAS", "CH. PASAS RHUM", "CHOCOLAT PORTOFINO", "CHOCOLATE INTENSO", "CHOCOLAT DEBILIDAD", "CHOC. BLANCO", "ROCHER", "TOFFEE BLANCO"],
-    dulces: ["DCE LECHE","DCE. LECHE NUEZ", "DCE. GRANIZADO", "SUPER DCE LECHE", "DCE. VAUQUITA", "D. LECHE PORTOFINO", "DCE. LECHE COOKIES", "BASE DULCE LECHE", "CHOCOTORTA"],
-    blanca: ["AMERICANA","VAINILLA","TRAMONTANA","GRANIZADO", "MENTA GRANIZADA", "CREMA FLAN", "FRUTOS DEL BOSQUE", "CREMA DEL CIELO", "PANNACOTA", "MASCARPONE", "CAPUCCINO","OREO", "SNIKERS"],
-    neutra: ["CEREZA", "FRUTILLA CREMA", "BANANA SPLIT", "MARACUYA", "ANANA AL CHANTILLY", "FRAMBUESA C/ CHOCO", "KINOTOS AL WHISKY", "DURAZNOS AL OPORTO", "MANZANA VERDE", "LEMON PIE", "LIMON C/MARACUYA", "FRAMBUESA C/CHOCO"],
-    zambayon: ["SAMBAYON", "SAMBAYON PORTOFINO"], // El resto de los productos se asignarán automáticamente aquí
-    oleosa: ["ALMENDRADO", "CREMA RUSA", "MARROC" ] // El resto de los productos se asignarán automáticamente aquí
+/*******************************************
+ * 10) Vista: grupos / general             *
+ *******************************************/
+const GRUPOS = {
+  jarabe: ["LIMON", "FRUTILLA AL AGUA", "DURAZNO"],
+  chocolates: [
+    "CHOCOLATE",
+    "CHOCOLAE BLOCK",
+    "CH. CABSHA",
+    "AMARGO",
+    "CH. ALMENDRAS",
+    "CH. PASAS RHUM",
+    "CHOCOLAT PORTOFINO",
+    "CHOCOLATE INTENSO",
+    "CHOCOLAT DEBILIDAD",
+    "CHOC. BLANCO",
+    "ROCHER",
+    "TOFFEE BLANCO",
+  ],
+  dulces: [
+    "DCE LECHE",
+    "DCE. LECHE NUEZ",
+    "DCE. GRANIZADO",
+    "SUPER DCE LECHE",
+    "DCE. VAUQUITA",
+    "D. LECHE PORTOFINO",
+    "DCE. LECHE COOKIES",
+    "BASE DULCE LECHE",
+    "CHOCOTORTA",
+  ],
+  blanca: [
+    "AMERICANA",
+    "VAINILLA",
+    "TRAMONTANA",
+    "GRANIZADO",
+    "MENTA GRANIZADA",
+    "CREMA FLAN",
+    "FRUTOS DEL BOSQUE",
+    "CREMA DEL CIELO",
+    "PANNACOTA",
+    "MASCARPONE",
+    "CAPUCCINO",
+    "OREO",
+    "SNIKERS",
+  ],
+  neutra: [
+    "CEREZA",
+    "FRUTILLA CREMA",
+    "BANANA SPLIT",
+    "MARACUYA",
+    "ANANA AL CHANTILLY",
+    "FRAMBUESA C/ CHOCO",
+    "KINOTOS AL WHISKY",
+    "DURAZNOS AL OPORTO",
+    "MANZANA VERDE",
+    "LEMON PIE",
+    "LIMON C/MARACUYA",
+    "FRAMBUESA C/CHOCO",
+  ],
+  zambayon: ["SAMBAYON", "SAMBAYON PORTOFINO"],
+  oleosa: ["ALMENDRADO", "CREMA RUSA", "MARROC"],
 };
 
 function mostrarVistaGrupos() {
-    console.log("🔄 Mostrando vista de grupos...");
+  console.log("🔄 Mostrando vista de grupos...");
+  const tabla = ensureEl(SELECTORS.stockTable);
+  const vg = ensureEl(SELECTORS.vistaGrupos);
+  if (!tabla || !vg) return;
 
-    
-
-    tablaGeneral.classList.add("fade-out");
-
-    setTimeout(() => {
-        document.getElementById("stockTable").style.display = "none";
-        tablaGeneral.classList.remove("fade-out");
-        
-        // Mostrar Vista de Grupos con transición suave
-        document.getElementById("vistaGrupos").style.display = "flex";
-        requestAnimationFrame(() => {
-            vistaGrupos.classList.add("fade-in");
-            setTimeout(() => vistaGrupos.classList.remove("fade-in"), 300);
-        });
-    }, 300);
-
-    // Ocultar tabla general y mostrar la vista de grupos
-    
-    
-
-    const gruposBody = {
-        jarabe: document.getElementById("jarabe-body"),
-        chocolates: document.getElementById("chocolates-body"),
-        dulces: document.getElementById("dulces-body"),
-        blanca: document.getElementById("blanca-body"),
-        neutra: document.getElementById("neutra-body"),
-        zambayon: document.getElementById("zambayon-body"),
-        oleosa: document.getElementById("oleosa-body"),
-    };
-
-    // Limpiar contenido de las tablas antes de agregar contenido nuevo
-    Object.values(gruposBody).forEach(body => body.innerHTML = "");
-
-    // Obtener todas las filas de la tabla general
-    document.querySelectorAll("#stockTable tbody tr").forEach(row => {
-        const nombre = row.cells[0].textContent.trim().toUpperCase();
-        const cantidad = row.cells[1].textContent.trim();
-
-        let grupoAsignado = "otros";
-
-        // Verificar en qué grupo está el producto
-        for (const [grupo, productos] of Object.entries(grupos)) {
-            if (productos.includes(nombre)) {
-                grupoAsignado = grupo;
-                break;
-            }
-        }
-
-        // Crear fila para la tabla de grupo correspondiente
-        const nuevaFila = document.createElement("tr");
-        nuevaFila.innerHTML = `<td>${nombre}</td><td>${cantidad}</td>`;
-
-        // Resaltar en rojo si el stock está por debajo del mínimo
-        if (row.classList.contains("resaltar-bajo-stock")) {
-            nuevaFila.classList.add("resaltar-bajo-stock");
-        }
-
-        // Insertar la fila en la tabla del grupo correspondiente
-        if (gruposBody[grupoAsignado]) {
-            gruposBody[grupoAsignado].appendChild(nuevaFila);
-        } else {
-            console.warn(`⚠️ No se encontró el contenedor para el grupo ${grupoAsignado}`);
-        }
+  tabla.classList.add("fade-out");
+  setTimeout(() => {
+    tabla.style.display = "none";
+    tabla.classList.remove("fade-out");
+    vg.style.display = "flex";
+    requestAnimationFrame(() => {
+      vg.classList.add("fade-in");
+      setTimeout(() => vg.classList.remove("fade-in"), 300);
     });
+  }, 300);
+
+  const gruposBody = {
+    jarabe: byId("jarabe-body"),
+    chocolates: byId("chocolates-body"),
+    dulces: byId("dulces-body"),
+    blanca: byId("blanca-body"),
+    neutra: byId("neutra-body"),
+    zambayon: byId("zambayon-body"),
+    oleosa: byId("oleosa-body"),
+  };
+  Object.values(gruposBody).forEach((el) => el && (el.innerHTML = ""));
+
+  $(`#stockTable tbody`)?.querySelectorAll("tr").forEach((row) => {
+    const nombre = row.cells[0].textContent.trim().toUpperCase();
+    const cantidad = row.cells[1].textContent.trim();
+
+    let grupoAsignado = "otros";
+    for (const [grupo, productos] of Object.entries(GRUPOS)) {
+      if (productos.includes(nombre)) { grupoAsignado = grupo; break; }
+    }
+
+    const nueva = document.createElement("tr");
+    nueva.innerHTML = `<td>${nombre}</td><td>${cantidad}</td>`;
+    if (row.classList.contains("resaltar-bajo-stock")) {
+      nueva.classList.add("resaltar-bajo-stock");
+    }
+    gruposBody[grupoAsignado]?.appendChild(nueva);
+  });
 }
- 
+
 function mostrarVistaGeneral() {
+  console.log("🔄 Mostrando vista general...");
+  const tabla = ensureEl(SELECTORS.stockTable);
+  const vg = ensureEl(SELECTORS.vistaGrupos);
+  if (!tabla || !vg) return;
 
-    console.log("🔄 Mostrando vista general...");
-
-    // Aplicar animación de fade-out a la vista de grupos
-    vistaGrupos.classList.add("fade-out");
-
-    setTimeout(() => {
-        document.getElementById("vistaGrupos").style.display = "none";
-        vistaGrupos.classList.remove("fade-out");
-
-        // Mostrar la tabla general con transición suave
-        document.getElementById("stockTable").style.display = "table";
-        requestAnimationFrame(() => {
-            tablaGeneral.classList.add("fade-in");
-            setTimeout(() => tablaGeneral.classList.remove("fade-in"), 300);
-        });
-    }, 300);
-
+  vg.classList.add("fade-out");
+  setTimeout(() => {
+    vg.style.display = "none";
+    vg.classList.remove("fade-out");
+    tabla.style.display = "table";
+    requestAnimationFrame(() => {
+      tabla.classList.add("fade-in");
+      setTimeout(() => tabla.classList.remove("fade-in"), 300);
+    });
+  }, 300);
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-    document.getElementById("botonVistaGrupos").addEventListener("click", mostrarVistaGrupos);
-    document.getElementById("botonVistaGeneral").addEventListener("click", mostrarVistaGeneral);
-    
-});
-
+/*******************************************
+ * 11) Menú lateral / overlay              *
+ *******************************************/
 function openMenu() {
-    const sidebar = document.getElementById("sidebar");
-    const overlay = document.getElementById("overlay");
-
-    sidebar.classList.add("open");
-    overlay.classList.add("active");
+  ensureEl(SELECTORS.sidebar)?.classList.add("open");
+  ensureEl(SELECTORS.overlay)?.classList.add("active");
 }
 
 function closeMenu() {
-    const sidebar = document.getElementById("sidebar");
-    const overlay = document.getElementById("overlay");
-
-    sidebar.classList.remove("open");
-    overlay.classList.remove("active");
+  ensureEl(SELECTORS.sidebar)?.classList.remove("open");
+  ensureEl(SELECTORS.overlay)?.classList.remove("active");
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-    const menuBtn = document.getElementById("menu-btn");
-    const closeBtn = document.getElementById("close-btn");
-    const sidebar = document.getElementById("sidebar");
-    const overlay = document.getElementById("overlay");
+/*******************************************
+ * 12) Bootstrapping de eventos            *
+ *******************************************/
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("📢 DOM completamente cargado.");
 
-    // ✅ Evento para abrir menú
-    menuBtn.addEventListener("click", function () {
-        sidebar.classList.add("open");
-        overlay.classList.add("active");
-    });
+  // Botones de cambio de vista
+  ensureEl(SELECTORS.botonVistaGrupos)?.addEventListener("click", mostrarVistaGrupos);
+  ensureEl(SELECTORS.botonVistaGeneral)?.addEventListener("click", mostrarVistaGeneral);
 
-    
+  // Menú lateral
+  ensureEl(SELECTORS.menuBtn)?.addEventListener("click", openMenu);
+  ensureEl(SELECTORS.closeBtn)?.addEventListener("click", closeMenu);
+  ensureEl(SELECTORS.overlay)?.addEventListener("click", closeMenu);
 
-    // ✅ Cerrar menú si se hace clic fuera
-    overlay.addEventListener("click", function () {
-        sidebar.classList.remove("open");
-        overlay.classList.remove("active");
-    });
+  // Polling suave: solo hace trabajo si la modal está abierta
+  setInterval(() => { if (modalAbierta) obtenerProductosEscaneados(); }, 500);
 });
+
+/*******************************************
+ * 13) Exponer funciones globales          *
+ *******************************************/
+// Algunas funciones son invocadas desde atributos onclick en HTML existente.
+Object.assign(window, {
+  abrirModal,
+  cerrarModal,
+  cerrarModalDenegado,
+  cerrarModalConfirmacion,
+  confirmarAgregarProductos,
+  confirmarRetirarProductos,
+  mostrarVistaGrupos,
+  mostrarVistaGeneral,
+  openMenu,
+  closeMenu,
+});
+
+// seleccionarBoca expuesta (usa dataset + input hidden)
+function seleccionarBoca(nombre, tipo) {
+  $(`#bocas-container-${tipo}`)?.querySelectorAll(".boca-btn").forEach((btn) => btn.classList.remove("seleccionada"));
+  const boton = document.querySelector(`#bocas-container-${tipo} .boca-btn[data-nombre="${CSS.escape(nombre)}"]`);
+  boton?.classList.add("seleccionada");
+  const hidden = byId(`input-boca-${tipo}`);
+  if (hidden) hidden.value = nombre;
+  bocaSeleccionada = nombre;
+}
+window.seleccionarBoca = seleccionarBoca;
+
+/*******************************************
+ * 14) Modales de creación / chips         *
+ *******************************************/
+async function abrirModalCrearBoca(tipo) {
+  tipoActualCrear = tipo;
+  const input = byId("nombreNuevaBoca");
+  const error = byId("errorCrearBoca");
+  if (input) input.value = "";
+  if (error) error.style.display = "none";
+
+  const titulo = byId("tituloCrearBoca");
+  if (titulo) titulo.textContent = tipo === "retirar" ? "Crear nueva boca de salida" : "Crear nuevo origen";
+
+  const modal = byId("modalCrearBoca");
+  if (modal) modal.style.display = "block";
+
+  const endpoint = tipo === "retirar" ? API.obtenerBocas : API.obtenerOrigenes;
+  const data = await getJSON(endpoint);
+  const container = byId("chipsExistentes");
+  if (!container) return;
+  container.innerHTML = "";
+  if (Array.isArray(data?.lista) && data.lista.length > 0) {
+    for (const nombre of data.lista) {
+      const chip = document.createElement("div");
+      chip.className = "chip";
+      chip.innerHTML = `📍 ${String(nombre).trim()} <span class="close-chip" onclick="eliminarBocaDesdeModal('${String(nombre).trim().replace(/'/g, "\\'")}')">&times;</span>`;
+      container.appendChild(chip);
+    }
+  } else {
+    container.innerHTML = "<p style='font-style: italic;'>No hay opciones creadas.</p>";
+  }
+}
+window.abrirModalCrearBoca = abrirModalCrearBoca;
+
+function cerrarModalCrearBoca() {
+  const modal = byId("modalCrearBoca");
+  if (modal) modal.style.display = "none";
+}
+window.cerrarModalCrearBoca = cerrarModalCrearBoca;
+
+async function confirmarCreacionBoca() {
+  const nombre = byId("nombreNuevaBoca")?.value?.trim();
+  const error = byId("errorCrearBoca");
+  if (!nombre) {
+    if (error) {
+      error.textContent = "El nombre no puede estar vacío.";
+      error.style.display = "block";
+    }
+    return;
+  }
+  const endpoint = tipoActualCrear === "retirar" ? API.crearBoca : API.crearOrigen;
+  const data = await postJSON(endpoint, { nombre });
+  if (data?.success) {
+    abrirModalCrearBoca(tipoActualCrear); // recargar chips
+  } else if (error) {
+    error.textContent = data?.error || "Error al crear.";
+    error.style.display = "block";
+  }
+}
+window.confirmarCreacionBoca = confirmarCreacionBoca;
+
+async function eliminarBocaDesdeModal(nombre) {
+  if (!confirm(`¿Eliminar "${nombre}"?`)) return;
+  const endpoint = tipoActualCrear === "retirar" ? API.eliminarBoca : API.eliminarOrigen;
+  const data = await postJSON(endpoint, { nombre });
+  if (data?.success) {
+    abrirModalCrearBoca(tipoActualCrear); // recargar tras eliminar
+  } else {
+    alert("❌ Error al eliminar: " + (data?.error || "Desconocido"));
+  }
+}
+window.eliminarBocaDesdeModal = eliminarBocaDesdeModal;

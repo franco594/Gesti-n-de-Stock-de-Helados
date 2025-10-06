@@ -77,6 +77,29 @@ def agregar_productos(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+def actualizar_stock_minimo(request):
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "JSON inválido"}, status=400)
+
+    productos = data.get("productos", [])
+    if not isinstance(productos, list):
+        return JsonResponse({"success": False, "error": "'productos' debe ser una lista"}, status=400)
+
+    actualizados = 0
+    for producto in productos:                       # <— usá SIEMPRE el mismo nombre
+        plu = producto.get("plu")
+        minimo = producto.get("stock_minimo")
+        if plu is None or minimo is None:
+            continue
+        actualizados += (
+            ProductoFijo.objects
+            .filter(plu=plu)
+            .update(stock_minimo=minimo)
+        )
+
+    return JsonResponse({"success": True, "message": "OK", "actualizados": actualizados}, status=200)
 
 
 def _actualizar_total_grupo(grupo_id, tipo, origen=None, destino_nombre=None):
