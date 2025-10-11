@@ -627,6 +627,7 @@ const GRUPOS = {
     "CHOCOLATE",
     "CHOCOLAE BLOCK",
     "CH. CABSHA",
+    "CHOCO DUBAI",
     "AMARGO",
     "CH. ALMENDRAS",
     "CH. PASAS RHUM",
@@ -665,6 +666,7 @@ const GRUPOS = {
   ],
   neutra: [
     "CEREZA",
+    "PISTACHO",
     "FRUTILLA CREMA",
     "BANANA SPLIT",
     "MARACUYA",
@@ -676,6 +678,7 @@ const GRUPOS = {
     "LEMON PIE",
     "LIMON C/MARACUYA",
     "FRAMBUESA C/CHOCO",
+    "HAVANETA LIMON",
   ],
   zambayon: ["SAMBAYON", "SAMBAYON PORTOFINO"],
   oleosa: ["ALMENDRADO", "CREMA RUSA", "MARROC"],
