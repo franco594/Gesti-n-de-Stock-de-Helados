@@ -310,12 +310,12 @@ imports:
  &#8226;   <a href="#heapq">heapq</a>
  &#8226;   <a href="#io">io</a>
  &#8226;   <a href="#keyword">keyword</a>
- &#8226;   <a href="#lector_codigos">lector_codigos</a>
  &#8226;   <a href="#linecache">linecache</a>
  &#8226;   <a href="#locale">locale</a>
  &#8226;   <a href="#ntpath">ntpath</a>
  &#8226;   <a href="#operator">operator</a>
  &#8226;   <a href="#os">os</a>
+ &#8226;   <a href="#pathlib">pathlib</a>
  &#8226;   <a href="#posixpath">posixpath</a>
  &#8226;   <a href="#pyi_rth_django.py">pyi_rth_django.py</a>
  &#8226;   <a href="#pyi_rth_inspect.py">pyi_rth_inspect.py</a>
@@ -332,13 +332,12 @@ imports:
  &#8226;   <a href="#re._parser">re._parser</a>
  &#8226;   <a href="#reprlib">reprlib</a>
  &#8226;   <a href="#serial">serial</a>
+ &#8226;   <a href="#shutil">shutil</a>
  &#8226;   <a href="#sre_compile">sre_compile</a>
  &#8226;   <a href="#sre_constants">sre_constants</a>
  &#8226;   <a href="#sre_parse">sre_parse</a>
  &#8226;   <a href="#stat">stat</a>
  &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#time">time</a>
  &#8226;   <a href="#traceback">traceback</a>
  &#8226;   <a href="#types">types</a>
  &#8226;   <a href="#usb.core">usb.core</a>
@@ -387,17 +386,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="'OpenSSL.crypto'"></a>
-  <a target="code" href="" type="text/plain"><tt>'OpenSSL.crypto'</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="'System.IO'"></a>
   <a target="code" href="" type="text/plain"><tt>'System.IO'</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
@@ -425,17 +413,6 @@ imported by:
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
     <a href="#apscheduler.util">apscheduler.util</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="'cryptography.x509'"></a>
-  <a target="code" href="" type="text/plain"><tt>'cryptography.x509'</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
 
   </div>
 
@@ -508,28 +485,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="'h2.connection'"></a>
-  <a target="code" href="" type="text/plain"><tt>'h2.connection'</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="'h2.events'"></a>
-  <a target="code" href="" type="text/plain"><tt>'h2.events'</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="'java.lang'"></a>
   <a target="code" href="" type="text/plain"><tt>'java.lang'</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
@@ -592,7 +547,6 @@ imported by:
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
     <a href="#compressor.parser.lxml">compressor.parser.lxml</a>
- &#8226;   <a href="#openpyxl.xml">openpyxl.xml</a>
  &#8226;   <a href="#openpyxl.xml.functions">openpyxl.xml.functions</a>
  &#8226;   <a href="#pandas.io.formats.xml">pandas.io.formats.xml</a>
  &#8226;   <a href="#pandas.io.html">pandas.io.html</a>
@@ -607,7 +561,8 @@ imported by:
   <a target="code" href="" type="text/plain"><tt>'lxml.html'</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
-    <a href="#pandas.io.html">pandas.io.html</a>
+    <a href="#compressor.parser.lxml">compressor.parser.lxml</a>
+ &#8226;   <a href="#pandas.io.html">pandas.io.html</a>
 
   </div>
 
@@ -935,17 +890,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="'pyodide.ffi'"></a>
-  <a target="code" href="" type="text/plain"><tt>'pyodide.ffi'</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="'scipy.sparse'"></a>
   <a target="code" href="" type="text/plain"><tt>'scipy.sparse'</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
@@ -1086,8 +1030,7 @@ imported by:
   <a target="code" href="" type="text/plain"><tt>AppKit</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
-    <a href="#keyboard._darwinkeyboard">keyboard._darwinkeyboard</a>
- &#8226;   <a href="#pandas.io.clipboard">pandas.io.clipboard</a>
+    <a href="#pandas.io.clipboard">pandas.io.clipboard</a>
 
   </div>
 
@@ -1121,17 +1064,6 @@ imported by:
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
     <a href="#django.db.backends.mysql.base">django.db.backends.mysql.base</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="OpenSSL"></a>
-  <a target="code" href="" type="text/plain"><tt>OpenSSL</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
 
   </div>
 
@@ -3605,30 +3537,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="Quartz"></a>
-  <a target="code" href="" type="text/plain"><tt>Quartz</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#keyboard._darwinkeyboard">keyboard._darwinkeyboard</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="Queue"></a>
-  <a target="code" href="" type="text/plain"><tt>Queue</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._generic">keyboard._generic</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="StringIO"></a>
   <a target="code" href="" type="text/plain"><tt>StringIO</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
@@ -3777,9 +3685,6 @@ imported by:
  &#8226;   <a href="#escpos.escpos">escpos.escpos</a>
  &#8226;   <a href="#et_xmlfile.xmlfile">et_xmlfile.xmlfile</a>
  &#8226;   <a href="#importlib_resources.readers">importlib_resources.readers</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._canonical_names">keyboard._canonical_names</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
  &#8226;   <a href="#numpy._typing">numpy._typing</a>
  &#8226;   <a href="#numpy._typing._array_like">numpy._typing._array_like</a>
  &#8226;   <a href="#numpy._typing._nested_sequence">numpy._typing._nested_sequence</a>
@@ -4108,42 +4013,6 @@ imported by:
  &#8226;   <a href="#six">six</a>
  &#8226;   <a href="#tomllib._parser">tomllib._parser</a>
  &#8226;   <a href="#tomllib._re">tomllib._re</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3._request_methods">urllib3._request_methods</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten">urllib3.contrib.emscripten</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.request">urllib3.contrib.emscripten.request</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
- &#8226;   <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.fields">urllib3.fields</a>
- &#8226;   <a href="#urllib3.filepost">urllib3.filepost</a>
- &#8226;   <a href="#urllib3.http2">urllib3.http2</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.http2.probe">urllib3.http2.probe</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
- &#8226;   <a href="#urllib3.util.proxy">urllib3.util.proxy</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
- &#8226;   <a href="#urllib3.util.response">urllib3.util.response</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
- &#8226;   <a href="#urllib3.util.ssl_match_hostname">urllib3.util.ssl_match_hostname</a>
- &#8226;   <a href="#urllib3.util.ssltransport">urllib3.util.ssltransport</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
- &#8226;   <a href="#urllib3.util.util">urllib3.util.util</a>
- &#8226;   <a href="#urllib3.util.wait">urllib3.util.wait</a>
- &#8226;   <a href="#zstandard">zstandard</a>
- &#8226;   <a href="#zstandard.backend_cffi">zstandard.backend_cffi</a>
 
   </div>
 
@@ -5467,6 +5336,7 @@ imported by:
  &#8226;   <a href="#app_inventario.migrations.0008_origeningreso">app_inventario.migrations.0008_origeningreso</a>
  &#8226;   <a href="#app_inventario.migrations.0009_registromovimiento_boca_salida">app_inventario.migrations.0009_registromovimiento_boca_salida</a>
  &#8226;   <a href="#app_inventario.migrations.0010_backfill_grupos">app_inventario.migrations.0010_backfill_grupos</a>
+ &#8226;   <a href="#app_inventario.migrations.0011_alter_grupomovimiento_tipo_and_more">app_inventario.migrations.0011_alter_grupomovimiento_tipo_and_more</a>
  &#8226;   <a href="#django">django</a>
 
   </div>
@@ -5656,6 +5526,25 @@ imports:
  &#8226;   <a href="#django.db.migrations">django.db.migrations</a>
  &#8226;   <a href="#django.db.models">django.db.models</a>
  &#8226;   <a href="#django.db.models.Max">django.db.models.Max</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#django">django</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="app_inventario.migrations.0011_alter_grupomovimiento_tipo_and_more"></a>
+  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/app_inventario/migrations/0011_alter_grupomovimiento_tipo_and_more.py" type="text/plain"><tt>app_inventario.migrations.0011_alter_grupomovimiento_tipo_and_more</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#app_inventario.migrations">app_inventario.migrations</a>
+ &#8226;   <a href="#django.db">django.db</a>
+ &#8226;   <a href="#django.db.migrations">django.db.migrations</a>
+ &#8226;   <a href="#django.db.models">django.db.models</a>
 
   </div>
   <div class="import">
@@ -7988,11 +7877,8 @@ imported by:
   <tt>atexit</tt> <span class="moduletype"><i>(builtin module)</i></span>  <div class="import">
 imported by:
     <a href="#PIL.Image">PIL.Image</a>
- &#8226;   <a href="#certifi.core">certifi.core</a>
  &#8226;   <a href="#colorama.initialise">colorama.initialise</a>
  &#8226;   <a href="#escpos.capabilities">escpos.capabilities</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
  &#8226;   <a href="#logging">logging</a>
  &#8226;   <a href="#multiprocessing.util">multiprocessing.util</a>
  &#8226;   <a href="#openpyxl.worksheet._writer">openpyxl.worksheet._writer</a>
@@ -8473,13 +8359,11 @@ imported by:
  &#8226;   <a href="#encodings.base64_codec">encodings.base64_codec</a>
  &#8226;   <a href="#http.server">http.server</a>
  &#8226;   <a href="#logging.handlers">logging.handlers</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
  &#8226;   <a href="#secrets">secrets</a>
  &#8226;   <a href="#setuptools._vendor.wheel.util">setuptools._vendor.wheel.util</a>
  &#8226;   <a href="#smtplib">smtplib</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
  &#8226;   <a href="#xmlrpc.client">xmlrpc.client</a>
  &#8226;   <a href="#yaml.constructor">yaml.constructor</a>
  &#8226;   <a href="#yaml.representer">yaml.representer</a>
@@ -8529,8 +8413,6 @@ imported by:
  &#8226;   <a href="#http.server">http.server</a>
  &#8226;   <a href="#plistlib">plistlib</a>
  &#8226;   <a href="#quopri">quopri</a>
- &#8226;   <a href="#urllib3.filepost">urllib3.filepost</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
  &#8226;   <a href="#yaml.constructor">yaml.constructor</a>
  &#8226;   <a href="#zipfile">zipfile</a>
 
@@ -8550,8 +8432,6 @@ imports:
 imported by:
     <a href="#dateutil.tz.tz">dateutil.tz.tz</a>
  &#8226;   <a href="#django.db.models.options">django.db.models.options</a>
- &#8226;   <a href="#idna.core">idna.core</a>
- &#8226;   <a href="#idna.intranges">idna.intranges</a>
  &#8226;   <a href="#multiprocessing.heap">multiprocessing.heap</a>
  &#8226;   <a href="#pytz.tzinfo">pytz.tzinfo</a>
  &#8226;   <a href="#qrcode.main">qrcode.main</a>
@@ -8598,20 +8478,6 @@ imports:
 imported by:
     <a href="#compressor.storage">compressor.storage</a>
  &#8226;   <a href="#compressor.tests.test_storages">compressor.tests.test_storages</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="brotlicffi"></a>
-  <a target="code" href="" type="text/plain"><tt>brotlicffi</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
 
   </div>
 
@@ -8676,7 +8542,6 @@ imported by:
  &#8226;   <a href="#typing_extensions">typing_extensions</a>
  &#8226;   <a href="#unittest.mock">unittest.mock</a>
  &#8226;   <a href="#warnings">warnings</a>
- &#8226;   <a href="#zstandard">zstandard</a>
 
   </div>
 
@@ -8739,7 +8604,6 @@ imported by:
  &#8226;   <a href="#django.utils.dateformat">django.utils.dateformat</a>
  &#8226;   <a href="#email._parseaddr">email._parseaddr</a>
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
- &#8226;   <a href="#requests.cookies">requests.cookies</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#tzlocal.utils">tzlocal.utils</a>
  &#8226;   <a href="#zoneinfo._zoneinfo">zoneinfo._zoneinfo</a>
@@ -8754,56 +8618,6 @@ imported by:
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
     <a href="#compressor.filters.jsmin">compressor.filters.jsmin</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="certifi"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/certifi/__init__.py" type="text/plain"><tt>certifi</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#certifi.core">certifi.core</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#certifi.core">certifi.core</a>
- &#8226;   <a href="#requests.certs">requests.certs</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="certifi.core"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/certifi/core.py" type="text/plain"><tt>certifi.core</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#atexit">atexit</a>
- &#8226;   <a href="#certifi">certifi</a>
- &#8226;   <a href="#importlib.resources">importlib.resources</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#types">types</a>
- &#8226;   <a href="#typing">typing</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#certifi">certifi</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="chardet"></a>
-  <a target="code" href="" type="text/plain"><tt>chardet</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
 
   </div>
 
@@ -8836,7 +8650,6 @@ imported by:
  &#8226;   <a href="#charset_normalizer.utils">charset_normalizer.utils</a>
  &#8226;   <a href="#charset_normalizer.version">charset_normalizer.version</a>
  &#8226;   <a href="#numpy.f2py.crackfortran">numpy.f2py.crackfortran</a>
- &#8226;   <a href="#requests">requests</a>
 
   </div>
 
@@ -9249,10 +9062,8 @@ imported by:
  &#8226;   <a href="#pickle">pickle</a>
  &#8226;   <a href="#pickletools">pickletools</a>
  &#8226;   <a href="#plistlib">plistlib</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#tokenize">tokenize</a>
- &#8226;   <a href="#urllib3.filepost">urllib3.filepost</a>
  &#8226;   <a href="#xml.sax.saxutils">xml.sax.saxutils</a>
  &#8226;   <a href="#yaml.reader">yaml.reader</a>
 
@@ -9371,10 +9182,6 @@ imported by:
  &#8226;   <a href="#importlib.resources.readers">importlib.resources.readers</a>
  &#8226;   <a href="#importlib_resources.readers">importlib_resources.readers</a>
  &#8226;   <a href="#inspect">inspect</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
- &#8226;   <a href="#keyboard._nixkeyboard">keyboard._nixkeyboard</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
  &#8226;   <a href="#multiprocessing.heap">multiprocessing.heap</a>
  &#8226;   <a href="#multiprocessing.pool">multiprocessing.pool</a>
  &#8226;   <a href="#multiprocessing.queues">multiprocessing.queues</a>
@@ -9427,10 +9234,6 @@ imported by:
  &#8226;   <a href="#pydoc">pydoc</a>
  &#8226;   <a href="#pytz.lazy">pytz.lazy</a>
  &#8226;   <a href="#queue">queue</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
- &#8226;   <a href="#requests.structures">requests.structures</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#selectors">selectors</a>
  &#8226;   <a href="#setuptools._vendor.importlib_metadata">setuptools._vendor.importlib_metadata</a>
@@ -9455,8 +9258,6 @@ imported by:
  &#8226;   <a href="#unittest.case">unittest.case</a>
  &#8226;   <a href="#unittest.util">unittest.util</a>
  &#8226;   <a href="#urllib.parse">urllib.parse</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
  &#8226;   <a href="#xml.etree.ElementTree">xml.etree.ElementTree</a>
  &#8226;   <a href="#yaml.representer">yaml.representer</a>
  &#8226;   <a href="#zoneinfo._zoneinfo">zoneinfo._zoneinfo</a>
@@ -9637,7 +9438,6 @@ imported by:
  &#8226;   <a href="#pandas.util.version">pandas.util.version</a>
  &#8226;   <a href="#pkg_resources">pkg_resources</a>
  &#8226;   <a href="#pytz.lazy">pytz.lazy</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
  &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#selectors">selectors</a>
  &#8226;   <a href="#setuptools">setuptools</a>
@@ -10606,12 +10406,12 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#'lxml.etree'">'lxml.etree'</a>
+ &#8226;   <a href="#'lxml.html'">'lxml.html'</a>
  &#8226;   <a href="#compressor.exceptions">compressor.exceptions</a>
  &#8226;   <a href="#compressor.parser">compressor.parser</a>
  &#8226;   <a href="#django.core.exceptions">django.core.exceptions</a>
  &#8226;   <a href="#django.utils.encoding">django.utils.encoding</a>
  &#8226;   <a href="#django.utils.functional">django.utils.functional</a>
- &#8226;   <a href="#lxml">lxml</a>
 
   </div>
   <div class="import">
@@ -10681,7 +10481,6 @@ imported by:
 <span class="moduletype">Package</span>  <div class="import">
 imports:
     <a href="#compressor">compressor</a>
- &#8226;   <a href="#compressor.templatetags.compress">compressor.templatetags.compress</a>
 
   </div>
   <div class="import">
@@ -10714,7 +10513,6 @@ imported by:
     <a href="#compressor.contrib.jinja2ext">compressor.contrib.jinja2ext</a>
  &#8226;   <a href="#compressor.contrib.sekizai">compressor.contrib.sekizai</a>
  &#8226;   <a href="#compressor.offline.django">compressor.offline.django</a>
- &#8226;   <a href="#compressor.templatetags">compressor.templatetags</a>
  &#8226;   <a href="#django">django</a>
 
   </div>
@@ -11407,7 +11205,6 @@ imported by:
  &#8226;   <a href="#pandas.io.sql">pandas.io.sql</a>
  &#8226;   <a href="#pandas.plotting._misc">pandas.plotting._misc</a>
  &#8226;   <a href="#pandas.util._exceptions">pandas.util._exceptions</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#setuptools._distutils._msvccompiler">setuptools._distutils._msvccompiler</a>
  &#8226;   <a href="#setuptools._distutils.command.build_ext">setuptools._distutils.command.build_ext</a>
  &#8226;   <a href="#setuptools._distutils.command.check">setuptools._distutils.command.check</a>
@@ -11437,8 +11234,6 @@ imported by:
  &#8226;   <a href="#unittest.case">unittest.case</a>
  &#8226;   <a href="#unittest.mock">unittest.mock</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
  &#8226;   <a href="#xml.etree.ElementTree">xml.etree.ElementTree</a>
  &#8226;   <a href="#zipfile._path">zipfile._path</a>
 
@@ -11551,7 +11346,6 @@ imported by:
  &#8226;   <a href="#pandas.io.json._normalize">pandas.io.json._normalize</a>
  &#8226;   <a href="#pandas.io.parsers.base_parser">pandas.io.parsers.base_parser</a>
  &#8226;   <a href="#pandas.io.pytables">pandas.io.pytables</a>
- &#8226;   <a href="#requests.cookies">requests.cookies</a>
  &#8226;   <a href="#setuptools._vendor.backports.tarfile">setuptools._vendor.backports.tarfile</a>
  &#8226;   <a href="#smtplib">smtplib</a>
  &#8226;   <a href="#tarfile">tarfile</a>
@@ -11585,18 +11379,6 @@ imported by:
  &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#typing">typing</a>
  &#8226;   <a href="#yaml.representer">yaml.representer</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="cryptography"></a>
-  <a target="code" href="" type="text/plain"><tt>cryptography</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
 
   </div>
 
@@ -11685,8 +11467,6 @@ imported by:
  &#8226;   <a href="#django.core.files.locks">django.core.files.locks</a>
  &#8226;   <a href="#django.db.backends.oracle.base">django.db.backends.oracle.base</a>
  &#8226;   <a href="#django.test.runner">django.test.runner</a>
- &#8226;   <a href="#keyboard._darwinkeyboard">keyboard._darwinkeyboard</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
  &#8226;   <a href="#multiprocessing.sharedctypes">multiprocessing.sharedctypes</a>
  &#8226;   <a href="#numpy._core._dtype_ctypes">numpy._core._dtype_ctypes</a>
  &#8226;   <a href="#numpy._core._internal">numpy._core._internal</a>
@@ -11845,7 +11625,6 @@ imported by:
     <a href="#django.contrib.gis.db.backends.spatialite.base">django.contrib.gis.db.backends.spatialite.base</a>
  &#8226;   <a href="#django.contrib.gis.gdal.libgdal">django.contrib.gis.gdal.libgdal</a>
  &#8226;   <a href="#django.contrib.gis.geos.libgeos">django.contrib.gis.geos.libgeos</a>
- &#8226;   <a href="#keyboard._darwinkeyboard">keyboard._darwinkeyboard</a>
  &#8226;   <a href="#usb.backend.openusb">usb.backend.openusb</a>
  &#8226;   <a href="#usb.libloader">usb.libloader</a>
 
@@ -11866,7 +11645,6 @@ imported by:
     <a href="#colorama.win32">colorama.win32</a>
  &#8226;   <a href="#dateutil.tz.win">dateutil.tz.win</a>
  &#8226;   <a href="#django.core.files.locks">django.core.files.locks</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
  &#8226;   <a href="#pandas.io.clipboard">pandas.io.clipboard</a>
  &#8226;   <a href="#serial.win32">serial.win32</a>
  &#8226;   <a href="#setuptools.windows_support">setuptools.windows_support</a>
@@ -11925,8 +11703,6 @@ imported by:
  &#8226;   <a href="#pprint">pprint</a>
  &#8226;   <a href="#setuptools._vendor.packaging._tokenizer">setuptools._vendor.packaging._tokenizer</a>
  &#8226;   <a href="#setuptools._vendor.wheel.vendored.packaging._tokenizer">setuptools._vendor.wheel.vendored.packaging._tokenizer</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.request">urllib3.contrib.emscripten.request</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
 
   </div>
 
@@ -12073,8 +11849,6 @@ imported by:
  &#8226;   <a href="#pytz">pytz</a>
  &#8226;   <a href="#pytz.tzfile">pytz.tzfile</a>
  &#8226;   <a href="#pytz.tzinfo">pytz.tzinfo</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
  &#8226;   <a href="#setuptools._vendor.tomli._re">setuptools._vendor.tomli._re</a>
  &#8226;   <a href="#setuptools.warnings">setuptools.warnings</a>
  &#8226;   <a href="#smtplib">smtplib</a>
@@ -12083,7 +11857,6 @@ imported by:
  &#8226;   <a href="#tzlocal.unix">tzlocal.unix</a>
  &#8226;   <a href="#tzlocal.utils">tzlocal.utils</a>
  &#8226;   <a href="#tzlocal.win32">tzlocal.win32</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
  &#8226;   <a href="#xmlrpc.client">xmlrpc.client</a>
  &#8226;   <a href="#yaml.constructor">yaml.constructor</a>
  &#8226;   <a href="#yaml.representer">yaml.representer</a>
@@ -12662,6 +12435,7 @@ imports:
  &#8226;   <a href="#app_inventario.migrations.0008_origeningreso">app_inventario.migrations.0008_origeningreso</a>
  &#8226;   <a href="#app_inventario.migrations.0009_registromovimiento_boca_salida">app_inventario.migrations.0009_registromovimiento_boca_salida</a>
  &#8226;   <a href="#app_inventario.migrations.0010_backfill_grupos">app_inventario.migrations.0010_backfill_grupos</a>
+ &#8226;   <a href="#app_inventario.migrations.0011_alter_grupomovimiento_tipo_and_more">app_inventario.migrations.0011_alter_grupomovimiento_tipo_and_more</a>
  &#8226;   <a href="#app_inventario.models">app_inventario.models</a>
  &#8226;   <a href="#app_inventario.signals">app_inventario.signals</a>
  &#8226;   <a href="#app_inventario.tests">app_inventario.tests</a>
@@ -27868,6 +27642,7 @@ imported by:
  &#8226;   <a href="#app_inventario.migrations.0008_origeningreso">app_inventario.migrations.0008_origeningreso</a>
  &#8226;   <a href="#app_inventario.migrations.0009_registromovimiento_boca_salida">app_inventario.migrations.0009_registromovimiento_boca_salida</a>
  &#8226;   <a href="#app_inventario.migrations.0010_backfill_grupos">app_inventario.migrations.0010_backfill_grupos</a>
+ &#8226;   <a href="#app_inventario.migrations.0011_alter_grupomovimiento_tipo_and_more">app_inventario.migrations.0011_alter_grupomovimiento_tipo_and_more</a>
  &#8226;   <a href="#app_inventario.models">app_inventario.models</a>
  &#8226;   <a href="#app_inventario.signals">app_inventario.signals</a>
  &#8226;   <a href="#app_inventario.views">app_inventario.views</a>
@@ -29553,6 +29328,7 @@ imported by:
  &#8226;   <a href="#app_inventario.migrations.0008_origeningreso">app_inventario.migrations.0008_origeningreso</a>
  &#8226;   <a href="#app_inventario.migrations.0009_registromovimiento_boca_salida">app_inventario.migrations.0009_registromovimiento_boca_salida</a>
  &#8226;   <a href="#app_inventario.migrations.0010_backfill_grupos">app_inventario.migrations.0010_backfill_grupos</a>
+ &#8226;   <a href="#app_inventario.migrations.0011_alter_grupomovimiento_tipo_and_more">app_inventario.migrations.0011_alter_grupomovimiento_tipo_and_more</a>
  &#8226;   <a href="#django">django</a>
  &#8226;   <a href="#django.contrib.admin.migrations.0001_initial">django.contrib.admin.migrations.0001_initial</a>
  &#8226;   <a href="#django.contrib.admin.migrations.0002_logentry_remove_auto_add">django.contrib.admin.migrations.0002_logentry_remove_auto_add</a>
@@ -30144,6 +29920,7 @@ imported by:
  &#8226;   <a href="#app_inventario.migrations.0008_origeningreso">app_inventario.migrations.0008_origeningreso</a>
  &#8226;   <a href="#app_inventario.migrations.0009_registromovimiento_boca_salida">app_inventario.migrations.0009_registromovimiento_boca_salida</a>
  &#8226;   <a href="#app_inventario.migrations.0010_backfill_grupos">app_inventario.migrations.0010_backfill_grupos</a>
+ &#8226;   <a href="#app_inventario.migrations.0011_alter_grupomovimiento_tipo_and_more">app_inventario.migrations.0011_alter_grupomovimiento_tipo_and_more</a>
  &#8226;   <a href="#app_inventario.models">app_inventario.models</a>
  &#8226;   <a href="#app_inventario.services.printing">app_inventario.services.printing</a>
  &#8226;   <a href="#app_inventario.views">app_inventario.views</a>
@@ -36422,17 +36199,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="dummy_threading"></a>
-  <a target="code" href="" type="text/plain"><tt>dummy_threading</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#requests.cookies">requests.cookies</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="email"></a>
   <a target="code" href="///C:/Users/franc/AppData/Local/Programs/Python/Python312/Lib/email/__init__.py" type="text/plain"><tt>email</tt></a>
 <span class="moduletype">Package</span>  <div class="import">
@@ -36479,7 +36245,6 @@ imported by:
  &#8226;   <a href="#setuptools._vendor.importlib_metadata">setuptools._vendor.importlib_metadata</a>
  &#8226;   <a href="#setuptools.wheel">setuptools.wheel</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
 
   </div>
 
@@ -36685,8 +36450,6 @@ imported by:
  &#8226;   <a href="#email.headerregistry">email.headerregistry</a>
  &#8226;   <a href="#email.message">email.message</a>
  &#8226;   <a href="#email.mime.nonmultipart">email.mime.nonmultipart</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.util.response">urllib3.util.response</a>
 
   </div>
 
@@ -37035,7 +36798,6 @@ imported by:
  &#8226;   <a href="#setuptools._vendor.wheel.cli.pack">setuptools._vendor.wheel.cli.pack</a>
  &#8226;   <a href="#setuptools._vendor.wheel.cli.tags">setuptools._vendor.wheel.cli.tags</a>
  &#8226;   <a href="#setuptools._vendor.wheel.metadata">setuptools._vendor.wheel.metadata</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
 
   </div>
 
@@ -37122,7 +36884,6 @@ imported by:
  &#8226;   <a href="#logging.handlers">logging.handlers</a>
  &#8226;   <a href="#smtplib">smtplib</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.fields">urllib3.fields</a>
 
   </div>
 
@@ -38465,7 +38226,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#encodings">encodings</a>
- &#8226;   <a href="#requests.models">requests.models</a>
  &#8226;   <a href="#run.py">run.py</a>
 
   </div>
@@ -39697,9 +39457,6 @@ imported by:
  &#8226;   <a href="#socket">socket</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#typing_extensions">typing_extensions</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
  &#8226;   <a href="#uuid">uuid</a>
 
   </div>
@@ -39735,7 +39492,6 @@ imported by:
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#tempfile">tempfile</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
  &#8226;   <a href="#usb.backend.libusb0">usb.backend.libusb0</a>
  &#8226;   <a href="#usb.backend.libusb1">usb.backend.libusb1</a>
  &#8226;   <a href="#usb.backend.openusb">usb.backend.openusb</a>
@@ -40274,7 +40030,6 @@ imported by:
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
     <a href="#django.core.files.locks">django.core.files.locks</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
  &#8226;   <a href="#serial.serialposix">serial.serialposix</a>
  &#8226;   <a href="#subprocess">subprocess</a>
 
@@ -40537,7 +40292,6 @@ imported by:
  &#8226;   <a href="#importlib_resources.future.adapters">importlib_resources.future.adapters</a>
  &#8226;   <a href="#inspect">inspect</a>
  &#8226;   <a href="#ipaddress">ipaddress</a>
- &#8226;   <a href="#keyboard._generic">keyboard._generic</a>
  &#8226;   <a href="#linecache">linecache</a>
  &#8226;   <a href="#locale">locale</a>
  &#8226;   <a href="#logging.config">logging.config</a>
@@ -40683,8 +40437,6 @@ imported by:
  &#8226;   <a href="#unittest.result">unittest.result</a>
  &#8226;   <a href="#unittest.signals">unittest.signals</a>
  &#8226;   <a href="#urllib.parse">urllib.parse</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.util.wait">urllib3.util.wait</a>
  &#8226;   <a href="#usb._debug">usb._debug</a>
  &#8226;   <a href="#usb.core">usb.core</a>
  &#8226;   <a href="#zoneinfo._zoneinfo">zoneinfo._zoneinfo</a>
@@ -40854,7 +40606,6 @@ imported by:
  &#8226;   <a href="#django.core.management.commands.compilemessages">django.core.management.commands.compilemessages</a>
  &#8226;   <a href="#django.core.management.commands.loaddata">django.core.management.commands.loaddata</a>
  &#8226;   <a href="#django.core.management.commands.makemessages">django.core.management.commands.makemessages</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
  &#8226;   <a href="#pdb">pdb</a>
  &#8226;   <a href="#pyi_rth_usb.py">pyi_rth_usb.py</a>
  &#8226;   <a href="#setuptools._distutils.command.sdist">setuptools._distutils.command.sdist</a>
@@ -40955,17 +40706,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="h2"></a>
-  <a target="code" href="" type="text/plain"><tt>h2</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="hashlib"></a>
   <a target="code" href="///C:/Users/franc/AppData/Local/Programs/Python/Python312/Lib/hashlib.py" type="text/plain"><tt>hashlib</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -40996,10 +40736,8 @@ imported by:
  &#8226;   <a href="#hmac">hmac</a>
  &#8226;   <a href="#openpyxl.chartsheet.protection">openpyxl.chartsheet.protection</a>
  &#8226;   <a href="#random">random</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
  &#8226;   <a href="#setuptools._vendor.wheel.wheelfile">setuptools._vendor.wheel.wheelfile</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
  &#8226;   <a href="#uuid">uuid</a>
 
   </div>
@@ -41046,7 +40784,6 @@ imported by:
  &#8226;   <a href="#multiprocessing.connection">multiprocessing.connection</a>
  &#8226;   <a href="#secrets">secrets</a>
  &#8226;   <a href="#smtplib">smtplib</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
 
   </div>
 
@@ -41132,7 +40869,7 @@ imported by:
 <span class="moduletype">Package</span>  <div class="import">
 imports:
     <a href="#enum">enum</a>
- &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
+ &#8226;   <a href="#http.cookies">http.cookies</a>
 
   </div>
   <div class="import">
@@ -41143,7 +40880,6 @@ imported by:
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
  &#8226;   <a href="#http.cookies">http.cookies</a>
  &#8226;   <a href="#http.server">http.server</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
 
   </div>
 
@@ -41174,12 +40910,6 @@ imported by:
  &#8226;   <a href="#http.server">http.server</a>
  &#8226;   <a href="#logging.handlers">logging.handlers</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.response">urllib3.util.response</a>
  &#8226;   <a href="#xmlrpc.client">xmlrpc.client</a>
 
   </div>
@@ -41210,9 +40940,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#http">http</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#urllib.request">urllib.request</a>
+    <a href="#urllib.request">urllib.request</a>
 
   </div>
 
@@ -41234,7 +40962,7 @@ imports:
 imported by:
     <a href="#django">django</a>
  &#8226;   <a href="#django.http.cookie">django.http.cookie</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
+ &#8226;   <a href="#http">http</a>
 
   </div>
 
@@ -41275,126 +41003,6 @@ imports:
 imported by:
     <a href="#pydoc">pydoc</a>
  &#8226;   <a href="#wsgiref.simple_server">wsgiref.simple_server</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="idna"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/idna/__init__.py" type="text/plain"><tt>idna</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#idna">idna</a>
- &#8226;   <a href="#idna.core">idna.core</a>
- &#8226;   <a href="#idna.idnadata">idna.idnadata</a>
- &#8226;   <a href="#idna.intranges">idna.intranges</a>
- &#8226;   <a href="#idna.package_data">idna.package_data</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#idna">idna</a>
- &#8226;   <a href="#idna.core">idna.core</a>
- &#8226;   <a href="#idna.idnadata">idna.idnadata</a>
- &#8226;   <a href="#idna.intranges">idna.intranges</a>
- &#8226;   <a href="#idna.package_data">idna.package_data</a>
- &#8226;   <a href="#idna.uts46data">idna.uts46data</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="idna.core"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/idna/core.py" type="text/plain"><tt>idna.core</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#bisect">bisect</a>
- &#8226;   <a href="#idna">idna</a>
- &#8226;   <a href="#idna.idnadata">idna.idnadata</a>
- &#8226;   <a href="#idna.intranges">idna.intranges</a>
- &#8226;   <a href="#idna.uts46data">idna.uts46data</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#unicodedata">unicodedata</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#idna">idna</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="idna.idnadata"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/idna/idnadata.py" type="text/plain"><tt>idna.idnadata</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#idna">idna</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#idna">idna</a>
- &#8226;   <a href="#idna.core">idna.core</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="idna.intranges"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/idna/intranges.py" type="text/plain"><tt>idna.intranges</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#bisect">bisect</a>
- &#8226;   <a href="#idna">idna</a>
- &#8226;   <a href="#typing">typing</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#idna">idna</a>
- &#8226;   <a href="#idna.core">idna.core</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="idna.package_data"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/idna/package_data.py" type="text/plain"><tt>idna.package_data</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#idna">idna</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#idna">idna</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="idna.uts46data"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/idna/uts46data.py" type="text/plain"><tt>idna.uts46data</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#idna">idna</a>
- &#8226;   <a href="#typing">typing</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#idna.core">idna.core</a>
 
   </div>
 
@@ -41473,7 +41081,6 @@ imported by:
  &#8226;   <a href="#pandas.plotting._core">pandas.plotting._core</a>
  &#8226;   <a href="#pkg_resources">pkg_resources</a>
  &#8226;   <a href="#pkgutil">pkgutil</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
  &#8226;   <a href="#serial">serial</a>
  &#8226;   <a href="#setuptools._distutils">setuptools._distutils</a>
  &#8226;   <a href="#setuptools._vendor.importlib_metadata">setuptools._vendor.importlib_metadata</a>
@@ -41664,7 +41271,6 @@ imported by:
  &#8226;   <a href="#numpy.testing._private.utils">numpy.testing._private.utils</a>
  &#8226;   <a href="#pandas.plotting._core">pandas.plotting._core</a>
  &#8226;   <a href="#setuptools._importlib">setuptools._importlib</a>
- &#8226;   <a href="#urllib3.http2">urllib3.http2</a>
 
   </div>
 
@@ -41812,8 +41418,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#certifi.core">certifi.core</a>
- &#8226;   <a href="#importlib.abc">importlib.abc</a>
+    <a href="#importlib.abc">importlib.abc</a>
  &#8226;   <a href="#importlib.resources">importlib.resources</a>
  &#8226;   <a href="#importlib.resources._adapters">importlib.resources._adapters</a>
  &#8226;   <a href="#importlib.resources._common">importlib.resources._common</a>
@@ -41823,7 +41428,6 @@ imported by:
  &#8226;   <a href="#importlib.resources.readers">importlib.resources.readers</a>
  &#8226;   <a href="#setuptools._importlib">setuptools._importlib</a>
  &#8226;   <a href="#setuptools._vendor.jaraco.text">setuptools._vendor.jaraco.text</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
  &#8226;   <a href="#zoneinfo._common">zoneinfo._common</a>
  &#8226;   <a href="#zoneinfo._tzpath">zoneinfo._tzpath</a>
 
@@ -42500,9 +42104,6 @@ imported by:
  &#8226;   <a href="#pprint">pprint</a>
  &#8226;   <a href="#pydoc">pydoc</a>
  &#8226;   <a href="#quopri">quopri</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#runpy">runpy</a>
  &#8226;   <a href="#serial.serialutil">serial.serialutil</a>
@@ -42529,13 +42130,6 @@ imported by:
  &#8226;   <a href="#unittest.result">unittest.result</a>
  &#8226;   <a href="#urllib.error">urllib.error</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
- &#8226;   <a href="#urllib3.filepost">urllib3.filepost</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
- &#8226;   <a href="#urllib3.util.ssltransport">urllib3.util.ssltransport</a>
  &#8226;   <a href="#uuid">uuid</a>
  &#8226;   <a href="#wsgiref.simple_server">wsgiref.simple_server</a>
  &#8226;   <a href="#wsgiref.util">wsgiref.util</a>
@@ -42548,8 +42142,6 @@ imported by:
  &#8226;   <a href="#yaml">yaml</a>
  &#8226;   <a href="#zipfile">zipfile</a>
  &#8226;   <a href="#zipfile._path">zipfile._path</a>
- &#8226;   <a href="#zstandard">zstandard</a>
- &#8226;   <a href="#zstandard.backend_cffi">zstandard.backend_cffi</a>
 
   </div>
 
@@ -42573,7 +42165,6 @@ imported by:
  &#8226;   <a href="#psycopg2._ipaddress">psycopg2._ipaddress</a>
  &#8226;   <a href="#urllib.parse">urllib.parse</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.util.ssl_match_hostname">urllib3.util.ssl_match_hostname</a>
 
   </div>
 
@@ -42656,7 +42247,6 @@ imported by:
  &#8226;   <a href="#importlib_resources.abc">importlib_resources.abc</a>
  &#8226;   <a href="#importlib_resources.readers">importlib_resources.readers</a>
  &#8226;   <a href="#inspect">inspect</a>
- &#8226;   <a href="#keyboard">keyboard</a>
  &#8226;   <a href="#multiprocessing.connection">multiprocessing.connection</a>
  &#8226;   <a href="#multiprocessing.pool">multiprocessing.pool</a>
  &#8226;   <a href="#multiprocessing.process">multiprocessing.process</a>
@@ -42730,7 +42320,6 @@ imported by:
  &#8226;   <a href="#threading">threading</a>
  &#8226;   <a href="#tokenize">tokenize</a>
  &#8226;   <a href="#traceback">traceback</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
  &#8226;   <a href="#usb.legacy">usb.legacy</a>
  &#8226;   <a href="#weakref">weakref</a>
  &#8226;   <a href="#zipfile._path">zipfile._path</a>
@@ -42850,17 +42439,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="js"></a>
-  <a target="code" href="" type="text/plain"><tt>js</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="json"></a>
   <a target="code" href="///C:/Users/franc/AppData/Local/Programs/Python/Python312/Lib/json/__init__.py" type="text/plain"><tt>json</tt></a>
 <span class="moduletype">Package</span>  <div class="import">
@@ -42911,7 +42489,6 @@ imported by:
  &#8226;   <a href="#json.decoder">json.decoder</a>
  &#8226;   <a href="#json.encoder">json.encoder</a>
  &#8226;   <a href="#json.scanner">json.scanner</a>
- &#8226;   <a href="#keyboard._keyboard_event">keyboard._keyboard_event</a>
  &#8226;   <a href="#logging.config">logging.config</a>
  &#8226;   <a href="#numpy.__config__">numpy.__config__</a>
  &#8226;   <a href="#numpy.testing._private.utils">numpy.testing._private.utils</a>
@@ -42922,14 +42499,9 @@ imported by:
  &#8226;   <a href="#pandas.io.parquet">pandas.io.parquet</a>
  &#8226;   <a href="#pandas.util._print_versions">pandas.util._print_versions</a>
  &#8226;   <a href="#psycopg2._json">psycopg2._json</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
  &#8226;   <a href="#setuptools._vendor.importlib_metadata">setuptools._vendor.importlib_metadata</a>
  &#8226;   <a href="#setuptools.config._validate_pyproject.error_reporting">setuptools.config._validate_pyproject.error_reporting</a>
  &#8226;   <a href="#setuptools.msvc">setuptools.msvc</a>
- &#8226;   <a href="#urllib3._request_methods">urllib3._request_methods</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
 
   </div>
 
@@ -43004,215 +42576,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="keyboard"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/keyboard/__init__.py" type="text/plain"><tt>keyboard</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#Queue">Queue</a>
- &#8226;   <a href="#__future__">__future__</a>
- &#8226;   <a href="#collections">collections</a>
- &#8226;   <a href="#itertools">itertools</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._canonical_names">keyboard._canonical_names</a>
- &#8226;   <a href="#keyboard._darwinkeyboard">keyboard._darwinkeyboard</a>
- &#8226;   <a href="#keyboard._generic">keyboard._generic</a>
- &#8226;   <a href="#keyboard._keyboard_event">keyboard._keyboard_event</a>
- &#8226;   <a href="#keyboard._nixkeyboard">keyboard._nixkeyboard</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
- &#8226;   <a href="#platform">platform</a>
- &#8226;   <a href="#queue">queue</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#time">time</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._canonical_names">keyboard._canonical_names</a>
- &#8226;   <a href="#keyboard._darwinkeyboard">keyboard._darwinkeyboard</a>
- &#8226;   <a href="#keyboard._generic">keyboard._generic</a>
- &#8226;   <a href="#keyboard._keyboard_event">keyboard._keyboard_event</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
- &#8226;   <a href="#keyboard._nixkeyboard">keyboard._nixkeyboard</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
- &#8226;   <a href="#lector_codigos">lector_codigos</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="keyboard._canonical_names"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/keyboard/_canonical_names.py" type="text/plain"><tt>keyboard._canonical_names</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#platform">platform</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._darwinkeyboard">keyboard._darwinkeyboard</a>
- &#8226;   <a href="#keyboard._keyboard_event">keyboard._keyboard_event</a>
- &#8226;   <a href="#keyboard._nixkeyboard">keyboard._nixkeyboard</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="keyboard._darwinkeyboard"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/keyboard/_darwinkeyboard.py" type="text/plain"><tt>keyboard._darwinkeyboard</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#AppKit">AppKit</a>
- &#8226;   <a href="#Quartz">Quartz</a>
- &#8226;   <a href="#ctypes">ctypes</a>
- &#8226;   <a href="#ctypes.util">ctypes.util</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._canonical_names">keyboard._canonical_names</a>
- &#8226;   <a href="#keyboard._keyboard_event">keyboard._keyboard_event</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#time">time</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#keyboard">keyboard</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="keyboard._generic"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/keyboard/_generic.py" type="text/plain"><tt>keyboard._generic</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#Queue">Queue</a>
- &#8226;   <a href="#functools">functools</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#queue">queue</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#traceback">traceback</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#keyboard">keyboard</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="keyboard._keyboard_event"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/keyboard/_keyboard_event.py" type="text/plain"><tt>keyboard._keyboard_event</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#json">json</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._canonical_names">keyboard._canonical_names</a>
- &#8226;   <a href="#time">time</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._darwinkeyboard">keyboard._darwinkeyboard</a>
- &#8226;   <a href="#keyboard._nixkeyboard">keyboard._nixkeyboard</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="keyboard._nixcommon"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/keyboard/_nixcommon.py" type="text/plain"><tt>keyboard._nixcommon</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#Queue">Queue</a>
- &#8226;   <a href="#atexit">atexit</a>
- &#8226;   <a href="#collections">collections</a>
- &#8226;   <a href="#fcntl">fcntl</a>
- &#8226;   <a href="#glob">glob</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#queue">queue</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#struct">struct</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#time">time</a>
- &#8226;   <a href="#warnings">warnings</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#keyboard._nixkeyboard">keyboard._nixkeyboard</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="keyboard._nixkeyboard"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/keyboard/_nixkeyboard.py" type="text/plain"><tt>keyboard._nixkeyboard</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#collections">collections</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._canonical_names">keyboard._canonical_names</a>
- &#8226;   <a href="#keyboard._keyboard_event">keyboard._keyboard_event</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#struct">struct</a>
- &#8226;   <a href="#subprocess">subprocess</a>
- &#8226;   <a href="#time">time</a>
- &#8226;   <a href="#traceback">traceback</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#keyboard">keyboard</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="keyboard._winkeyboard"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/keyboard/_winkeyboard.py" type="text/plain"><tt>keyboard._winkeyboard</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#atexit">atexit</a>
- &#8226;   <a href="#collections">collections</a>
- &#8226;   <a href="#ctypes">ctypes</a>
- &#8226;   <a href="#ctypes.wintypes">ctypes.wintypes</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._canonical_names">keyboard._canonical_names</a>
- &#8226;   <a href="#keyboard._keyboard_event">keyboard._keyboard_event</a>
- &#8226;   <a href="#pprint">pprint</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#traceback">traceback</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#keyboard">keyboard</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="keyword"></a>
   <a target="code" href="///C:/Users/franc/AppData/Local/Programs/Python/Python312/Lib/keyword.py" type="text/plain"><tt>keyword</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -43229,25 +42592,6 @@ imported by:
  &#8226;   <a href="#rlcompleter">rlcompleter</a>
  &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#typing_extensions">typing_extensions</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="lector_codigos"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/lector_codigos.py" type="text/plain"><tt>lector_codigos</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#time">time</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#run.py">run.py</a>
 
   </div>
 
@@ -43397,7 +42741,6 @@ imported by:
  &#8226;   <a href="#multiprocessing.util">multiprocessing.util</a>
  &#8226;   <a href="#packaging.tags">packaging.tags</a>
  &#8226;   <a href="#psycopg2.extras">psycopg2.extras</a>
- &#8226;   <a href="#requests">requests</a>
  &#8226;   <a href="#setuptools._distutils._log">setuptools._distutils._log</a>
  &#8226;   <a href="#setuptools._distutils.cmd">setuptools._distutils.cmd</a>
  &#8226;   <a href="#setuptools._distutils.dist">setuptools._distutils.dist</a>
@@ -43415,15 +42758,6 @@ imported by:
  &#8226;   <a href="#tzlocal.utils">tzlocal.utils</a>
  &#8226;   <a href="#tzlocal.win32">tzlocal.win32</a>
  &#8226;   <a href="#unittest._log">unittest._log</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
  &#8226;   <a href="#usb">usb</a>
  &#8226;   <a href="#usb._debug">usb._debug</a>
  &#8226;   <a href="#usb.backend.libusb0">usb.backend.libusb0</a>
@@ -43507,8 +42841,8 @@ imported by:
   <a target="code" href="" type="text/plain"><tt>lxml</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
-    <a href="#compressor.parser.lxml">compressor.parser.lxml</a>
- &#8226;   <a href="#compressor.tests.test_parsers">compressor.tests.test_parsers</a>
+    <a href="#compressor.tests.test_parsers">compressor.tests.test_parsers</a>
+ &#8226;   <a href="#openpyxl.xml">openpyxl.xml</a>
  &#8226;   <a href="#pandas.io.xml">pandas.io.xml</a>
 
   </div>
@@ -43659,7 +42993,6 @@ imported by:
  &#8226;   <a href="#http.server">http.server</a>
  &#8226;   <a href="#openpyxl.packaging.manifest">openpyxl.packaging.manifest</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.fields">urllib3.fields</a>
 
   </div>
 
@@ -44537,7 +43870,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#ftplib">ftplib</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
 
   </div>
 
@@ -56083,8 +55415,8 @@ imported by:
   <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/openpyxl/xml/__init__.py" type="text/plain"><tt>openpyxl.xml</tt></a>
 <span class="moduletype">Package</span>  <div class="import">
 imports:
-    <a href="#'lxml.etree'">'lxml.etree'</a>
- &#8226;   <a href="#defusedxml">defusedxml</a>
+    <a href="#defusedxml">defusedxml</a>
+ &#8226;   <a href="#lxml">lxml</a>
  &#8226;   <a href="#openpyxl">openpyxl</a>
  &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#warnings">warnings</a>
@@ -56414,7 +55746,6 @@ imported by:
  &#8226;   <a href="#barcode.writer">barcode.writer</a>
  &#8226;   <a href="#bdb">bdb</a>
  &#8226;   <a href="#bz2">bz2</a>
- &#8226;   <a href="#certifi.core">certifi.core</a>
  &#8226;   <a href="#charset_normalizer.api">charset_normalizer.api</a>
  &#8226;   <a href="#colorama.ansitowin32">colorama.ansitowin32</a>
  &#8226;   <a href="#compressor.base">compressor.base</a>
@@ -56522,8 +55853,6 @@ imported by:
  &#8226;   <a href="#importlib_resources._common">importlib_resources._common</a>
  &#8226;   <a href="#importlib_resources.abc">importlib_resources.abc</a>
  &#8226;   <a href="#inspect">inspect</a>
- &#8226;   <a href="#keyboard._darwinkeyboard">keyboard._darwinkeyboard</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
  &#8226;   <a href="#linecache">linecache</a>
  &#8226;   <a href="#locale">locale</a>
  &#8226;   <a href="#logging">logging</a>
@@ -56615,9 +55944,6 @@ imported by:
  &#8226;   <a href="#pyi_rth_usb.py">pyi_rth_usb.py</a>
  &#8226;   <a href="#pywintypes">pywintypes</a>
  &#8226;   <a href="#random">random</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#runpy">runpy</a>
  &#8226;   <a href="#serial">serial</a>
@@ -56703,10 +56029,6 @@ imported by:
  &#8226;   <a href="#unittest.loader">unittest.loader</a>
  &#8226;   <a href="#unittest.main">unittest.main</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.filepost">urllib3.filepost</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
  &#8226;   <a href="#usb">usb</a>
  &#8226;   <a href="#usb.backend.libusb0">usb.backend.libusb0</a>
  &#8226;   <a href="#uuid">uuid</a>
@@ -56717,8 +56039,6 @@ imported by:
  &#8226;   <a href="#xml.sax.saxutils">xml.sax.saxutils</a>
  &#8226;   <a href="#zipfile">zipfile</a>
  &#8226;   <a href="#zoneinfo._tzpath">zoneinfo._tzpath</a>
- &#8226;   <a href="#zstandard">zstandard</a>
- &#8226;   <a href="#zstandard.backend_cffi">zstandard.backend_cffi</a>
 
   </div>
 
@@ -56745,7 +56065,6 @@ imported by:
  &#8226;   <a href="#py_compile">py_compile</a>
  &#8226;   <a href="#pytz">pytz</a>
  &#8226;   <a href="#pytz.tzfile">pytz.tzfile</a>
- &#8226;   <a href="#requests.adapters">requests.adapters</a>
  &#8226;   <a href="#setuptools._distutils._modified">setuptools._distutils._modified</a>
  &#8226;   <a href="#setuptools._distutils.file_util">setuptools._distutils.file_util</a>
  &#8226;   <a href="#setuptools._vendor.platformdirs.macos">setuptools._vendor.platformdirs.macos</a>
@@ -69482,6 +68801,7 @@ imported by:
  &#8226;   <a href="#pandas.io.common">pandas.io.common</a>
  &#8226;   <a href="#pandas.io.spss">pandas.io.spss</a>
  &#8226;   <a href="#pyi_rth_pkgres.py">pyi_rth_pkgres.py</a>
+ &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#setuptools._distutils.ccompiler">setuptools._distutils.ccompiler</a>
  &#8226;   <a href="#setuptools._distutils.dir_util">setuptools._distutils.dir_util</a>
  &#8226;   <a href="#setuptools._distutils.dist">setuptools._distutils.dist</a>
@@ -69764,8 +69084,6 @@ imported by:
  &#8226;   <a href="#django.contrib.staticfiles.management.commands.collectstatic">django.contrib.staticfiles.management.commands.collectstatic</a>
  &#8226;   <a href="#django.db.backends.oracle.base">django.db.backends.oracle.base</a>
  &#8226;   <a href="#escpos.capabilities">escpos.capabilities</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._canonical_names">keyboard._canonical_names</a>
  &#8226;   <a href="#numpy.f2py.crackfortran">numpy.f2py.crackfortran</a>
  &#8226;   <a href="#numpy.lib._utils_impl">numpy.lib._utils_impl</a>
  &#8226;   <a href="#numpy.testing._private.utils">numpy.testing._private.utils</a>
@@ -69791,7 +69109,6 @@ imported by:
  &#8226;   <a href="#usb.libloader">usb.libloader</a>
  &#8226;   <a href="#uuid">uuid</a>
  &#8226;   <a href="#wsgiref.simple_server">wsgiref.simple_server</a>
- &#8226;   <a href="#zstandard">zstandard</a>
 
   </div>
 
@@ -70002,7 +69319,6 @@ imports:
 imported by:
     <a href="#django.template.defaultfilters">django.template.defaultfilters</a>
  &#8226;   <a href="#django.template.defaulttags">django.template.defaulttags</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
  &#8226;   <a href="#numpy.f2py.auxfuncs">numpy.f2py.auxfuncs</a>
  &#8226;   <a href="#numpy.f2py.f2py2e">numpy.f2py.f2py2e</a>
  &#8226;   <a href="#numpy.lib._utils_impl">numpy.lib._utils_impl</a>
@@ -70475,17 +69791,6 @@ imported by:
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
     <a href="#apscheduler.jobstores.mongodb">apscheduler.jobstores.mongodb</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="pyodide"></a>
-  <a target="code" href="" type="text/plain"><tt>pyodide</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
 
   </div>
 
@@ -71098,9 +70403,6 @@ imported by:
     <a href="#asgiref.current_thread_executor">asgiref.current_thread_executor</a>
  &#8226;   <a href="#concurrent.futures.process">concurrent.futures.process</a>
  &#8226;   <a href="#concurrent.futures.thread">concurrent.futures.thread</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._generic">keyboard._generic</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
  &#8226;   <a href="#logging.config">logging.config</a>
  &#8226;   <a href="#logging.handlers">logging.handlers</a>
  &#8226;   <a href="#multiprocessing.dummy">multiprocessing.dummy</a>
@@ -71109,7 +70411,6 @@ imported by:
  &#8226;   <a href="#multiprocessing.pool">multiprocessing.pool</a>
  &#8226;   <a href="#multiprocessing.queues">multiprocessing.queues</a>
  &#8226;   <a href="#setuptools._vendor.more_itertools.more">setuptools._vendor.more_itertools.more</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
 
   </div>
 
@@ -71173,7 +70474,6 @@ imported by:
  &#8226;   <a href="#setuptools._vendor.more_itertools.recipes">setuptools._vendor.more_itertools.recipes</a>
  &#8226;   <a href="#statistics">statistics</a>
  &#8226;   <a href="#tempfile">tempfile</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
  &#8226;   <a href="#uuid">uuid</a>
 
   </div>
@@ -71308,7 +70608,6 @@ imported by:
  &#8226;   <a href="#http.client">http.client</a>
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
  &#8226;   <a href="#http.cookies">http.cookies</a>
- &#8226;   <a href="#idna.core">idna.core</a>
  &#8226;   <a href="#importlib.metadata">importlib.metadata</a>
  &#8226;   <a href="#importlib.metadata._adapters">importlib.metadata._adapters</a>
  &#8226;   <a href="#importlib.metadata._text">importlib.metadata._text</a>
@@ -71318,10 +70617,6 @@ imported by:
  &#8226;   <a href="#json.decoder">json.decoder</a>
  &#8226;   <a href="#json.encoder">json.encoder</a>
  &#8226;   <a href="#json.scanner">json.scanner</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
- &#8226;   <a href="#keyboard._nixkeyboard">keyboard._nixkeyboard</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
  &#8226;   <a href="#locale">locale</a>
  &#8226;   <a href="#logging">logging</a>
  &#8226;   <a href="#logging.config">logging.config</a>
@@ -71413,9 +70708,6 @@ imported by:
  &#8226;   <a href="#re._compiler">re._compiler</a>
  &#8226;   <a href="#re._constants">re._constants</a>
  &#8226;   <a href="#re._parser">re._parser</a>
- &#8226;   <a href="#requests._internal_utils">requests._internal_utils</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#rlcompleter">rlcompleter</a>
  &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#setuptools">setuptools</a>
@@ -71492,12 +70784,6 @@ imported by:
  &#8226;   <a href="#unittest.loader">unittest.loader</a>
  &#8226;   <a href="#urllib.parse">urllib.parse</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.ssl_match_hostname">urllib3.util.ssl_match_hostname</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
  &#8226;   <a href="#usb">usb</a>
  &#8226;   <a href="#warnings">warnings</a>
  &#8226;   <a href="#wsgiref.headers">wsgiref.headers</a>
@@ -71651,467 +70937,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="requests"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/__init__.py" type="text/plain"><tt>requests</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#chardet">chardet</a>
- &#8226;   <a href="#charset_normalizer">charset_normalizer</a>
- &#8226;   <a href="#cryptography">cryptography</a>
- &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#requests.__version__">requests.__version__</a>
- &#8226;   <a href="#requests.api">requests.api</a>
- &#8226;   <a href="#requests.certs">requests.certs</a>
- &#8226;   <a href="#requests.exceptions">requests.exceptions</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.packages">requests.packages</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
- &#8226;   <a href="#requests.status_codes">requests.status_codes</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
- &#8226;   <a href="#ssl">ssl</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.contrib">urllib3.contrib</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#warnings">warnings</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#lector_codigos">lector_codigos</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#requests.__version__">requests.__version__</a>
- &#8226;   <a href="#requests._internal_utils">requests._internal_utils</a>
- &#8226;   <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.api">requests.api</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.certs">requests.certs</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#requests.cookies">requests.cookies</a>
- &#8226;   <a href="#requests.exceptions">requests.exceptions</a>
- &#8226;   <a href="#requests.hooks">requests.hooks</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.packages">requests.packages</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
- &#8226;   <a href="#requests.status_codes">requests.status_codes</a>
- &#8226;   <a href="#requests.structures">requests.structures</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.__version__"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/__version__.py" type="text/plain"><tt>requests.__version__</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#requests">requests</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests._internal_utils"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/_internal_utils.py" type="text/plain"><tt>requests._internal_utils</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#re">re</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.cookies">requests.cookies</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.adapters"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/adapters.py" type="text/plain"><tt>requests.adapters</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#os.path">os.path</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#requests.cookies">requests.cookies</a>
- &#8226;   <a href="#requests.exceptions">requests.exceptions</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.structures">requests.structures</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#ssl">ssl</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
- &#8226;   <a href="#warnings">warnings</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.sessions">requests.sessions</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.api"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/api.py" type="text/plain"><tt>requests.api</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.auth"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/auth.py" type="text/plain"><tt>requests.auth</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#base64">base64</a>
- &#8226;   <a href="#hashlib">hashlib</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#requests._internal_utils">requests._internal_utils</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#requests.cookies">requests.cookies</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#time">time</a>
- &#8226;   <a href="#warnings">warnings</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.certs"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/certs.py" type="text/plain"><tt>requests.certs</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#certifi">certifi</a>
- &#8226;   <a href="#requests">requests</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.compat"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/compat.py" type="text/plain"><tt>requests.compat</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#collections">collections</a>
- &#8226;   <a href="#collections.abc">collections.abc</a>
- &#8226;   <a href="#http">http</a>
- &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
- &#8226;   <a href="#http.cookies">http.cookies</a>
- &#8226;   <a href="#importlib">importlib</a>
- &#8226;   <a href="#io">io</a>
- &#8226;   <a href="#json">json</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#simplejson">simplejson</a>
- &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#urllib.parse">urllib.parse</a>
- &#8226;   <a href="#urllib.request">urllib.request</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests._internal_utils">requests._internal_utils</a>
- &#8226;   <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.cookies">requests.cookies</a>
- &#8226;   <a href="#requests.exceptions">requests.exceptions</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.packages">requests.packages</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
- &#8226;   <a href="#requests.structures">requests.structures</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.cookies"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/cookies.py" type="text/plain"><tt>requests.cookies</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#calendar">calendar</a>
- &#8226;   <a href="#copy">copy</a>
- &#8226;   <a href="#dummy_threading">dummy_threading</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#requests._internal_utils">requests._internal_utils</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#time">time</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.exceptions"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/exceptions.py" type="text/plain"><tt>requests.exceptions</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.hooks"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/hooks.py" type="text/plain"><tt>requests.hooks</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#requests">requests</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.models"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/models.py" type="text/plain"><tt>requests.models</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#datetime">datetime</a>
- &#8226;   <a href="#encodings.idna">encodings.idna</a>
- &#8226;   <a href="#idna">idna</a>
- &#8226;   <a href="#io">io</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#requests._internal_utils">requests._internal_utils</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#requests.cookies">requests.cookies</a>
- &#8226;   <a href="#requests.exceptions">requests.exceptions</a>
- &#8226;   <a href="#requests.hooks">requests.hooks</a>
- &#8226;   <a href="#requests.status_codes">requests.status_codes</a>
- &#8226;   <a href="#requests.structures">requests.structures</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.fields">urllib3.fields</a>
- &#8226;   <a href="#urllib3.filepost">urllib3.filepost</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.packages"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/packages.py" type="text/plain"><tt>requests.packages</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#sys">sys</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.sessions"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/sessions.py" type="text/plain"><tt>requests.sessions</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#collections">collections</a>
- &#8226;   <a href="#datetime">datetime</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#requests._internal_utils">requests._internal_utils</a>
- &#8226;   <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#requests.cookies">requests.cookies</a>
- &#8226;   <a href="#requests.exceptions">requests.exceptions</a>
- &#8226;   <a href="#requests.hooks">requests.hooks</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.status_codes">requests.status_codes</a>
- &#8226;   <a href="#requests.structures">requests.structures</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
- &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#time">time</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#requests.api">requests.api</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.status_codes"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/status_codes.py" type="text/plain"><tt>requests.status_codes</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#requests.structures">requests.structures</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.structures"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/structures.py" type="text/plain"><tt>requests.structures</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#collections">collections</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
- &#8226;   <a href="#requests.status_codes">requests.status_codes</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="requests.utils"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/requests/utils.py" type="text/plain"><tt>requests.utils</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#codecs">codecs</a>
- &#8226;   <a href="#collections">collections</a>
- &#8226;   <a href="#contextlib">contextlib</a>
- &#8226;   <a href="#io">io</a>
- &#8226;   <a href="#netrc">netrc</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#requests.__version__">requests.__version__</a>
- &#8226;   <a href="#requests._internal_utils">requests._internal_utils</a>
- &#8226;   <a href="#requests.certs">requests.certs</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#requests.cookies">requests.cookies</a>
- &#8226;   <a href="#requests.exceptions">requests.exceptions</a>
- &#8226;   <a href="#requests.structures">requests.structures</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#struct">struct</a>
- &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#tempfile">tempfile</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#warnings">warnings</a>
- &#8226;   <a href="#winreg">winreg</a>
- &#8226;   <a href="#zipfile">zipfile</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="resource"></a>
   <a target="code" href="" type="text/plain"><tt>resource</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
@@ -72233,7 +71058,6 @@ imported by:
  &#8226;   <a href="#selectors">selectors</a>
  &#8226;   <a href="#serial.serialposix">serial.serialposix</a>
  &#8226;   <a href="#subprocess">subprocess</a>
- &#8226;   <a href="#urllib3.util.wait">urllib3.util.wait</a>
 
   </div>
 
@@ -76706,6 +75530,7 @@ imported by:
  &#8226;   <a href="#pandas.io.formats.console">pandas.io.formats.console</a>
  &#8226;   <a href="#pandas.io.formats.format">pandas.io.formats.format</a>
  &#8226;   <a href="#pandas.io.formats.string">pandas.io.formats.string</a>
+ &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#setuptools._distutils.spawn">setuptools._distutils.spawn</a>
  &#8226;   <a href="#setuptools._vendor.backports.tarfile">setuptools._vendor.backports.tarfile</a>
  &#8226;   <a href="#setuptools._vendor.jaraco.context">setuptools._vendor.jaraco.context</a>
@@ -76752,17 +75577,6 @@ imported by:
  &#8226;   <a href="#pdb">pdb</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#unittest.signals">unittest.signals</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="simplejson"></a>
-  <a target="code" href="" type="text/plain"><tt>simplejson</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#requests.compat">requests.compat</a>
 
   </div>
 
@@ -76984,23 +75798,10 @@ imported by:
  &#8226;   <a href="#multiprocessing.reduction">multiprocessing.reduction</a>
  &#8226;   <a href="#multiprocessing.resource_sharer">multiprocessing.resource_sharer</a>
  &#8226;   <a href="#platform">platform</a>
- &#8226;   <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#smtplib">smtplib</a>
  &#8226;   <a href="#socketserver">socketserver</a>
  &#8226;   <a href="#ssl">ssl</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
- &#8226;   <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
- &#8226;   <a href="#urllib3.util.ssltransport">urllib3.util.ssltransport</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
- &#8226;   <a href="#urllib3.util.wait">urllib3.util.wait</a>
  &#8226;   <a href="#uuid">uuid</a>
 
   </div>
@@ -77027,17 +75828,6 @@ imported by:
     <a href="#django.core.servers.basehttp">django.core.servers.basehttp</a>
  &#8226;   <a href="#http.server">http.server</a>
  &#8226;   <a href="#logging.config">logging.config</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="socks"></a>
-  <a target="code" href="" type="text/plain"><tt>socks</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
 
   </div>
 
@@ -77678,20 +76468,9 @@ imported by:
  &#8226;   <a href="#django.core.mail.backends.smtp">django.core.mail.backends.smtp</a>
  &#8226;   <a href="#ftplib">ftplib</a>
  &#8226;   <a href="#http.client">http.client</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#requests.adapters">requests.adapters</a>
  &#8226;   <a href="#setuptools.config._validate_pyproject.formats">setuptools.config._validate_pyproject.formats</a>
  &#8226;   <a href="#smtplib">smtplib</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
- &#8226;   <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
- &#8226;   <a href="#urllib3.util.ssltransport">urllib3.util.ssltransport</a>
 
   </div>
 
@@ -77929,8 +76708,6 @@ imported by:
  &#8226;   <a href="#django.core.files.images">django.core.files.images</a>
  &#8226;   <a href="#gettext">gettext</a>
  &#8226;   <a href="#gzip">gzip</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
- &#8226;   <a href="#keyboard._nixkeyboard">keyboard._nixkeyboard</a>
  &#8226;   <a href="#logging.config">logging.config</a>
  &#8226;   <a href="#logging.handlers">logging.handlers</a>
  &#8226;   <a href="#multiprocessing.connection">multiprocessing.connection</a>
@@ -77949,7 +76726,6 @@ imported by:
  &#8226;   <a href="#platform">platform</a>
  &#8226;   <a href="#plistlib">plistlib</a>
  &#8226;   <a href="#pytz.tzfile">pytz.tzfile</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#serial.serialposix">serial.serialposix</a>
  &#8226;   <a href="#setuptools._vendor.backports.tarfile">setuptools._vendor.backports.tarfile</a>
  &#8226;   <a href="#setuptools._vendor.packaging._elffile">setuptools._vendor.packaging._elffile</a>
@@ -78019,7 +76795,6 @@ imported by:
  &#8226;   <a href="#django.utils.version">django.utils.version</a>
  &#8226;   <a href="#escpos.printer.lp">escpos.printer.lp</a>
  &#8226;   <a href="#http.server">http.server</a>
- &#8226;   <a href="#keyboard._nixkeyboard">keyboard._nixkeyboard</a>
  &#8226;   <a href="#multiprocessing.util">multiprocessing.util</a>
  &#8226;   <a href="#numpy.f2py">numpy.f2py</a>
  &#8226;   <a href="#numpy.f2py._backends._meson">numpy.f2py._backends._meson</a>
@@ -78102,7 +76877,6 @@ imported by:
  &#8226;   <a href="#base64">base64</a>
  &#8226;   <a href="#bdb">bdb</a>
  &#8226;   <a href="#calendar">calendar</a>
- &#8226;   <a href="#certifi.core">certifi.core</a>
  &#8226;   <a href="#cmd">cmd</a>
  &#8226;   <a href="#code">code</a>
  &#8226;   <a href="#codecs">codecs</a>
@@ -78297,10 +77071,6 @@ imported by:
  &#8226;   <a href="#qrcode.main">qrcode.main</a>
  &#8226;   <a href="#quopri">quopri</a>
  &#8226;   <a href="#re._compiler">re._compiler</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
- &#8226;   <a href="#requests.packages">requests.packages</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#runpy">runpy</a>
  &#8226;   <a href="#selectors">selectors</a>
@@ -78397,11 +77167,6 @@ imported by:
  &#8226;   <a href="#unittest.runner">unittest.runner</a>
  &#8226;   <a href="#unittest.suite">unittest.suite</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
  &#8226;   <a href="#usb._interop">usb._interop</a>
  &#8226;   <a href="#usb.backend.libusb0">usb.backend.libusb0</a>
  &#8226;   <a href="#usb.backend.libusb1">usb.backend.libusb1</a>
@@ -78581,7 +77346,6 @@ imported by:
  &#8226;   <a href="#pandas._testing.contexts">pandas._testing.contexts</a>
  &#8226;   <a href="#pkg_resources">pkg_resources</a>
  &#8226;   <a href="#pydoc">pydoc</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#setuptools._core_metadata">setuptools._core_metadata</a>
  &#8226;   <a href="#setuptools._distutils.ccompiler">setuptools._distutils.ccompiler</a>
  &#8226;   <a href="#setuptools._distutils.util">setuptools._distutils.util</a>
@@ -78722,12 +77486,6 @@ imported by:
  &#8226;   <a href="#django.utils.autoreload">django.utils.autoreload</a>
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
  &#8226;   <a href="#importlib.util">importlib.util</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._darwinkeyboard">keyboard._darwinkeyboard</a>
- &#8226;   <a href="#keyboard._generic">keyboard._generic</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
- &#8226;   <a href="#lector_codigos">lector_codigos</a>
  &#8226;   <a href="#logging">logging</a>
  &#8226;   <a href="#logging.config">logging.config</a>
  &#8226;   <a href="#logging.handlers">logging.handlers</a>
@@ -78747,18 +77505,11 @@ imported by:
  &#8226;   <a href="#pydoc">pydoc</a>
  &#8226;   <a href="#pytz.lazy">pytz.lazy</a>
  &#8226;   <a href="#queue">queue</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.cookies">requests.cookies</a>
- &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#socketserver">socketserver</a>
  &#8226;   <a href="#sqlparse.lexer">sqlparse.lexer</a>
  &#8226;   <a href="#subprocess">subprocess</a>
  &#8226;   <a href="#sysconfig">sysconfig</a>
  &#8226;   <a href="#unittest.mock">unittest.mock</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.http2.probe">urllib3.http2.probe</a>
  &#8226;   <a href="#usb.core">usb.core</a>
  &#8226;   <a href="#webbrowser">webbrowser</a>
  &#8226;   <a href="#zipfile">zipfile</a>
@@ -78825,12 +77576,6 @@ imported by:
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
  &#8226;   <a href="#http.cookies">http.cookies</a>
  &#8226;   <a href="#http.server">http.server</a>
- &#8226;   <a href="#keyboard">keyboard</a>
- &#8226;   <a href="#keyboard._darwinkeyboard">keyboard._darwinkeyboard</a>
- &#8226;   <a href="#keyboard._keyboard_event">keyboard._keyboard_event</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
- &#8226;   <a href="#keyboard._nixkeyboard">keyboard._nixkeyboard</a>
- &#8226;   <a href="#lector_codigos">lector_codigos</a>
  &#8226;   <a href="#logging">logging</a>
  &#8226;   <a href="#logging.handlers">logging.handlers</a>
  &#8226;   <a href="#multiprocessing.connection">multiprocessing.connection</a>
@@ -78847,10 +77592,6 @@ imported by:
  &#8226;   <a href="#pydoc">pydoc</a>
  &#8226;   <a href="#queue">queue</a>
  &#8226;   <a href="#random">random</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.cookies">requests.cookies</a>
- &#8226;   <a href="#requests.sessions">requests.sessions</a>
- &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#serial.serialutil">serial.serialutil</a>
  &#8226;   <a href="#serial.serialwin32">serial.serialwin32</a>
  &#8226;   <a href="#setuptools._vendor.backports.tarfile">setuptools._vendor.backports.tarfile</a>
@@ -78868,8 +77609,6 @@ imported by:
  &#8226;   <a href="#unittest.case">unittest.case</a>
  &#8226;   <a href="#unittest.runner">unittest.runner</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
  &#8226;   <a href="#uuid">uuid</a>
  &#8226;   <a href="#wsgiref.handlers">wsgiref.handlers</a>
  &#8226;   <a href="#xmlrpc.client">xmlrpc.client</a>
@@ -79070,9 +77809,6 @@ imported by:
  &#8226;   <a href="#django.utils.autoreload">django.utils.autoreload</a>
  &#8226;   <a href="#doctest">doctest</a>
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
- &#8226;   <a href="#keyboard._generic">keyboard._generic</a>
- &#8226;   <a href="#keyboard._nixkeyboard">keyboard._nixkeyboard</a>
- &#8226;   <a href="#keyboard._winkeyboard">keyboard._winkeyboard</a>
  &#8226;   <a href="#logging">logging</a>
  &#8226;   <a href="#logging.config">logging.config</a>
  &#8226;   <a href="#multiprocessing.managers">multiprocessing.managers</a>
@@ -79193,7 +77929,6 @@ imported by:
  &#8226;   <a href="#asyncio.queues">asyncio.queues</a>
  &#8226;   <a href="#asyncio.tasks">asyncio.tasks</a>
  &#8226;   <a href="#asyncio.timeouts">asyncio.timeouts</a>
- &#8226;   <a href="#certifi.core">certifi.core</a>
  &#8226;   <a href="#concurrent.futures._base">concurrent.futures._base</a>
  &#8226;   <a href="#concurrent.futures.thread">concurrent.futures.thread</a>
  &#8226;   <a href="#contextlib">contextlib</a>
@@ -79287,11 +78022,6 @@ imported by:
  &#8226;   <a href="#unittest.loader">unittest.loader</a>
  &#8226;   <a href="#unittest.mock">unittest.mock</a>
  &#8226;   <a href="#urllib.parse">urllib.parse</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.util">urllib3.util.util</a>
  &#8226;   <a href="#yaml.constructor">yaml.constructor</a>
  &#8226;   <a href="#yaml.representer">yaml.representer</a>
 
@@ -79386,7 +78116,6 @@ imported by:
  &#8226;   <a href="#barcode.codex">barcode.codex</a>
  &#8226;   <a href="#barcode.version">barcode.version</a>
  &#8226;   <a href="#barcode.writer">barcode.writer</a>
- &#8226;   <a href="#certifi.core">certifi.core</a>
  &#8226;   <a href="#charset_normalizer.api">charset_normalizer.api</a>
  &#8226;   <a href="#charset_normalizer.cd">charset_normalizer.cd</a>
  &#8226;   <a href="#charset_normalizer.legacy">charset_normalizer.legacy</a>
@@ -79407,9 +78136,6 @@ imported by:
  &#8226;   <a href="#escpos.printer.win32raw">escpos.printer.win32raw</a>
  &#8226;   <a href="#escpos.types">escpos.types</a>
  &#8226;   <a href="#functools">functools</a>
- &#8226;   <a href="#idna.core">idna.core</a>
- &#8226;   <a href="#idna.intranges">idna.intranges</a>
- &#8226;   <a href="#idna.uts46data">idna.uts46data</a>
  &#8226;   <a href="#importlib.metadata">importlib.metadata</a>
  &#8226;   <a href="#importlib.metadata._meta">importlib.metadata._meta</a>
  &#8226;   <a href="#importlib.resources._common">importlib.resources._common</a>
@@ -79661,7 +78387,6 @@ imported by:
  &#8226;   <a href="#qrcode.image.styles.moduledrawers.base">qrcode.image.styles.moduledrawers.base</a>
  &#8226;   <a href="#qrcode.image.styles.moduledrawers.pil">qrcode.image.styles.moduledrawers.pil</a>
  &#8226;   <a href="#qrcode.main">qrcode.main</a>
- &#8226;   <a href="#requests.adapters">requests.adapters</a>
  &#8226;   <a href="#setuptools">setuptools</a>
  &#8226;   <a href="#setuptools._distutils.cmd">setuptools._distutils.cmd</a>
  &#8226;   <a href="#setuptools._distutils.command.bdist">setuptools._distutils.command.bdist</a>
@@ -79736,37 +78461,7 @@ imported by:
  &#8226;   <a href="#tomllib._re">tomllib._re</a>
  &#8226;   <a href="#tomllib._types">tomllib._types</a>
  &#8226;   <a href="#typing_extensions">typing_extensions</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3._request_methods">urllib3._request_methods</a>
- &#8226;   <a href="#urllib3._version">urllib3._version</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
- &#8226;   <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.fields">urllib3.fields</a>
- &#8226;   <a href="#urllib3.filepost">urllib3.filepost</a>
- &#8226;   <a href="#urllib3.http2">urllib3.http2</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
- &#8226;   <a href="#urllib3.util.proxy">urllib3.util.proxy</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
- &#8226;   <a href="#urllib3.util.ssl_match_hostname">urllib3.util.ssl_match_hostname</a>
- &#8226;   <a href="#urllib3.util.ssltransport">urllib3.util.ssltransport</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
- &#8226;   <a href="#urllib3.util.util">urllib3.util.util</a>
  &#8226;   <a href="#usb._version">usb._version</a>
- &#8226;   <a href="#zstandard">zstandard</a>
 
   </div>
 
@@ -79816,12 +78511,6 @@ imported by:
  &#8226;   <a href="#setuptools.dist">setuptools.dist</a>
  &#8226;   <a href="#setuptools.msvc">setuptools.msvc</a>
  &#8226;   <a href="#setuptools.warnings">setuptools.warnings</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.ssltransport">urllib3.util.ssltransport</a>
 
   </div>
 
@@ -80354,7 +79043,6 @@ imported by:
  &#8226;   <a href="#django.utils.http">django.utils.http</a>
  &#8226;   <a href="#django.utils.text">django.utils.text</a>
  &#8226;   <a href="#encodings.idna">encodings.idna</a>
- &#8226;   <a href="#idna.core">idna.core</a>
  &#8226;   <a href="#pandas.core.arrays.arrow.array">pandas.core.arrays.arrow.array</a>
  &#8226;   <a href="#pandas.core.strings.object_array">pandas.core.strings.object_array</a>
  &#8226;   <a href="#pandas.io.formats.printing">pandas.io.formats.printing</a>
@@ -80782,11 +79470,8 @@ imported by:
  &#8226;   <a href="#pandas.io.common">pandas.io.common</a>
  &#8226;   <a href="#pathlib">pathlib</a>
  &#8226;   <a href="#pydoc">pydoc</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
  &#8226;   <a href="#setuptools.config._validate_pyproject.formats">setuptools.config._validate_pyproject.formats</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3._request_methods">urllib3._request_methods</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
  &#8226;   <a href="#wsgiref.simple_server">wsgiref.simple_server</a>
  &#8226;   <a href="#wsgiref.util">wsgiref.util</a>
  &#8226;   <a href="#xml.dom.xmlbuilder">xml.dom.xmlbuilder</a>
@@ -80844,7 +79529,6 @@ imported by:
  &#8226;   <a href="#http.cookiejar">http.cookiejar</a>
  &#8226;   <a href="#numpy.lib._datasource">numpy.lib._datasource</a>
  &#8226;   <a href="#pandas.io.common">pandas.io.common</a>
- &#8226;   <a href="#requests.compat">requests.compat</a>
  &#8226;   <a href="#setuptools._vendor.jaraco.context">setuptools._vendor.jaraco.context</a>
  &#8226;   <a href="#setuptools.config._validate_pyproject.formats">setuptools.config._validate_pyproject.formats</a>
  &#8226;   <a href="#xml.dom.xmlbuilder">xml.dom.xmlbuilder</a>
@@ -80867,1095 +79551,6 @@ imports:
 imported by:
     <a href="#urllib.error">urllib.error</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/__init__.py" type="text/plain"><tt>urllib3</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#ssl">ssl</a>
- &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3._version">urllib3._version</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten">urllib3.contrib.emscripten</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.filepost">urllib3.filepost</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
- &#8226;   <a href="#warnings">warnings</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3._request_methods">urllib3._request_methods</a>
- &#8226;   <a href="#urllib3._version">urllib3._version</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib">urllib3.contrib</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.fields">urllib3.fields</a>
- &#8226;   <a href="#urllib3.filepost">urllib3.filepost</a>
- &#8226;   <a href="#urllib3.http2">urllib3.http2</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3._base_connection"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/_base_connection.py" type="text/plain"><tt>urllib3._base_connection</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#ssl">ssl</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._request_methods">urllib3._request_methods</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.request">urllib3.contrib.emscripten.request</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3._collections"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/_collections.py" type="text/plain"><tt>urllib3._collections</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#collections">collections</a>
- &#8226;   <a href="#enum">enum</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#typing_extensions">typing_extensions</a>
- &#8226;   <a href="#urllib3">urllib3</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._request_methods">urllib3._request_methods</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3._request_methods"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/_request_methods.py" type="text/plain"><tt>urllib3._request_methods</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#json">json</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib.parse">urllib.parse</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3.filepost">urllib3.filepost</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3._version"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/_version.py" type="text/plain"><tt>urllib3._version</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3">urllib3</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.connection"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/connection.py" type="text/plain"><tt>urllib3.connection</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#datetime">datetime</a>
- &#8226;   <a href="#http.client">http.client</a>
- &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#ssl">ssl</a>
- &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3._version">urllib3._version</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.http2">urllib3.http2</a>
- &#8226;   <a href="#urllib3.http2.probe">urllib3.http2.probe</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
- &#8226;   <a href="#urllib3.util.response">urllib3.util.response</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
- &#8226;   <a href="#urllib3.util.ssl_match_hostname">urllib3.util.ssl_match_hostname</a>
- &#8226;   <a href="#urllib3.util.ssltransport">urllib3.util.ssltransport</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
- &#8226;   <a href="#urllib3.util.util">urllib3.util.util</a>
- &#8226;   <a href="#urllib3.util.wait">urllib3.util.wait</a>
- &#8226;   <a href="#warnings">warnings</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten">urllib3.contrib.emscripten</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.http2">urllib3.http2</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.proxy">urllib3.util.proxy</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.connectionpool"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/connectionpool.py" type="text/plain"><tt>urllib3.connectionpool</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#errno">errno</a>
- &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#queue">queue</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#ssl">ssl</a>
- &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#types">types</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#typing_extensions">typing_extensions</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3._request_methods">urllib3._request_methods</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
- &#8226;   <a href="#urllib3.util.proxy">urllib3.util.proxy</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.ssl_match_hostname">urllib3.util.ssl_match_hostname</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
- &#8226;   <a href="#urllib3.util.util">urllib3.util.util</a>
- &#8226;   <a href="#warnings">warnings</a>
- &#8226;   <a href="#weakref">weakref</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.contrib.emscripten">urllib3.contrib.emscripten</a>
- &#8226;   <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.http2">urllib3.http2</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.contrib"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/contrib/__init__.py" type="text/plain"><tt>urllib3.contrib</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#urllib3.contrib.emscripten">urllib3.contrib.emscripten</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
- &#8226;   <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.contrib.emscripten"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/contrib/emscripten/__init__.py" type="text/plain"><tt>urllib3.contrib.emscripten</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib">urllib3.contrib</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.request">urllib3.contrib.emscripten.request</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.contrib.emscripten.connection"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/contrib/emscripten/connection.py" type="text/plain"><tt>urllib3.contrib.emscripten.connection</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#http.client">http.client</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten">urllib3.contrib.emscripten</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.request">urllib3.contrib.emscripten.request</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.contrib.emscripten">urllib3.contrib.emscripten</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.contrib.emscripten.fetch"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/contrib/emscripten/fetch.py" type="text/plain"><tt>urllib3.contrib.emscripten.fetch</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#'pyodide.ffi'">'pyodide.ffi'</a>
- &#8226;   <a href="#__future__">__future__</a>
- &#8226;   <a href="#email.parser">email.parser</a>
- &#8226;   <a href="#importlib.resources">importlib.resources</a>
- &#8226;   <a href="#io">io</a>
- &#8226;   <a href="#js">js</a>
- &#8226;   <a href="#json">json</a>
- &#8226;   <a href="#pyodide">pyodide</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#typing_extensions">typing_extensions</a>
- &#8226;   <a href="#urllib3.contrib.emscripten">urllib3.contrib.emscripten</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.request">urllib3.contrib.emscripten.request</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.contrib.emscripten.request"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/contrib/emscripten/request.py" type="text/plain"><tt>urllib3.contrib.emscripten.request</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#dataclasses">dataclasses</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten">urllib3.contrib.emscripten</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.contrib.emscripten.response"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/contrib/emscripten/response.py" type="text/plain"><tt>urllib3.contrib.emscripten.response</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#contextlib">contextlib</a>
- &#8226;   <a href="#dataclasses">dataclasses</a>
- &#8226;   <a href="#http.client">http.client</a>
- &#8226;   <a href="#io">io</a>
- &#8226;   <a href="#json">json</a>
- &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten">urllib3.contrib.emscripten</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.request">urllib3.contrib.emscripten.request</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.fetch">urllib3.contrib.emscripten.fetch</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.contrib.pyopenssl"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/contrib/pyopenssl.py" type="text/plain"><tt>urllib3.contrib.pyopenssl</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#'OpenSSL.crypto'">'OpenSSL.crypto'</a>
- &#8226;   <a href="#'cryptography.x509'">'cryptography.x509'</a>
- &#8226;   <a href="#OpenSSL">OpenSSL</a>
- &#8226;   <a href="#__future__">__future__</a>
- &#8226;   <a href="#cryptography">cryptography</a>
- &#8226;   <a href="#idna">idna</a>
- &#8226;   <a href="#io">io</a>
- &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#ssl">ssl</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.contrib">urllib3.contrib</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#urllib3.contrib">urllib3.contrib</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.contrib.socks"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/contrib/socks.py" type="text/plain"><tt>urllib3.contrib.socks</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#socks">socks</a>
- &#8226;   <a href="#ssl">ssl</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib">urllib3.contrib</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
- &#8226;   <a href="#warnings">warnings</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.adapters">requests.adapters</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.exceptions"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/exceptions.py" type="text/plain"><tt>urllib3.exceptions</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#email.errors">email.errors</a>
- &#8226;   <a href="#http.client">http.client</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#warnings">warnings</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests">requests</a>
- &#8226;   <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.exceptions">requests.exceptions</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
- &#8226;   <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
- &#8226;   <a href="#urllib3.util.response">urllib3.util.response</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
- &#8226;   <a href="#urllib3.util.ssltransport">urllib3.util.ssltransport</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.fields"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/fields.py" type="text/plain"><tt>urllib3.fields</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#email.utils">email.utils</a>
- &#8226;   <a href="#mimetypes">mimetypes</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#warnings">warnings</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#urllib3.filepost">urllib3.filepost</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.filepost"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/filepost.py" type="text/plain"><tt>urllib3.filepost</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#binascii">binascii</a>
- &#8226;   <a href="#codecs">codecs</a>
- &#8226;   <a href="#io">io</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.fields">urllib3.fields</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._request_methods">urllib3._request_methods</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.http2"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/http2/__init__.py" type="text/plain"><tt>urllib3.http2</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#importlib.metadata">importlib.metadata</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.http2.probe">urllib3.http2.probe</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.http2.probe">urllib3.http2.probe</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.http2.connection"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/http2/connection.py" type="text/plain"><tt>urllib3.http2.connection</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#'h2.connection'">'h2.connection'</a>
- &#8226;   <a href="#'h2.events'">'h2.events'</a>
- &#8226;   <a href="#__future__">__future__</a>
- &#8226;   <a href="#h2">h2</a>
- &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#types">types</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.http2">urllib3.http2</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.http2">urllib3.http2</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.http2.probe"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/http2/probe.py" type="text/plain"><tt>urllib3.http2.probe</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#threading">threading</a>
- &#8226;   <a href="#urllib3.http2">urllib3.http2</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.http2">urllib3.http2</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.poolmanager"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/poolmanager.py" type="text/plain"><tt>urllib3.poolmanager</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#functools">functools</a>
- &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#ssl">ssl</a>
- &#8226;   <a href="#types">types</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#typing_extensions">typing_extensions</a>
- &#8226;   <a href="#urllib.parse">urllib.parse</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3._request_methods">urllib3._request_methods</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
- &#8226;   <a href="#urllib3.util.proxy">urllib3.util.proxy</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
- &#8226;   <a href="#warnings">warnings</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.response"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/response.py" type="text/plain"><tt>urllib3.response</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#brotli">brotli</a>
- &#8226;   <a href="#brotlicffi">brotlicffi</a>
- &#8226;   <a href="#collections">collections</a>
- &#8226;   <a href="#contextlib">contextlib</a>
- &#8226;   <a href="#http.client">http.client</a>
- &#8226;   <a href="#io">io</a>
- &#8226;   <a href="#json">json</a>
- &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3._collections">urllib3._collections</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.response">urllib3.util.response</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#warnings">warnings</a>
- &#8226;   <a href="#zlib">zlib</a>
- &#8226;   <a href="#zstandard">zstandard</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3._request_methods">urllib3._request_methods</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.http2.connection">urllib3.http2.connection</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/__init__.py" type="text/plain"><tt>urllib3.util</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
- &#8226;   <a href="#urllib3.util.response">urllib3.util.response</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
- &#8226;   <a href="#urllib3.util.wait">urllib3.util.wait</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.models">requests.models</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.contrib.pyopenssl">urllib3.contrib.pyopenssl</a>
- &#8226;   <a href="#urllib3.http2">urllib3.http2</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
- &#8226;   <a href="#urllib3.util.proxy">urllib3.util.proxy</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
- &#8226;   <a href="#urllib3.util.response">urllib3.util.response</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
- &#8226;   <a href="#urllib3.util.ssl_match_hostname">urllib3.util.ssl_match_hostname</a>
- &#8226;   <a href="#urllib3.util.ssltransport">urllib3.util.ssltransport</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
- &#8226;   <a href="#urllib3.util.util">urllib3.util.util</a>
- &#8226;   <a href="#urllib3.util.wait">urllib3.util.wait</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util.connection"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/connection.py" type="text/plain"><tt>urllib3.util.connection</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.timeout">urllib3.util.timeout</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util.proxy"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/proxy.py" type="text/plain"><tt>urllib3.util.proxy</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util.request"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/request.py" type="text/plain"><tt>urllib3.util.request</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#base64">base64</a>
- &#8226;   <a href="#brotli">brotli</a>
- &#8226;   <a href="#brotlicffi">brotlicffi</a>
- &#8226;   <a href="#enum">enum</a>
- &#8226;   <a href="#io">io</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.util">urllib3.util.util</a>
- &#8226;   <a href="#zstandard">zstandard</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util.response"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/response.py" type="text/plain"><tt>urllib3.util.response</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#email.errors">email.errors</a>
- &#8226;   <a href="#http.client">http.client</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util.retry"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/retry.py" type="text/plain"><tt>urllib3.util.retry</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#email">email</a>
- &#8226;   <a href="#itertools">itertools</a>
- &#8226;   <a href="#logging">logging</a>
- &#8226;   <a href="#random">random</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#time">time</a>
- &#8226;   <a href="#types">types</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#typing_extensions">typing_extensions</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.util">urllib3.util.util</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.response">urllib3.contrib.emscripten.response</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util.ssl_"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/ssl_.py" type="text/plain"><tt>urllib3.util.ssl_</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#binascii">binascii</a>
- &#8226;   <a href="#hashlib">hashlib</a>
- &#8226;   <a href="#hmac">hmac</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#ssl">ssl</a>
- &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.ssltransport">urllib3.util.ssltransport</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
- &#8226;   <a href="#warnings">warnings</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.http2">urllib3.http2</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.ssl_match_hostname">urllib3.util.ssl_match_hostname</a>
- &#8226;   <a href="#urllib3.util.ssltransport">urllib3.util.ssltransport</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util.ssl_match_hostname"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/ssl_match_hostname.py" type="text/plain"><tt>urllib3.util.ssl_match_hostname</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#ipaddress">ipaddress</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util.ssltransport"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/ssltransport.py" type="text/plain"><tt>urllib3.util.ssltransport</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#io">io</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#ssl">ssl</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#typing_extensions">typing_extensions</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util.timeout"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/timeout.py" type="text/plain"><tt>urllib3.util.timeout</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#enum">enum</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#time">time</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.connection">urllib3.util.connection</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util.url"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/url.py" type="text/plain"><tt>urllib3.util.url</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#idna">idna</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.util">urllib3.util.util</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3._base_connection">urllib3._base_connection</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.emscripten.connection">urllib3.contrib.emscripten.connection</a>
- &#8226;   <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
- &#8226;   <a href="#urllib3.util.proxy">urllib3.util.proxy</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util.util"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/util.py" type="text/plain"><tt>urllib3.util.util</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#types">types</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
- &#8226;   <a href="#urllib3.util.retry">urllib3.util.retry</a>
- &#8226;   <a href="#urllib3.util.url">urllib3.util.url</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="urllib3.util.wait"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/urllib3/util/wait.py" type="text/plain"><tt>urllib3.util.wait</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#functools">functools</a>
- &#8226;   <a href="#select">select</a>
- &#8226;   <a href="#socket">socket</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.util">urllib3.util</a>
 
   </div>
 
@@ -82502,7 +80097,6 @@ imported by:
  &#8226;   <a href="#importlib_resources._common">importlib_resources._common</a>
  &#8226;   <a href="#importlib_resources._functional">importlib_resources._functional</a>
  &#8226;   <a href="#importlib_resources.readers">importlib_resources.readers</a>
- &#8226;   <a href="#keyboard._nixcommon">keyboard._nixcommon</a>
  &#8226;   <a href="#locale">locale</a>
  &#8226;   <a href="#logging">logging</a>
  &#8226;   <a href="#multiprocessing.forkserver">multiprocessing.forkserver</a>
@@ -82664,10 +80258,6 @@ imported by:
  &#8226;   <a href="#random">random</a>
  &#8226;   <a href="#re">re</a>
  &#8226;   <a href="#re._parser">re._parser</a>
- &#8226;   <a href="#requests">requests</a>
- &#8226;   <a href="#requests.adapters">requests.adapters</a>
- &#8226;   <a href="#requests.auth">requests.auth</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#runpy">runpy</a>
  &#8226;   <a href="#serial.serialposix">serial.serialposix</a>
@@ -82713,15 +80303,6 @@ imported by:
  &#8226;   <a href="#unittest.runner">unittest.runner</a>
  &#8226;   <a href="#urllib.parse">urllib.parse</a>
  &#8226;   <a href="#urllib.request">urllib.request</a>
- &#8226;   <a href="#urllib3">urllib3</a>
- &#8226;   <a href="#urllib3.connection">urllib3.connection</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
- &#8226;   <a href="#urllib3.contrib.socks">urllib3.contrib.socks</a>
- &#8226;   <a href="#urllib3.exceptions">urllib3.exceptions</a>
- &#8226;   <a href="#urllib3.fields">urllib3.fields</a>
- &#8226;   <a href="#urllib3.poolmanager">urllib3.poolmanager</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.ssl_">urllib3.util.ssl_</a>
  &#8226;   <a href="#webbrowser">webbrowser</a>
  &#8226;   <a href="#winerror">winerror</a>
  &#8226;   <a href="#wsgiref.handlers">wsgiref.handlers</a>
@@ -82779,7 +80360,6 @@ imported by:
  &#8226;   <a href="#run.py">run.py</a>
  &#8226;   <a href="#tempfile">tempfile</a>
  &#8226;   <a href="#unittest.signals">unittest.signals</a>
- &#8226;   <a href="#urllib3.connectionpool">urllib3.connectionpool</a>
  &#8226;   <a href="#usb._objfinalizer">usb._objfinalizer</a>
  &#8226;   <a href="#xml.etree.ElementTree">xml.etree.ElementTree</a>
  &#8226;   <a href="#xml.sax.expatreader">xml.sax.expatreader</a>
@@ -82930,7 +80510,6 @@ imported by:
  &#8226;   <a href="#importlib._bootstrap_external">importlib._bootstrap_external</a>
  &#8226;   <a href="#mimetypes">mimetypes</a>
  &#8226;   <a href="#platform">platform</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#setuptools._distutils._msvccompiler">setuptools._distutils._msvccompiler</a>
  &#8226;   <a href="#setuptools._vendor.platformdirs.windows">setuptools._vendor.platformdirs.windows</a>
  &#8226;   <a href="#setuptools.msvc">setuptools.msvc</a>
@@ -84039,7 +81618,6 @@ imported by:
  &#8226;   <a href="#pandas.io.excel._base">pandas.io.excel._base</a>
  &#8226;   <a href="#pkg_resources">pkg_resources</a>
  &#8226;   <a href="#pyi_rth_inspect.py">pyi_rth_inspect.py</a>
- &#8226;   <a href="#requests.utils">requests.utils</a>
  &#8226;   <a href="#setuptools._distutils.archive_util">setuptools._distutils.archive_util</a>
  &#8226;   <a href="#setuptools._vendor.wheel.bdist_wheel">setuptools._vendor.wheel.bdist_wheel</a>
  &#8226;   <a href="#setuptools._vendor.wheel.cli.convert">setuptools._vendor.wheel.cli.convert</a>
@@ -84155,7 +81733,6 @@ imported by:
  &#8226;   <a href="#setuptools._vendor.backports.tarfile">setuptools._vendor.backports.tarfile</a>
  &#8226;   <a href="#shutil">shutil</a>
  &#8226;   <a href="#tarfile">tarfile</a>
- &#8226;   <a href="#urllib3.response">urllib3.response</a>
  &#8226;   <a href="#zipfile">zipfile</a>
  &#8226;   <a href="#zipimport">zipimport</a>
 
@@ -84258,95 +81835,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#zoneinfo">zoneinfo</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="zstandard"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/zstandard/__init__.py" type="text/plain"><tt>zstandard</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#builtins">builtins</a>
- &#8226;   <a href="#io">io</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#platform">platform</a>
- &#8226;   <a href="#typing">typing</a>
- &#8226;   <a href="#zstandard.backend_c">zstandard.backend_c</a>
- &#8226;   <a href="#zstandard.backend_cffi">zstandard.backend_cffi</a>
- &#8226;   <a href="#zstandard.backend_rust">zstandard.backend_rust</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#urllib3.response">urllib3.response</a>
- &#8226;   <a href="#urllib3.util.request">urllib3.util.request</a>
- &#8226;   <a href="#zstandard._cffi">zstandard._cffi</a>
- &#8226;   <a href="#zstandard.backend_c">zstandard.backend_c</a>
- &#8226;   <a href="#zstandard.backend_cffi">zstandard.backend_cffi</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="zstandard._cffi"></a>
-  <tt>zstandard._cffi</tt> <span class="moduletype"><tt>C:\Users\franc\Proyectos2024\Gestión de Stock de Helados\stock_control\venv\Lib\site-packages\zstandard\_cffi.cp312-win_amd64.pyd</tt></span>  <div class="import">
-imports:
-    <a href="#zstandard">zstandard</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#zstandard.backend_cffi">zstandard.backend_cffi</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="zstandard.backend_c"></a>
-  <tt>zstandard.backend_c</tt> <span class="moduletype"><tt>C:\Users\franc\Proyectos2024\Gestión de Stock de Helados\stock_control\venv\Lib\site-packages\zstandard\backend_c.cp312-win_amd64.pyd</tt></span>  <div class="import">
-imports:
-    <a href="#zstandard">zstandard</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#zstandard">zstandard</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="zstandard.backend_cffi"></a>
-  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/venv/Lib/site-packages/zstandard/backend_cffi.py" type="text/plain"><tt>zstandard.backend_cffi</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#io">io</a>
- &#8226;   <a href="#os">os</a>
- &#8226;   <a href="#zstandard">zstandard</a>
- &#8226;   <a href="#zstandard._cffi">zstandard._cffi</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#zstandard">zstandard</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="zstandard.backend_rust"></a>
-  <a target="code" href="" type="text/plain"><tt>zstandard.backend_rust</tt></a>
-<span class="moduletype">MissingModule</span>  <div class="import">
-imported by:
-    <a href="#zstandard">zstandard</a>
 
   </div>
 

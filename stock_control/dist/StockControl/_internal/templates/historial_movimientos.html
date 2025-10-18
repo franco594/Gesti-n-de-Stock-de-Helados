@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Historial de Movimientos</title>
+    {% load static %}
+    {% load compress %}
+    {% compress css %}
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+    {% endcompress %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<body class="page-transition">
+
+    <header>
+        
+        <div class="sidebar" id="sidebar">
+            <a href="{% url 'historial_movimientos' %}"><button id="historial-btn">Movimientos</button></a>
+            <button id="configButton"  onclick="abrirModalStock()">Stock</button>
+            <button id="configButton"  onclick="abrirModalCrearBoca('ingresar')">Origen</button>
+            <button id="configButton"  onclick="abrirModalCrearBoca('retirar')">Salidas</button>
+            <input type="file" id="archivoExcel" name="archivo" accept=".xlsx" style="display: none;">
+            <button type="button" id="botonCargarExcel">Productos</button>
+            <a href="{% url 'descargar_backup' %}"><button id="configButton">Exportar BD</button></a>
+            <form id="formImportarBackup" enctype="multipart/form-data">
+                <input type="file" id="archivoBackup" name="archivo" accept=".sqlite3" style="display: none;">
+                <button type="button" id="configButton" onclick="document.getElementById('archivoBackup').click();">Importar BD</button>
+            </form> 
+            <form id="formImportarBackup">
+                <button type="button" id="configButton" onclick="reiniciarStock()">Reiniciar BD</button>
+            </form>            
+
+            <button id="installBtn" style="display: none;">📲 Instalar App</button>
+        </div>
+
+        <!-- Overlay -->
+    <div id="overlay" onclick="closeMenu()"></div>
+    </header>
+    <div class="header">
+        <h2>Historial de Movimientos</h2>
+    </div>
+
+    <div class="container">
+            <!-- Filtros -->
+        <form id="filtrosForm" class="filtros" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;">
+        <div>
+            <label>Desde</label>
+            <input type="date" id="desde" name="desde">
+        </div>
+        <div>
+            <label>Hasta</label>
+            <input type="date" id="hasta" name="hasta">
+        </div>
+        <div>
+            <label>Local</label>
+            <input type="text" id="local" name="local" placeholder="Portofino, Local 1, etc.">
+        </div>
+        <div>
+            <label>Tipo</label>
+            <select id="tipo" name="tipo">
+            <option value="">Todos</option>
+            <option value="ingreso">Ingreso</option>
+            <option value="retiro">Retiro</option>
+            </select>
+        </div>
+        <button type="submit">Filtrar</button>
+        </form>
+        <button class="btn-volver" onclick="window.history.back()">⬅ Volver</button>
+        <ul class="mov-list">
+            {% for movimiento in movimientos %}
+            <li class="mov-item" data-id="{{ movimiento.grupo_id }}">
+                <div>
+                    <strong>#{{ movimiento.grupo_id }}</strong>     -  
+                    <strong>{{ movimiento.tipo|upper }}</strong>    - 
+                    {{ movimiento.timestamp|date:"d/m/Y H:i" }}     - 
+                    <em>📍 {{ movimiento.boca_salida|default:"-" }}</em>
+                    <strong>{{ movimiento.tipo|upper }}</strong>
+                </div>
+                <div class="mov-buttons">
+                    <button class="btn-view" onclick="verDetalleMovimiento('{{ movimiento.grupo_id }}')">Ver Detalles</button>
+                    <button type="button"
+        class="btn btn-sm btn-secondary js-reimprimir"
+        data-grupo="{{ movimiento.grupo_id }}"
+        title="Reimprimir comprobante">📄</button>
+                    <button class="btn-delete" onclick="confirmarEliminacion('{{ movimiento.grupo_id }}')">🗑</button>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        <div id="paginacion">
+            {% if movimientos.has_previous %}
+                <button onclick="cargarPagina('{{ movimientos.previous_page_number }}')">⬅ Anterior</button>
+            {% endif %}
+        
+            <span>Página {{ movimientos.number }} de {{ movimientos.paginator.num_pages }}</span>
+        
+            {% if movimientos.has_next %}
+                <button onclick="cargarPagina('{{ movimientos.next_page_number }}')">Siguiente ➡</button>
+            {% endif %}
+        </div>        
+    </div>
+    
+
+    <!-- Modal de Detalle de Movimiento -->
+    <div id="detalleModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cerrarDetalle()">&times;</span>
+            <h2>Detalle de Movimiento <strong id="detalleGrupoId"></strong></h2>
+            <!-- 🔽 NUEVO: resumen del movimiento -->
+            <div id="detalleResumen" class="muted" style="margin-bottom:10px;">
+            <!-- acá inyectamos: Total, Baldes, Origen/Destino -->
+            </div>
+            <ul id="detalleLista"></ul>
+            <button class="btn-close" onclick="cerrarDetalle()">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación de Eliminación -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cerrarConfirmacion()">&times;</span>
+            <h2>¿Estás seguro?</h2>
+            <p>Esta acción no se puede deshacer.</p>
+            <div class="modal-buttons">
+                <button class="btn-delete" id="confirmDelete">Eliminar</button>
+                <button class="btn-close" onclick="cerrarConfirmacion()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'index.js' %}"></script>
+    <script>
+
+        // Obtener CSRF (si ya tenés esta función, usá la tuya)
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+                }
+            }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        // Delegación de evento para todos los botones Reimprimir
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.js-reimprimir');
+            if (!btn) return;
+
+            const grupoId = btn.dataset.grupo;
+            if (!grupoId) return;
+
+            const prevText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Imprimiendo...';
+
+            try {
+            const resp = await fetch(`/api/movimientos/${grupoId}/reimprimir/`, {
+                method: 'POST',
+                headers: {
+                'X-CSRFToken': csrftoken,
+                },
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+                throw new Error(data.error || `HTTP ${resp.status}`);
+            }
+            alert(data.message || 'Reimpresión enviada');
+            } catch (err) {
+            console.error(err);
+            alert('No se pudo reimprimir el comprobante. Revisá la conexión con la impresora.');
+            } finally {
+            btn.disabled = false;
+            btn.textContent = prevText;
+            }
+        });
+
+        // Helpers de query-string
+        function qs(params) {
+        const u = new URLSearchParams();
+        Object.entries(params).forEach(([k,v]) => { if (v !== undefined && v !== null && v !== '') u.set(k,v); });
+        return u.toString();
+        }
+        function leerFiltros() {
+        return {
+            desde: document.getElementById('desde')?.value,
+            hasta: document.getElementById('hasta')?.value,
+            local: document.getElementById('local')?.value?.trim(),
+            tipo:  document.getElementById('tipo')?.value
+        };
+        }
+
+        // Interceptar submit para recargar con filtros por AJAX
+        document.getElementById('filtrosForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        actualizarHistorialFiltrado(1);
+        });
+
+        
+        // Cargar con filtros (reemplaza a actualizarHistorial() cuando uses filtros)
+        function actualizarHistorialFiltrado(page=1) {
+        const f = leerFiltros();
+        const query = qs({ page, ...f });
+
+        fetch(`/historial_movimientos/?${query}`, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+            .then(res => res.text())
+            .then(html => {
+            const doc = new DOMParser().parseFromString(html, "text/html");
+            const container = doc.querySelector(".container");
+            document.querySelector(".container").innerHTML = container.innerHTML;
+            // reinyectar handlers necesarios
+            wireEliminarHandlers();
+            wirePaginacionConFiltros(f);
+            })
+            .catch(err => console.error("❌ Error al actualizar historial:", err));
+        }
+
+        // Reasignar eventos tras repintar
+        function wireEliminarHandlers() {
+        // ya tenés un addEventListener para #confirmDelete en tu template;
+        // si se pierde tras repintar, podés volver a enlazarlo acá.
+        }
+
+        // Paginación respetando filtros
+        function wirePaginacionConFiltros(f) {
+        const paginacion = document.getElementById("paginacion");
+        if (!paginacion) return;
+        paginacion.querySelectorAll("button").forEach(btn => {
+            const go = btn.onclick;
+            btn.onclick = () => {
+            // detecta si es Anterior/Siguiente leyendo el texto o inyectando data-page;
+            // si usas tu JSON de la función cargarPagina, podés migrarla a usar actualizarHistorialFiltrado
+            const txt = btn.textContent.toLowerCase();
+            const span = paginacion.querySelector("span")?.textContent || "";
+            const m = span.match(/Página\s+(\d+)\s+de\s+(\d+)/i);
+            let current = m ? parseInt(m[1],10) : 1;
+            let next = current;
+            if (txt.includes('anterior')) next = Math.max(1, current - 1);
+            else if (txt.includes('siguiente')) next = current + 1;
+            actualizarHistorialFiltrado(next);
+            };
+        });
+        }
+
+        // Si querés que cargue filtrado al entrar (opcional), llamá:
+        document.addEventListener("DOMContentLoaded", () => {
+        // actualizarHistorialFiltrado(1);
+        });
+
+
+        function verDetalleMovimiento(grupoId) {
+        document.getElementById("detalleGrupoId").textContent = `#${grupoId}`;
+
+        // ← Ajustá la ruta a la que tengas en urls.py. Ej: /movimientos/<id>/?format=json
+        fetch(`/movimientos/${grupoId}/?format=json`, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+            .then(r => r.json())
+            .then(data => {
+            /*
+                data esperado:
+                {
+                grupo_id, tipo, origen, destino,
+                total_peso, cantidad_items,
+                items: [{producto, peso}, ...]
+                }
+            */
+
+            // 1) Resumen (Total, Baldes, Origen/Destino)
+            const resumen = document.getElementById("detalleResumen");
+            const esIngreso = (data.tipo === "ingreso");
+            resumen.innerHTML = `
+                <strong>Total:</strong> ${Number(data.total_peso || 0).toFixed(2)} kg
+                · <strong>Baldes:</strong> ${data.cantidad_items ?? 0}
+                ${esIngreso
+                ? `· <strong>Origen:</strong> ${data.origen ?? "-"}`
+                : `· <strong>Destino:</strong> ${data.destino ?? "-"}`}
+            `;
+
+            // 2) Lista de ítems del grupo
+            const detalleLista = document.getElementById("detalleLista");
+            detalleLista.innerHTML = (data.items || []).map(it => `
+                <li>
+                <span class="producto">${it.producto}</span>
+                <span class="peso"> — ${Number(it.peso || 0).toFixed(2)} kg</span>
+                </li>
+            `).join("");
+
+            // 3) Mostrar modal
+            document.getElementById("detalleModal").style.display = "flex";
+            })
+            .catch(err => {
+            console.error("No se pudo cargar el detalle:", err);
+            alert("No se pudo cargar el detalle del movimiento.");
+            });
+        }
+
+
+        function resaltarElemento(element) {
+            document.querySelectorAll("#detalleLista li").forEach(li => li.classList.remove("resaltado"));
+            element.classList.add("resaltado");
+        }
+
+        function cerrarDetalle() {
+            document.getElementById("detalleModal").style.display = "none";
+        }
+
+        function confirmarEliminacion(grupoId) {
+            movimientoAEliminar = grupoId;
+            document.getElementById("confirmModal").style.display = "flex";
+        }
+
+        function cerrarConfirmacion() {
+            movimientoAEliminar = null;
+            document.getElementById("confirmModal").style.display = "none";
+        }
+
+        document.getElementById("confirmDelete").addEventListener("click", function() {
+    if (!movimientoAEliminar) {
+        console.error("❌ No se encontró el ID del movimiento a eliminar.");
+        return;
+    }
+
+    const elemento = document.querySelector(`.mov-item[data-id="${movimientoAEliminar}"]`);
+
+        grupoId = movimientoAEliminar;    
+
+        if (!elemento) {
+            console.error(`❌ No se encontró el elemento en el DOM para grupoId: ${movimientoAEliminar}`);
+            return;
+        }
+
+        console.log("🗑 Eliminando movimiento con grupoId:", movimientoAEliminar);
+
+        // Aplicar animación antes de eliminar el elemento
+        elemento.style.transition = "transform 0.4s ease-in-out, opacity 0.4s ease-in-out";
+        elemento.style.transform = "translateX(100%)"; // Desplazamiento a la derecha
+        elemento.style.opacity = "0"; // Desvanecer
+
+        setTimeout(() => {
+            fetch(`/eliminar_movimiento/${grupoId}/`, { method: "DELETE" })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log("✔ Movimiento eliminado correctamente.");
+                        elemento.remove(); // Eliminar del DOM después de la animación
+                        
+                        // 🔥 Esperar unos milisegundos antes de actualizar el historial para que la animación se complete
+                        setTimeout(actualizarHistorial, 200);  
+                    } else {
+                        console.error("❌ Error al eliminar el movimiento:", data.error);
+                        alert("Error al eliminar el movimiento.");
+                        // Restaurar la fila si hay error
+                        elemento.style.transform = "translateX(0)";
+                        elemento.style.opacity = "1";
+                    }
+                })
+                .catch(error => {
+                    console.error("⚠️ Error en la eliminación:", error);
+                    // Restaurar la fila si hay error
+                    elemento.style.transform = "translateX(0)";
+                    elemento.style.opacity = "1";
+                });
+        }, 400); // 🔴 Asegurar que la animación de salida termine antes de hacer la petición
+
+        cerrarConfirmacion();
+    });
+
+
+        function actualizarHistorial() {
+            fetch("/historial_movimientos/?page=1", { 
+                headers: { "X-Requested-With": "XMLHttpRequest" } 
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, "text/html");
+                const container = doc.querySelector(".container");
+
+                if (!container) {
+                    throw new Error("❌ No se encontró el contenedor de historial en la respuesta.");
+                }
+
+                document.querySelector(".container").innerHTML = container.innerHTML;
+            })
+            .catch(error => console.error("❌ Error al actualizar historial:", error));
+        }
+
+        function cargarPagina(pagina) {
+            const f = leerFiltros();
+            const query = qs({ page: pagina, ...f });
+
+            fetch(`/historial_movimientos/?${query}`, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+                .then(r => r.text())
+                .then(html => {
+                const doc = new DOMParser().parseFromString(html, "text/html");
+                const container = doc.querySelector(".container");
+                document.querySelector(".container").innerHTML = container.innerHTML;
+                wireEliminarHandlers();
+                wirePaginacionConFiltros(f);
+                })
+                .catch(error => {
+                console.error("❌ Error al cargar página:", error);
+                alert("No se pudo cargar la página.");
+                });
+        }
+
+    </script>
+
+</body>
+</html>

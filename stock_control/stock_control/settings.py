@@ -3,6 +3,22 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# --- DEFAULT_AUTO_FIELD recomendado (evita warnings y usa bigint) ---
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+def _default_db_path() -> Path:
+    """
+    Ruta por defecto persistente para la DB:
+    - En Windows: %LOCALAPPDATA%\\StockControl\\db.sqlite3
+    - Fallback (si no existe LOCALAPPDATA): BASE_DIR/StockControl/db.sqlite3
+    Podés sobreescribir con la variable de entorno DB_FILE.
+    """
+    root = Path(os.getenv("LOCALAPPDATA", str(BASE_DIR)))
+    return root / "StockControl" / "db.sqlite3"
+
+DB_FILE = Path(os.getenv("DB_FILE", _default_db_path()))
+DB_FILE.parent.mkdir(parents=True, exist_ok=True)
+
 SECRET_KEY = 'tu_clave_secreta'
 
 DEBUG = True
@@ -57,9 +73,9 @@ TEMPLATES = [
 WSGI_APPLICATION = 'stock_control.wsgi.application'
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": str(DB_FILE),   # ¡IMPORTANTE!: ruta absoluta persistente
     }
 }
 
