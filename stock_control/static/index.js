@@ -58,10 +58,8 @@ const SELECTORS = {
   sidebar: "#sidebar",
   overlay: "#overlay",
   menuBtn: "#menu-btn",
-  closeBtn: "#close-btn",
   listaRetiro: "#listaEscaneadosRetiro",
   listaIngreso: "#listaEscaneadosIngreso",
-  botonRetiro: "#boton-retirar",
   mensajeError: "#mensaje-error",
 };
 
@@ -313,6 +311,7 @@ function cerrarModalConfirmacion() {
     m.style.display = "none";
     m.classList.remove("fade-out");
     m.classList.remove("zoom-out");
+    location.reload();
   }, 300);
 }
 
@@ -339,13 +338,19 @@ function actualizarListaEscaneados(modalTipo, lista) {
   }
   listaEl.innerHTML = "";
   if (!Array.isArray(lista) || lista.length === 0) {
-    listaEl.innerHTML = "<p style='text-align:center; font-style:italic;'>No hay productos escaneados.</p>";
+   listaEl.innerHTML = `
+      <strong>Balde:</strong> ${producto.nombre}
+      <span style="opacity:.6">|</span>
+      <strong>Peso:</strong> ${formatPeso(producto.peso)}
+      <span style="opacity:.6">|</span>
+      <strong>Código:</strong> <code style="user-select:all">${producto.codigo_barras}</code>
+    `;
     return;
   }
 
   for (const producto of lista) {
     const li = document.createElement("li");
-    li.textContent = `Balde: ${producto.nombre}, Peso: ${producto.peso}g`;
+    li.textContent = `Balde: ${producto.nombre}, Peso: ${producto.peso}g, Código: ${producto.codigo_barras}`;
 
     const btn = document.createElement("button");
     btn.classList.add("btnEliminar");
@@ -375,6 +380,24 @@ async function eliminarProductoEscaneado(plu, modalTipo) {
     console.error("⚠️ Error eliminando producto:", e);
   }
 }
+
+async function actualizarTotales() {
+  try {
+    const data = await getJSON(API.obtenerStock); // mismo que usa actualizarTablas()
+    if (Array.isArray(data?.stock)) {
+      const totalBaldes = data.stock.reduce((acc, it) => acc + Number(it.cantidad || 0), 0);
+      const elBaldes = document.getElementById('totalBaldes');
+      if (elBaldes) elBaldes.textContent = String(totalBaldes);
+    }
+
+    // Si tenés /api/totales/ o devolvés total_kilos en obtener_stock, actualizá también:
+    // const tot = await getJSON('/api/totales/');
+    // if (tot?.total_kilos != null) document.getElementById('totalKilos').textContent = tot.total_kilos;
+  } catch (e) {
+    console.error('No se pudieron actualizar los totales', e);
+  }
+}
+
 
 async function actualizarTablas() {
   console.log("🔄 Actualizando tabla general de stock...");
@@ -416,40 +439,94 @@ async function actualizarTablas() {
 
 async function actualizarTablasGrupos() {
   try {
-    const data = await getJSON(API.obtenerStock);
-    if (!Array.isArray(data?.stock)) {
-      console.error("❌ Respuesta sin 'stock' válido.");
-      return;
-    }
-    const gruposBody = {
-      jarabe: byId("jarabe-body"),
-      chocolates: byId("chocolates-body"),
-      dulces: byId("dulces-body"),
-      blanca: byId("blanca-body"),
-      neutra: byId("neutra-body"),
-      zambayon: byId("zambayon-body"),
-      oleosa: byId("oleosa-body"),
-    };
-    Object.values(gruposBody).forEach((el) => el && (el.innerHTML = ""));
+    const json = await getJSON(API.stockDetallado); // tu endpoint /api/stock_detallado/
 
-    for (const producto of data.stock) {
-      let grupoAsignado = "otros";
-      for (const [grupo, productos] of Object.entries(GRUPOS)) {
-        if (productos.includes(String(producto.nombre).toUpperCase())) {
-          grupoAsignado = grupo;
-          break;
-        }
-      }
-      const tr = document.createElement("tr");
-      tr.className = producto.cantidad < producto.stock_minimo ? "resaltar-bajo-stock" : "";
-      tr.innerHTML = `<td>${producto.nombre}</td><td>${producto.cantidad}</td>`;
-      gruposBody[grupoAsignado]?.appendChild(tr);
+    // Normalización defensiva: intentamos encontrar el array de items
+    let items = [];
+    if (Array.isArray(json)) {
+      items = json;
+    } else if (Array.isArray(json?.data)) {
+      items = json.data;
+    } else if (Array.isArray(json?.stock)) {
+      items = json.stock;
+    } else if (Array.isArray(json?.items)) {
+      items = json.items;
+    } else if (json?.grupos && typeof json.grupos === "object") {
+      // Si el backend ya envía por grupos, renderizamos directo y retornamos
+      renderizarGruposDesdeObjeto(json.grupos);
+      return;
+    } else {
+      console.warn("⚠️ /api/stock_detallado/ no devolvió un array reconocible. Respuesta:", json);
+      items = [];
     }
-    console.log("✅ Tablas de grupos actualizadas.");
-  } catch (e) {
-    console.error("❌ Error al obtener/actualizar grupos:", e);
+
+    // Asegurar que cada item tenga los campos esperados (nombre, grupo, cantidad, etc.)
+    // Ajustá los nombres a lo que te entregue tu API.
+    const seguros = items.map(it => ({
+      nombre: it.nombre ?? it.producto ?? "",
+      grupo:  (it.grupo ?? "").toLowerCase(),
+      cantidad: Number(it.cantidad ?? it.cant ?? 0),
+      // otros campos si los usás...
+    }));
+
+    // Agrupar por grupo
+    const porGrupo = seguros.reduce((acc, it) => {
+      const g = it.grupo || "otros";
+      if (!acc[g]) acc[g] = [];
+      acc[g].push(it);
+      return acc;
+    }, {});
+
+    renderizarGruposDesdeObjeto(porGrupo);
+  } catch (err) {
+    console.error("❌ actualizarTablasGrupos() falló:", err);
   }
 }
+
+// Render que llena cada <tbody id="*-body"> según el objeto { grupo: [items...] }
+function renderizarGruposDesdeObjeto(porGrupo) {
+  // Mapa de ids de tbody por clave de grupo (ajustá las claves si tu backend usa otras)
+  const mapIds = {
+    jarabe: "jarabe-body",
+    chocolates: "chocolates-body",
+    dulces: "dulces-body",
+    blanca: "blanca-body",
+    neutra: "neutra-body",
+    zambayon: "zambayon-body",
+    oleosa: "oleosa-body",
+    otros: "otros-body" // por si querés agregar un contenedor “otros”
+  };
+
+  // Limpiar todos los tbody conocidos
+  Object.values(mapIds).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = "";
+  });
+
+  // Volcar filas
+  Object.entries(porGrupo).forEach(([grupo, lista]) => {
+    const tbodyId = mapIds[grupo] || mapIds.otros;
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+
+    const rows = (Array.isArray(lista) ? lista : []).map(it => {
+      const nombre = (it.nombre ?? "").toString();
+      const cantidad = Number(it.cantidad ?? 0);
+      return `<tr><td>${escapeHtml(nombre)}</td><td>${cantidad}</td></tr>`;
+    }).join("");
+
+    tbody.innerHTML = rows;
+  });
+}
+
+// Utilidad mínima para escapar HTML en nombres
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 
 /*******************************************
  * 7) Comunicación con backend (acciones)  *
@@ -493,18 +570,28 @@ async function confirmarAgregarProductos() {
     mostrarModalDenegado("Por favor, seleccioná un origen.");
     return;
   }
-  const payload = { productos: productosEscaneados, origen: boca };
+  const payload = {
+    origen: boca,
+    productos: productosEscaneados.map(p => ({
+      plu: p.plu,
+      peso: p.peso,
+      // 👇 clave nueva que enviamos al backend
+      codigo_barras: p.codigo_barras
+    }))
+  };
   try {
     const data = await postJSON(API.confirmarIngreso, payload);
     if (data?.error) {
       console.error("❌ Error al confirmar productos:", data.error);
+      mostrarModalDenegado(data.error ?? "No se pudo ingresar el producto");
     } else {
       console.log("✅ Productos agregados correctamente.");
       mostrarModalConfirmacion(data.message ?? "Productos agregados");
       cerrarModal("ingresar");
       productosEscaneados = [];
-      await actualizarTablas();
-      await actualizarTablasGrupos();
+      //await Promise.all([actualizarTablas(), actualizarTablasGrupos()]);
+      location.reload()
+      actualizarTotales();
     }
   } catch (e) {
     console.error("⚠️ Error al agregar productos:", e);
@@ -529,19 +616,28 @@ async function confirmarRetirarProductos() {
     mostrarModalDenegado("Por favor, seleccioná una boca de salida.");
     return;
   }
-  const payload = { productos: productosEscaneados, destino: boca };
+  const payload = {
+    destino: boca,
+    productos: productosEscaneados.map(p => ({
+      plu: p.plu,
+      // para retiro basta con el código; si querés mandar peso también no molesta
+      codigo_barras: p.codigo_barras
+    }))
+  };
   try {
     const data = await postJSON(API.confirmarRetiro, payload);
     if (data?.error) {
       console.error("❌ Error al retirar productos:", data.error);
+      mostrarModalDenegado(data.error ?? "No se pudo retirar el producto");
       return;
     }
     console.log("✅ Productos retirados correctamente.");
     mostrarModalConfirmacion(data.message ?? "Productos retirados");
     cerrarModal("retirar");
     productosEscaneados = [];
-    await actualizarTablas();
-    await actualizarTablasGrupos();
+    //await Promise.all([actualizarTablas(), actualizarTablasGrupos()]);
+    location.reload()
+    actualizarTotales();
   } catch (e) {
     console.error("❌ Error al retirar productos:", e);
   }

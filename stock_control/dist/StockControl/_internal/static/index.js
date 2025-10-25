@@ -58,10 +58,8 @@ const SELECTORS = {
   sidebar: "#sidebar",
   overlay: "#overlay",
   menuBtn: "#menu-btn",
-  closeBtn: "#close-btn",
   listaRetiro: "#listaEscaneadosRetiro",
   listaIngreso: "#listaEscaneadosIngreso",
-  botonRetiro: "#boton-retirar",
   mensajeError: "#mensaje-error",
 };
 
@@ -339,13 +337,19 @@ function actualizarListaEscaneados(modalTipo, lista) {
   }
   listaEl.innerHTML = "";
   if (!Array.isArray(lista) || lista.length === 0) {
-    listaEl.innerHTML = "<p style='text-align:center; font-style:italic;'>No hay productos escaneados.</p>";
+   li.innerHTML = `
+      <strong>Balde:</strong> ${producto.nombre}
+      <span style="opacity:.6">|</span>
+      <strong>Peso:</strong> ${formatPeso(producto.peso)}
+      <span style="opacity:.6">|</span>
+      <strong>Código:</strong> <code style="user-select:all">${producto.codigo_barras}</code>
+    `;
     return;
   }
 
   for (const producto of lista) {
     const li = document.createElement("li");
-    li.textContent = `Balde: ${producto.nombre}, Peso: ${producto.peso}g`;
+    li.textContent = `Balde: ${producto.nombre}, Peso: ${producto.peso}g, Código: ${producto.codigo_barras}`;
 
     const btn = document.createElement("button");
     btn.classList.add("btnEliminar");
@@ -493,11 +497,20 @@ async function confirmarAgregarProductos() {
     mostrarModalDenegado("Por favor, seleccioná un origen.");
     return;
   }
-  const payload = { productos: productosEscaneados, origen: boca };
+  const payload = {
+    origen: boca,
+    productos: productosEscaneados.map(p => ({
+      plu: p.plu,
+      peso: p.peso,
+      // 👇 clave nueva que enviamos al backend
+      codigo_barras: p.codigo_barras
+    }))
+  };
   try {
     const data = await postJSON(API.confirmarIngreso, payload);
     if (data?.error) {
       console.error("❌ Error al confirmar productos:", data.error);
+      mostrarModalDenegado(data.error ?? "No se pudo ingresar el producto");
     } else {
       console.log("✅ Productos agregados correctamente.");
       mostrarModalConfirmacion(data.message ?? "Productos agregados");
@@ -529,11 +542,19 @@ async function confirmarRetirarProductos() {
     mostrarModalDenegado("Por favor, seleccioná una boca de salida.");
     return;
   }
-  const payload = { productos: productosEscaneados, destino: boca };
+  const payload = {
+    destino: boca,
+    productos: productosEscaneados.map(p => ({
+      plu: p.plu,
+      // para retiro basta con el código; si querés mandar peso también no molesta
+      codigo_barras: p.codigo_barras
+    }))
+  };
   try {
     const data = await postJSON(API.confirmarRetiro, payload);
     if (data?.error) {
       console.error("❌ Error al retirar productos:", data.error);
+      mostrarModalDenegado(data.error ?? "No se pudo retirar el producto");
       return;
     }
     console.log("✅ Productos retirados correctamente.");

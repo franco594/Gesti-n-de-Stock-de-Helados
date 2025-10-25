@@ -11,7 +11,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-    <link rel="manifest" href="{% static 'manifest.json' %}">
     <script>
         // Helper CSRF disponible globalmente
         function getCookie(name) {
@@ -61,6 +60,11 @@
     <div class="menu-container">
         <div class="menu-form"></div>
     </div>
+
+    <div class="totales" style="text-align: center;">
+            <p><strong>Baldes en stock:</strong> <span id="totalBaldes">{{ total_baldes }}</span></p>
+            <p><strong>Kilos totales:</strong> <span id="totalKilos">{{ total_kilos }}</span> kg</p>
+        </div>
     
 </div>
     
@@ -81,6 +85,8 @@
 
     <!-- Tabla General -->
     <div id="stockGeneral" style="display: none;">
+        
+
         <button id="botonVistaGrupos">Vista Grupos</button>
         <button id="botonVistaGeneral">Vista General</button>
         <table id="stockTable">

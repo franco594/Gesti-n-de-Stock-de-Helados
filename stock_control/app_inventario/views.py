@@ -1,4 +1,6 @@
 # views.py (consolidado y corregido)
+import time
+from django.utils import timezone
 import os
 import json
 import sqlite3
@@ -15,11 +17,14 @@ from django.shortcuts import render
 from django.utils.dateparse import parse_date
 from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import csrf_exempt
+from django.core.management import call_command 
+
 
 from .models import (
     BocaSalida, OrigenIngreso, ProductoFijo,
     RegistroMovimiento, GrupoMovimiento, StockBalde
 )
+from app_inventario import models
 
 logger = logging.getLogger(__name__)
 
@@ -103,10 +108,6 @@ def actualizar_stock_minimo(request):
 
 
 def _actualizar_total_grupo(grupo_id, tipo, origen=None, destino_nombre=None):
-    """
-    Recalcula y persiste totales del grupo.
-    tipo: 'ingreso' | 'retiro'
-    """
     agg = (RegistroMovimiento.objects
            .filter(grupo_id=grupo_id)
            .aggregate(total=Sum('peso'), cantidad=Count('id')))
@@ -120,13 +121,15 @@ def _actualizar_total_grupo(grupo_id, tipo, origen=None, destino_nombre=None):
     GrupoMovimiento.objects.update_or_create(
         grupo_id=grupo_id,
         defaults={
-            'tipo': tipo,  # 'ingreso' o 'retiro'
+            'tipo': tipo,
             'origen': origen if tipo == 'ingreso' else None,
-            'destino': destino_obj if tipo == 'retiro' else None,
+            'destino': destino_obj if tipo == 'salida' else None,
             'total_peso': total,
             'cantidad_items': cant,
         }
     )
+
+
 
 
 def _print_group_if_enabled(grupo_id: int):
@@ -167,8 +170,18 @@ def reimprimir_ticket(request, grupo_id: int):
 # =========================================================
 
 def index(request):
-    stock_resumido = ProductoFijo.objects.annotate(cantidad=Count('stockbalde'))
-    return render(request, "index.html", {"stock_resumido": stock_resumido})
+    stock_resumido = ProductoFijo.objects.annotate(
+        cantidad=Count('stockbalde', filter=Q(stockbalde__is_activo=True))
+    )
+    # 👇 NUEVO
+    tot_balde = StockBalde.objects.filter(is_activo=True).count()
+    tot_kilos = StockBalde.objects.filter(is_activo=True).aggregate(s=Sum('peso'))['s'] or 0
+
+    return render(request, "index.html", {
+        "stock_resumido": stock_resumido,
+        "total_baldes": tot_balde,
+        "total_kilos": round(float(tot_kilos), 2),
+    })
 
 
 def cargar_productos_desde_excel():
@@ -276,7 +289,9 @@ def historial_movimientos(request):
     desde_str = request.GET.get("desde")
     hasta_str = request.GET.get("hasta")
     local = (request.GET.get("local") or "").strip()
-    tipo = request.GET.get("tipo")
+    tipo = (request.GET.get("tipo") or "").strip().lower()
+    gusto = (request.GET.get("gusto") or "").strip()     # nombre del gusto a buscar
+    codigo = (request.GET.get("codigo") or "").strip()   # EAN-13 exacto o substring
 
     if desde_str:
         d = parse_date(desde_str)
@@ -294,8 +309,22 @@ def historial_movimientos(request):
             Q(destino__nombre__icontains=local)
         )
 
-    if tipo in ("ingreso", "retiro"):
-        base_qs = base_qs.filter(tipo=tipo)
+    if tipo:
+        if tipo in ("retiro", "salida"):
+            # Incluir ambos para compatibilidad histórica
+            base_qs = base_qs.filter(tipo__in=["retiro", "salida"])
+        elif tipo == "ingreso":
+            base_qs = base_qs.filter(tipo="ingreso")
+        else:
+            # cualquier otro valor ignora el filtro de tipo
+            pass
+
+    if gusto:
+        base_qs = base_qs.filter(producto__nombre__icontains=gusto)
+    if codigo:
+        # si queremos exacto: codigo_barras=codigo
+        # si queremos "contiene": codigo_barras__icontains=codigo
+        base_qs = base_qs.filter(codigo_barras__icontains=codigo)
 
     # Último movimiento por grupo_id (respetando filtros)
     latest_in_group = (
@@ -316,24 +345,56 @@ def historial_movimientos(request):
         .order_by("-timestamp", "-id")
     )
 
+    # Total global (todos los resultados filtrados, sin paginar)
+    total_kg_global = base_qs.aggregate(s=Sum("peso"))["s"] or 0
+
     # Paginación
     page_number = request.GET.get("page", 1)
     paginator = Paginator(movimientos_qs, 20)
     movimientos_page = paginator.get_page(page_number)
 
-    return render(
-        request,
-        "historial_movimientos.html",
-        {
-            "movimientos": movimientos_page,
-            "filtros": {
-                "desde": desde_str or "",
-                "hasta": hasta_str or "",
-                "local": local,
-                "tipo": tipo or "",
-            },
-        },
+    # === NUEVO: total de kilos de los movimientos que se muestran en esta página ===
+
+
+    # ids de grupo visibles en la página actual
+    grupo_ids_visibles = [m.grupo_id for m in movimientos_page.object_list]
+
+    # primero intentamos sumar desde GrupoMovimiento (siempre que exista el header)
+    total_kg = (
+        GrupoMovimiento.objects
+        .filter(grupo_id__in=grupo_ids_visibles)
+        .aggregate(s=Sum("total_peso"))["s"] or 0
     )
+
+    # fallback: si algún grupo no tiene header, sumamos su peso desde RegistroMovimiento
+    grupos_con_header = set(
+        GrupoMovimiento.objects
+        .filter(grupo_id__in=grupo_ids_visibles)
+        .values_list("grupo_id", flat=True)
+    )
+    faltantes = set(grupo_ids_visibles) - grupos_con_header
+    if faltantes:
+        total_faltantes = (
+            RegistroMovimiento.objects
+            .filter(grupo_id__in=faltantes)
+            .aggregate(s=Sum("peso"))["s"] or 0
+        )
+        total_kg += total_faltantes
+
+    return render(
+    request,
+    "historial_movimientos.html",
+    {
+        "movimientos": movimientos_page,
+        "filtros": {
+            "desde": desde_str or "",
+            "hasta": hasta_str or "",
+            "local": local,
+            "tipo": tipo or "",
+        },
+        "total_kg_global": total_kg_global,   # 👈 NUEVO: total global filtrado
+    },
+)
 
 
 def detalle_movimiento(request, grupo_id: int):
@@ -371,9 +432,16 @@ def detalle_movimiento(request, grupo_id: int):
             "tipo": tipo,
             "origen": origen,
             "destino": destino.nombre if destino else None,
-            "total_peso": round(float(total_peso), 3),
+            "total_peso": round(float(total_peso), 2),
             "cantidad_items": int(cantidad_items),
-            "items": [{"producto": i.producto.nombre, "peso": float(i.peso)} for i in items],
+            "items": [
+                {
+                    "producto": i.producto.nombre,
+                    "peso": float(i.peso),
+                    "codigo_barras": getattr(i, "codigo_barras", None)  # 👈 nuevo
+                }
+                for i in items
+            ],
         })
 
     return render(request, "detalle_movimiento.html", {
@@ -443,34 +511,54 @@ def obtener_codigos(request):
 @csrf_exempt
 def procesar_codigo(request):
     """
-    Recibe {"codigo": "xxxxxxxxxxxxx"} (13 dígitos).
-    Extrae PLU y peso, valida contra ProductoFijo, y agrega a la lista temporal en sesión.
+    Recibe {"codigo": "xxxxxxxxxxxxx"} (EAN-13).
+    - Extrae PLU (3 dígitos) y peso (X.XXX) del código.
+    - Verifica que el producto exista.
+    - Agrega a la lista temporal en sesión incluyendo `codigo_barras`.
+    - Evita duplicados por el mismo `codigo_barras`.
+    Responde con la lista temporal actualizada.
     """
     if request.method != 'POST':
         return JsonResponse({"error": "Método no permitido"}, status=405)
 
+    # --- Parseo de body ---
     try:
         data = json.loads(request.body or "{}")
     except json.JSONDecodeError:
         return JsonResponse({"error": "Formato JSON inválido"}, status=400)
 
-    codigo_barras = data.get("codigo")
-    if not codigo_barras or len(codigo_barras) != 13 or not codigo_barras.isdigit():
+    codigo_barras = (data.get("codigo") or "").strip()
+
+    # Validación básica de EAN-13 (longitud y dígitos)
+    if not (len(codigo_barras) == 13 and codigo_barras.isdigit()):
         return JsonResponse({"error": "Código de barras no válido"}, status=400)
 
-    plu = codigo_barras[2:5]
-    peso = float(f"{codigo_barras[8]}.{codigo_barras[9:12]}")
+    # --- Interpretación del código ---
+    plu = codigo_barras[2:5]  # 3 dígitos
+    peso = float(f"{codigo_barras[8]}.{codigo_barras[9:12]}")  # X.XXX
 
+    # --- Producto existente ---
     try:
         prod = ProductoFijo.objects.get(plu=plu)
     except ProductoFijo.DoesNotExist:
         return JsonResponse({"error": "Producto no encontrado"}, status=400)
 
+    # --- Lista temporal en sesión ---
     productos_temporales = request.session.get("productos_temporales", [])
-    nuevo = {"nombre": prod.nombre, "peso": peso, "plu": plu}
-    if not any(p["plu"] == nuevo["plu"] and p["peso"] == nuevo["peso"] for p in productos_temporales):
+
+    # Armamos el item incluyendo el código de barras
+    nuevo = {
+        "nombre": prod.nombre,
+        "peso": peso,
+        "plu": plu,
+        "codigo_barras": codigo_barras,  # 👈 clave nueva para trazabilidad
+    }
+
+    # Evitar duplicados: si ya existe ese mismo código en la lista, no lo agregamos
+    if not any(p.get("codigo_barras") == codigo_barras for p in productos_temporales):
         productos_temporales.append(nuevo)
 
+    # Persistir en sesión
     request.session["productos_temporales"] = productos_temporales
     request.session.modified = True
 
@@ -533,25 +621,26 @@ def confirmar_agregado(request):
 # =========================================================
 # Confirmar Ingreso / Retiro (agrupado con grupo_id)
 # =========================================================
-
 @csrf_exempt
 def confirmar_codigos(request):
     """
-    Confirma INGRESO agrupado.
-    - Crea StockBalde por cada balde ingresado.
-    - Registra RegistroMovimiento (tipo='ingreso') con 'origen'.
-    - Actualiza totales del GrupoMovimiento.
-    - Limpia la lista temporal de la sesión.
+    Confirma un INGRESO de baldes con trazabilidad por código de barras.
+    - Requiere para cada item: {plu, nombre?, peso, codigo_barras}
+    - Bloquea duplicados: si un codigo_barras ya existe, rechaza.
+    - Crea StockBalde (is_activo=True) y RegistroMovimiento (tipo='ingreso').
+    - Agrupa todo en un nuevo grupo_id y actualiza GrupoMovimiento.
+    - Limpia la lista temporal en sesión si existe.
     """
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
 
+    # --- Parseo payload ---
     try:
         data = json.loads(request.body or "{}")
     except json.JSONDecodeError:
         return JsonResponse({"error": "Formato JSON inválido"}, status=400)
 
-    productos = data.get("productos") or request.session.get("productos_temporales", [])
+    productos = data.get("productos", []) or request.session.get("productos_temporales", [])
     origen = (data.get("origen") or "").strip()
 
     if not productos:
@@ -559,74 +648,99 @@ def confirmar_codigos(request):
     if not origen:
         return JsonResponse({"error": "Debe indicar un origen"}, status=400)
 
+    # --- Nuevo grupo ---
     ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
     nuevo_grupo_id = ultimo_grupo + 1
 
-    nombres_ingresados = []
+    ingresados = []
 
     try:
         with transaction.atomic():
             for p in productos:
                 plu = (p or {}).get("plu")
                 peso = (p or {}).get("peso")
+                codigo_barras = (p or {}).get("codigo_barras") or (p or {}).get("codigo")
+
+                # Validaciones
                 if not plu:
                     return JsonResponse({"error": "Producto sin PLU"}, status=400)
-                if peso is None:
+                if not peso:
                     return JsonResponse({"error": f"Producto {plu} sin peso"}, status=400)
+                if not codigo_barras or len(str(codigo_barras)) != 13:
+                    return JsonResponse({"error": "Cada balde debe incluir 'codigo_barras' de 13 dígitos"}, status=400)
 
+                # Producto
                 try:
                     producto_obj = ProductoFijo.objects.get(plu=plu)
                 except ProductoFijo.DoesNotExist:
                     return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
-                # 1) Crear balde en stock
-                StockBalde.objects.create(producto=producto_obj, peso=float(peso))
+                # Duplicado (anti-reingreso solo si hay uno ACTIVO)
+                if StockBalde.objects.filter(codigo_barras=codigo_barras, is_activo=True).exists():
+                    return JsonResponse(
+                        {"error": f"El balde {codigo_barras} ya fue ingresado previamente y sigue activo"},
+                        status=409  # Conflict
+                    )
 
-                # 2) Registrar movimiento (ingreso)
+                # Crear balde activo
+                StockBalde.objects.create(
+                    producto=producto_obj,
+                    peso=float(peso),
+                    codigo_barras=codigo_barras,
+                    is_activo=True,
+                    fecha_retiro=None,
+                )
+
+                # Crear movimiento
                 RegistroMovimiento.objects.create(
                     grupo_id=nuevo_grupo_id,
                     producto=producto_obj,
                     peso=float(peso),
                     tipo="ingreso",
                     origen=origen,
-                    boca_salida=origen,  # compatibilidad con campo legado para mostrar
+                    boca_salida=origen,  # compatibilidad
+                    codigo_barras=codigo_barras,
                 )
-                nombres_ingresados.append(producto_obj.nombre)
 
-            # 3) Actualizar totales del grupo
+                ingresados.append(producto_obj.nombre)
+
+            # Totales del grupo
             _actualizar_total_grupo(nuevo_grupo_id, tipo="ingreso", origen=origen)
 
-            # 4) Limpiar lista temporal en sesión
+            # Limpiar sesión temporal
             if "productos_temporales" in request.session:
                 request.session["productos_temporales"] = []
                 request.session.modified = True
 
     except Exception as e:
         return JsonResponse({"error": f"Error al confirmar ingreso: {e}"}, status=500)
+    
+    msg = "Productos agregados correctamente:\n\n" + "\n".join(ingresados)
 
-    # Impresión opcional desde la view (si no usás signals)
-    _print_group_if_enabled(nuevo_grupo_id)
-
-    msg = "Productos agregados correctamente:\n\n" + "\n".join(nombres_ingresados)
-    return JsonResponse(
-        {"success": True, "grupo_id": nuevo_grupo_id, "origen": origen,
-         "productos": nombres_ingresados, "message": msg},
-        status=200
-    )
-
+    return JsonResponse({
+        "success": True,
+        "grupo_id": nuevo_grupo_id,
+        "origen": origen,
+        "productos": ingresados,
+        "message": msg
+    }, status=200)
 
 @csrf_exempt
 def confirmar_retiro(request):
     """
-    Confirma RETIRO agrupado.
-    - Valida stock.
-    - Elimina baldes del stock.
-    - Registra RegistroMovimiento (tipo='retiro') con 'destino' (FK) y `boca_salida` (texto).
-    - Actualiza totales del GrupoMovimiento.
+    Confirma RETIRO de baldes. Soporta trazabilidad por código y stock legacy (sin código).
+
+    Flags opcionales en el body:
+      - allow_fallback_legacy (bool, default True): si se envía un código y no existe ese balde,
+        permite caer a un balde legacy (sin código) del mismo PLU.
+      - legacy_ok (bool, default True): permite retirar sin enviar código (toma legacy preferentemente).
+      - legacy_only (bool, default False): si no se envía código, exige que el balde retirado sea legacy.
+        (implica legacy_ok=True)
     """
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
 
+    # -------- Parseo body --------
     try:
         data = json.loads(request.body or "{}")
     except json.JSONDecodeError:
@@ -635,80 +749,130 @@ def confirmar_retiro(request):
     productos = data.get("productos", [])
     destino_nombre = (data.get("destino") or "").strip()
 
+    # Flags de control (con defaults seguros)
+    allow_fallback_legacy = bool(data.get("allow_fallback_legacy", True))
+    legacy_ok = bool(data.get("legacy_ok", True))
+    legacy_only = bool(data.get("legacy_only", False))
+    if legacy_only:
+        legacy_ok = True  # "solo legacy" implica permitir legacy
+
     if not productos:
         return JsonResponse({"error": "No hay productos para retirar"}, status=400)
     if not destino_nombre:
         return JsonResponse({"error": "Debe indicar un destino"}, status=400)
 
+    # -------- Destino (FK) --------
     destino_obj = BocaSalida.objects.filter(nombre=destino_nombre).first()
     if not destino_obj:
         return JsonResponse({"error": f"Destino '{destino_nombre}' no existe"}, status=400)
 
-    # Agrupar por PLU para validar stock
-    pedidos_por_plu = {}
+    # -------- Normalizar solicitudes [(plu, codigo|None)] --------
+    solicitudes = []
     for p in productos:
         plu = (p or {}).get("plu")
         if not plu:
             return JsonResponse({"error": "Producto sin PLU"}, status=400)
-        pedidos_por_plu[plu] = pedidos_por_plu.get(plu, 0) + 1
+        codigo = (p.get("codigo") or p.get("codigo_barras") or "").strip() or None
+        solicitudes.append((plu, codigo))
 
-    # Validación de stock
-    nombres_sin_stock = []
-    productos_resueltos = {}  # plu -> (producto_obj, queryset baldes)
-    for plu, qty in pedidos_por_plu.items():
+    # -------- Selección de baldes respetando fallback a legacy --------
+    seleccionados = []  # [(producto_obj, balde), ...]
+    faltantes = []
+
+    for plu, codigo in solicitudes:
         try:
             producto_obj = ProductoFijo.objects.get(plu=plu)
         except ProductoFijo.DoesNotExist:
             return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
-        disponibles = StockBalde.objects.filter(producto=producto_obj).order_by("-timestamp")
-        if disponibles.count() < qty:
-            nombres_sin_stock.append(producto_obj.nombre)
+        base = (
+            StockBalde.objects
+            .filter(producto=producto_obj, is_activo=True)
+            .order_by("-timestamp", "-id")
+        )
+
+        balde = None
+        if codigo:
+            # 1) Intento exacto por código
+            balde = base.filter(codigo_barras=codigo).first()
+
+            # 2) Si no hay ese código y se permite fallback, tomar legacy si lo hay
+            if not balde and allow_fallback_legacy:
+                balde_legacy = base.filter(Q(codigo_barras__isnull=True) | Q(codigo_barras="")).first()
+                if balde_legacy:
+                    balde = balde_legacy
+
+            # 3) (opcional) si tampoco hay legacy y no estamos en "solo legacy", tomar cualquiera activo
+            if not balde and allow_fallback_legacy and not legacy_only:
+                balde = base.first()
         else:
-            productos_resueltos[plu] = (producto_obj, disponibles[:qty])
+            # No se envió código
+            if not legacy_ok:
+                faltantes.append(f"{producto_obj.nombre} (requiere código)")
+            else:
+                # Preferir legacy primero
+                balde = base.filter(Q(codigo_barras__isnull=True) | Q(codigo_barras="")).first()
+                if not balde and not legacy_only:
+                    balde = base.first()
 
-    if nombres_sin_stock:
-        return JsonResponse({"error": f"No hay stock disponible para: {', '.join(nombres_sin_stock)}"}, status=400)
+        if not balde:
+            # No se encontró balde elegible
+            if codigo:
+                faltantes.append(f"{producto_obj.nombre} ({codigo})")
+            else:
+                faltantes.append(producto_obj.nombre)
+        else:
+            seleccionados.append((producto_obj, balde))
 
+    if faltantes:
+        return JsonResponse({"error": f"No hay stock disponible para: {', '.join(faltantes)}"}, status=400)
+
+    # -------- Nuevo grupo_id --------
     ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
     nuevo_grupo_id = ultimo_grupo + 1
 
+    # -------- Ejecutar retiro --------
     productos_retirados = []
-
     try:
         with transaction.atomic():
-            for plu, (producto_obj, baldes_qs) in productos_resueltos.items():
-                for balde in baldes_qs:
-                    peso = balde.peso
-                    # 1) eliminar balde del stock
-                    balde.delete()
-                    # 2) registrar movimiento (retiro)
-                    RegistroMovimiento.objects.create(
-                        grupo_id=nuevo_grupo_id,
-                        producto=producto_obj,
-                        peso=peso,
-                        tipo="retiro",             # <<< unificado
-                        destino=destino_obj,       # FK
-                        boca_salida=destino_nombre # texto legacy para mostrar
-                    )
-                    productos_retirados.append(producto_obj.nombre)
+            for producto_obj, balde in seleccionados:
+                # Soft-delete: marcar inactivo
+                balde.is_activo = False
+                balde.save(update_fields=["is_activo"])
 
-            # 3) actualizar totales del grupo
-            _actualizar_total_grupo(nuevo_grupo_id, tipo="retiro", destino_nombre=destino_nombre)
+                # Registrar movimiento
+                RegistroMovimiento.objects.create(
+                    grupo_id=nuevo_grupo_id,
+                    producto=producto_obj,
+                    peso=balde.peso,
+                    tipo="salida",
+                    destino=destino_obj,
+                    boca_salida=destino_nombre,                 # compatibilidad texto
+                    codigo_barras=(balde.codigo_barras or ""),  # legacy: queda vacío
+                )
+                productos_retirados.append(producto_obj.nombre)
+
+            # Totales del grupo
+            _actualizar_total_grupo(
+                nuevo_grupo_id,
+                tipo="salida",
+                destino_nombre=destino_nombre
+            )
 
     except Exception as e:
         return JsonResponse({"error": f"Error al retirar productos: {e}"}, status=500)
 
-    # Impresión opcional desde la view (si no usás signals)
-    _print_group_if_enabled(nuevo_grupo_id)
-
     msg = "Productos retirados correctamente:\n\n" + "\n".join(productos_retirados)
     return JsonResponse(
-        {"success": True, "grupo_id": nuevo_grupo_id, "destino": destino_nombre,
-         "productos": productos_retirados, "message": msg},
+        {
+            "success": True,
+            "grupo_id": nuevo_grupo_id,
+            "destino": destino_nombre,
+            "productos": productos_retirados,
+            "message": msg
+        },
         status=200
     )
-
 
 # =========================================================
 # Catálogos: Bocas / Orígenes
@@ -810,24 +974,118 @@ def eliminar_origen(request):
 # Backups y mantenimiento
 # =========================================================
 
+# views.py
+import tempfile
+from django.db import connection
+
 def descargar_backup(request):
+    """
+    Descarga la base actual como backup.sqlite3 (con nombre con fecha).
+    """
     db_path = settings.DATABASES["default"]["NAME"]
-    if os.path.exists(db_path):
-        return FileResponse(open(db_path, 'rb'), as_attachment=True, filename='backup.sqlite3')
-    return JsonResponse({"error": "No se encontró la base de datos"}, status=404)
+    if not os.path.exists(db_path):
+        return JsonResponse({"error": "No se encontró la base de datos"}, status=404)
+
+    # nombre con timestamp (opcional)
+    from datetime import datetime
+    fname = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.sqlite3"
+    return FileResponse(open(db_path, 'rb'), as_attachment=True, filename=fname)
 
 
+
+# views.py
 @csrf_exempt
 def importar_backup(request):
-    if request.method == "POST" and request.FILES.get("archivo"):
+    """
+    Sube un backup .sqlite3 y reemplaza la DB de forma segura:
+    - guarda a un archivo temporal
+    - cierra conexiones
+    - reemplaza atómicamente
+    - corre migraciones (sin run_syncdb)
+    """
+    if request.method != "POST" or "archivo" not in request.FILES:
+        return JsonResponse({"error": "❌ Método no permitido o archivo no enviado"}, status=400)
+
+    up = request.FILES["archivo"]
+
+    # Validaciones básicas
+    if not up.name.lower().endswith(".sqlite3"):
+        return JsonResponse({"success": False, "error": "El archivo debe ser .sqlite3"}, status=400)
+    if up.size and up.size > 50 * 1024 * 1024:  # 50 MB
+        return JsonResponse({"success": False, "error": "El archivo es demasiado grande"}, status=400)
+
+    db_path = settings.DATABASES["default"]["NAME"]
+    db_dir = os.path.dirname(db_path) or "."
+
+    # 1) Escribir a un archivo temporal
+    os.makedirs(db_dir, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(prefix="upload_", suffix=".sqlite3", dir=db_dir)
+    os.close(fd)
+
+    try:
+        with open(tmp_path, "wb") as destino:
+            for chunk in up.chunks():
+                destino.write(chunk)
+
+        # 2) Cerrar conexiones actuales
+        connection.close()
+
+        # 3) Backup previo opcional (por si querés volver atrás)
+        prev_backup = None
+        if os.path.exists(db_path):
+            prev_backup = db_path + ".prev"
+            try:
+                if os.path.exists(prev_backup):
+                    os.remove(prev_backup)
+            except Exception:
+                pass
+            try:
+                os.replace(db_path, prev_backup)
+            except Exception:
+                prev_backup = None  # si falla, seguimos sin .prev
+
+        # 4) Reemplazo atómico por el nuevo archivo
+        os.replace(tmp_path, db_path)
+
+        # 5) Migraciones (sin run_syncdb)
         try:
-            with open("db.sqlite3", "wb+") as destino:
-                for chunk in request.FILES["archivo"].chunks():
-                    destino.write(chunk)
-            return JsonResponse({"success": True, "message": "Backup restaurado correctamente"})
-        except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)})
-    return JsonResponse({"error": "❌ Método no permitido o archivo no enviado"}, status=400)
+            # Asegura que Django reabra la conexión contra la DB nueva
+            connection.close()
+            call_command("migrate", interactive=False, verbosity=0)
+        except Exception as mig_e:
+            # No abortamos: normalmente no hace falta si el backup ya estaba migrado
+            print(f"[importar_backup] Warning al migrar: {mig_e}")
+
+        # 6) Parche mínimo por SQL si faltara is_activo (defensivo)
+        try:
+            with connection.cursor() as c:
+                c.execute("PRAGMA table_info(app_inventario_stockbalde);")
+                cols = [r[1] for r in c.fetchall()]
+                if "is_activo" not in cols:
+                    c.execute(
+                        "ALTER TABLE app_inventario_stockbalde "
+                        "ADD COLUMN is_activo INTEGER NOT NULL DEFAULT 1;"
+                    )
+                    c.execute(
+                        "CREATE INDEX IF NOT EXISTS stockbalde_is_activo_idx "
+                        "ON app_inventario_stockbalde(is_activo);"
+                    )
+        except Exception as patch_e:
+            print(f"[importar_backup] Warning al parchear is_activo: {patch_e}")
+
+        return JsonResponse({"success": True, "message": "Backup restaurado correctamente"})
+
+    except Exception as e:
+        # Limpieza si algo falla
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except Exception:
+            pass
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+
 
 
 @csrf_exempt

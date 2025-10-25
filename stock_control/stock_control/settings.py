@@ -108,5 +108,6 @@ PRINT_LOGO_PATH = os.getenv("PRINT_LOGO_PATH", "")
 PRINT_QR = os.getenv("PRINT_QR", "false").lower() == "true"
 
 PRINT_FROM_VIEWS = True
-PRINT_COPIAS = 1  # o las copias que quieras
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+LEGACY_ALLOW_NO_CODE = True  # ← durante 1 semana. Luego ponelo en False
