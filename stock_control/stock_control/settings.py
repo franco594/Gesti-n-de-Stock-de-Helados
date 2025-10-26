@@ -36,7 +36,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
     'app_inventario',
     'compressor',  # Añadido correctamente acá
 ]
@@ -111,3 +110,14 @@ PRINT_FROM_VIEWS = True
 
 
 LEGACY_ALLOW_NO_CODE = True  # ← durante 1 semana. Luego ponelo en False
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = "francopiero594@gmail.com"
+EMAIL_HOST_PASSWORD = "hnyi jprn nhyj wplq"
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+TIME_ZONE = "America/Argentina/Buenos_Aires"
+USE_TZ = True

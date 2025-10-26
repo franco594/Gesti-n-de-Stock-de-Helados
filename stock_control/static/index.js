@@ -55,6 +55,7 @@ const SELECTORS = {
   mensajeDenegado: "#mensajeDenegado",
   botonVistaGrupos: "#botonVistaGrupos",
   botonVistaGeneral: "#botonVistaGeneral",
+  botonRetiro: "#retirar",
   sidebar: "#sidebar",
   overlay: "#overlay",
   menuBtn: "#menu-btn",
@@ -338,12 +339,10 @@ function actualizarListaEscaneados(modalTipo, lista) {
   }
   listaEl.innerHTML = "";
   if (!Array.isArray(lista) || lista.length === 0) {
-   listaEl.innerHTML = `
-      <strong>Balde:</strong> ${producto.nombre}
-      <span style="opacity:.6">|</span>
-      <strong>Peso:</strong> ${formatPeso(producto.peso)}
-      <span style="opacity:.6">|</span>
-      <strong>Código:</strong> <code style="user-select:all">${producto.codigo_barras}</code>
+    listaEl.innerHTML = `
+      <li style="opacity:.7; font-style: italic;">
+        No hay productos escaneados todavía.
+      </li>
     `;
     return;
   }

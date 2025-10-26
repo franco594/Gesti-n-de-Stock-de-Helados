@@ -1,0 +1,15 @@
+Exception in thread Thread-1 (iniciar_lector):
+Traceback (most recent call last):
+  File "C:\Users\franc\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1073, in _bootstrap_inner
+    self.run()
+  File "C:\Users\franc\AppData\Local\Programs\Python\Python312\Lib\threading.py", line 1010, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\franc\Proyectos2024\Gestión de Stock de Helados\stock_control\lector_codigos.py", line 33, in iniciar_lector
+    print("\U0001f50d Escáner activo. Escanea un código en cualquier ventana...")
+  File "C:\Users\franc\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f50d' in position 0: character maps to <undefined>
+C:\Users\franc\Proyectos2024\Gestión de Stock de Helados\stock_control\venv\Lib\site-packages\django\db\backends\utils.py:98: RuntimeWarning: Accessing the database during app initialization is discouraged. To fix this warning, avoid executing queries in AppConfig.ready() or when your app modules are imported.
+  warnings.warn(self.APPS_NOT_READY_WARNING_MSG, category=RuntimeWarning)
+^C
