@@ -88,10 +88,11 @@
             <li class="mov-item" data-id="{{ movimiento.grupo_id }}">
                 <div>
                     <strong>#{{ movimiento.grupo_id }}</strong>     -  
-                    <strong>{{ movimiento.tipo|upper }}</strong>    - 
+                    <strong>
+                        {% if movimiento.tipo|lower == "salida" %}RETIRO{% else %}{{ movimiento.tipo|upper }}{% endif %}
+                    </strong>     -
                     {{ movimiento.timestamp|date:"d/m/Y H:i" }}     - 
                     <em>📍 {{ movimiento.boca_salida|default:"-" }}</em>
-                    <strong>{{ movimiento.tipo|upper }}</strong>
                 </div>
                 <div class="mov-buttons">
                     <button class="btn-view" onclick="verDetalleMovimiento('{{ movimiento.grupo_id }}')">Ver Detalles</button>

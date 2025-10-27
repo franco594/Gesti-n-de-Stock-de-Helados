@@ -24,9 +24,7 @@
 <body class="page-transition">
     <header>
         <button class="menu-btn" id="menu-btn" onclick="openMenu()">☰</button>
-        <!-- Contenedor global de errores -->
-        <div id="mensaje-error" class="alerta alerta-error" role="alert" style="display:none;"></div>
-
+    
         <div class="sidebar" id="sidebar">
             <a href="{% url 'historial_movimientos' %}"><button id="historial-btn">Movimientos</button></a>
             <button id="configButton"  onclick="abrirModalStock()">Stock</button>
@@ -64,8 +62,8 @@
     </div>
 
     <div class="totales" style="text-align: center;">
-            <p><strong>Baldes en stock:</strong> {{ total_baldes }}</p>
-            <p><strong>Kilos totales:</strong> {{ total_kilos }} kg</p>
+            <p><strong>Baldes en stock:</strong> <span id="totalBaldes">{{ total_baldes }}</span></p>
+            <p><strong>Kilos totales:</strong> <span id="totalKilos">{{ total_kilos }}</span> kg</p>
         </div>
     
 </div>
