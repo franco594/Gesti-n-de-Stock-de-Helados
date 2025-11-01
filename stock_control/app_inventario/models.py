@@ -10,7 +10,7 @@ class ProductoFijo(models.Model):
 
 class StockBalde(models.Model):
     producto = models.ForeignKey(ProductoFijo, on_delete=models.CASCADE)
-    peso = models.DecimalField(max_digits=5, decimal_places=2)
+    peso = models.DecimalField(max_digits=5, decimal_places=3)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     # 👇 NUEVO: trazabilidad
@@ -34,7 +34,7 @@ class OrigenIngreso(models.Model):
 class RegistroMovimiento(models.Model):
     grupo_id = models.IntegerField()
     producto = models.ForeignKey(ProductoFijo, on_delete=models.CASCADE)
-    peso = models.DecimalField(max_digits=5, decimal_places=2)
+    peso = models.DecimalField(max_digits=5, decimal_places=3)
     tipo = models.CharField(max_length=10, choices=[("ingreso", "Ingreso"), ("salida", "Retiro")])
     timestamp = models.DateTimeField(auto_now_add=True)
     boca_salida = models.CharField(max_length=100, blank=True, null=True)
@@ -58,4 +58,4 @@ class GrupoMovimiento(models.Model):
     cantidad_items = models.IntegerField(default=0)
     fecha = models.DateTimeField(auto_now_add=True)
     def __str__(self):
-        return f"Grupo {self.grupo_id} - {self.tipo} - {self.total_peso:.2f} kg"
+        return f"Grupo {self.grupo_id} - {self.tipo} - {self.total_peso:.3f} kg"

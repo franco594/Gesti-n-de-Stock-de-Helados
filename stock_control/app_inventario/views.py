@@ -626,10 +626,10 @@ def confirmar_codigos(request):
     """
     Confirma un INGRESO de baldes con trazabilidad por código de barras.
     - Requiere para cada item: {plu, nombre?, peso, codigo_barras}
-    - Bloquea duplicados: si un codigo_barras ya existe, rechaza.
-    - Crea StockBalde (is_activo=True) y RegistroMovimiento (tipo='ingreso').
-    - Agrupa todo en un nuevo grupo_id y actualiza GrupoMovimiento.
-    - Limpia la lista temporal en sesión si existe.
+    - Si existe un balde con el mismo código y force=False → devuelve 409 y pide confirmación.
+    - Si force=True → ingresa igual (permitiendo múltiples ingresos con el mismo código).
+    - Cada ingreso genera un StockBalde activo y un RegistroMovimiento tipo 'ingreso'.
+    - Se agrupan todos en un nuevo grupo_id.
     """
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
@@ -642,6 +642,7 @@ def confirmar_codigos(request):
 
     productos = data.get("productos", []) or request.session.get("productos_temporales", [])
     origen = (data.get("origen") or "").strip()
+    force = bool(data.get("force", False))
 
     if not productos:
         return JsonResponse({"error": "No hay productos para ingresar"}, status=400)
@@ -675,15 +676,30 @@ def confirmar_codigos(request):
                 except ProductoFijo.DoesNotExist:
                     return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
-                # Duplicado (anti-reingreso solo si hay uno ACTIVO)
-                if StockBalde.objects.filter(codigo_barras=codigo_barras, is_activo=True).exists():
+                # Duplicado (si existe y no es force, devolvemos aviso)
+                duplicado_qs = StockBalde.objects.filter(codigo_barras=codigo_barras)
+                if duplicado_qs.exists() and not force:
+                    ultimo = (
+                        duplicado_qs.order_by("-id")
+                        .values("producto__nombre", "peso", "fecha_retiro", "timestamp")
+                        .first()
+                    )
                     return JsonResponse(
-                        {"error": f"El balde {codigo_barras} ya fue ingresado previamente y sigue activo"},
-                        status=409  # Conflict
+                        {
+                            "status": "duplicado_detectado",
+                            "codigo_barras": codigo_barras,
+                            "producto": ultimo.get("producto__nombre") if ultimo else None,
+                            "peso_anterior": ultimo.get("peso") if ultimo else None,
+                            "fecha_retiro": ultimo.get("fecha_retiro") if ultimo else None,
+                            "fecha_ingreso": ultimo.get("timestamp").isoformat() if ultimo and ultimo.get("timestamp") else None,
+                            "mensaje": f"El balde <b>{codigo_barras}</b> ya existe en el sistema.❗",
+                            "se_puede_forzar": True
+                        },
+                        status=409
                     )
 
-                # Crear balde activo
-                StockBalde.objects.create(
+                # ✅ Crear balde activo
+                balde = StockBalde.objects.create(
                     producto=producto_obj,
                     peso=float(peso),
                     codigo_barras=codigo_barras,
@@ -691,30 +707,30 @@ def confirmar_codigos(request):
                     fecha_retiro=None,
                 )
 
-                # Crear movimiento
+                # ✅ Registrar movimiento
                 RegistroMovimiento.objects.create(
                     grupo_id=nuevo_grupo_id,
                     producto=producto_obj,
                     peso=float(peso),
                     tipo="ingreso",
                     origen=origen,
-                    boca_salida=origen,  # compatibilidad
+                    boca_salida=origen,   # compatibilidad con layouts existentes
                     codigo_barras=codigo_barras,
                 )
 
                 ingresados.append(producto_obj.nombre)
 
-            # Totales del grupo
+            # ✅ Totales del grupo
             _actualizar_total_grupo(nuevo_grupo_id, tipo="ingreso", origen=origen)
 
-            # Limpiar sesión temporal
+            # ✅ Limpiar sesión temporal
             if "productos_temporales" in request.session:
                 request.session["productos_temporales"] = []
                 request.session.modified = True
 
     except Exception as e:
         return JsonResponse({"error": f"Error al confirmar ingreso: {e}"}, status=500)
-    
+
     msg = "Productos agregados correctamente:\n\n" + "\n".join(ingresados)
 
     return JsonResponse({
@@ -724,6 +740,7 @@ def confirmar_codigos(request):
         "productos": ingresados,
         "message": msg
     }, status=200)
+
 
 @csrf_exempt
 def confirmar_retiro(request):
@@ -794,7 +811,8 @@ def confirmar_retiro(request):
         balde = None
         if codigo:
             # 1) Intento exacto por código
-            balde = base.filter(codigo_barras=codigo).first()
+            # Elegir el más viejo cuando hay múltiples activos con el mismo código
+            balde = base.filter(codigo_barras=codigo).order_by("timestamp", "id").first()
 
             # 2) Si no hay ese código y se permite fallback, tomar legacy si lo hay
             if not balde and allow_fallback_legacy:

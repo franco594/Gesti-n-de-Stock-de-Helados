@@ -80,7 +80,7 @@
         <div class="resumen-pagina" style="margin: 8px 0; padding: 8px 12px; background:#f6f7fb; border:1px solid #e7e9f3; border-radius:8px;">
             <strong>Resumen de la página:</strong>
             Mostrando <strong>{{ movimientos|length }}</strong> movimiento{{ movimientos|length|pluralize }} ·
-            Total global (filtrado): <strong>{{ total_kg_global|floatformat:2 }} kg</strong>
+            Total global (filtrado): <strong>{{ total_kg_global|floatformat:3 }} kg</strong>
         </div>
 
         <ul class="mov-list">
@@ -307,7 +307,7 @@
                 <li>
                 <span class="producto">${it.producto}</span>
                 <span class="codigo">${it.codigo_barras ? `<div class="codigo"><small>${it.codigo_barras}</small></div>` : ``}</span>
-                <span class="peso"> — ${Number(it.peso || 0).toFixed(2)} kg</span>
+                <span class="peso"> — ${Number(it.peso || 0).toFixed(3)} kg</span>
                 </li>
             `).join("");
 
