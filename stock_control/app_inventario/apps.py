@@ -1,13 +1,17 @@
 import os
 import sys
+import threading
 from django.apps import AppConfig
+
+_scheduler_started = False
+_scheduler_lock = threading.Lock()
 
 class AppInventarioConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "app_inventario"
 
     def ready(self):
-        # 1) Patch/índice para SQLite si falta la columna is_activo
+        # 1) Patch/índice SQLite si falta la columna is_activo
         from django.db import connection
         try:
             with connection.cursor() as c:
@@ -23,27 +27,33 @@ class AppInventarioConfig(AppConfig):
                         ON app_inventario_stockbalde(is_activo);
                     """)
         except Exception:
-            # No romper el arranque si la DB aún no existe (migraciones iniciales)
-            pass
+            pass  # la DB aún no está creada (migraciones iniciales)
 
-        # 2) Registrar señales
+        # 2) Registrar señales (si existen)
         try:
-            from . import signals  # noqa: F401
+            from . import signals  # noqa
         except Exception:
-            # No bloquear el arranque si aún no existen
             pass
 
-        # 3) Iniciar scheduler SOLO en servidor web y evitando doble arranque
-        # cmds_admitidos = ("runserver", "gunicorn", "uwsgi")
-        # if not any(cmd in " ".join(sys.argv) for cmd in cmds_admitidos):
-        #     return
+        # 3) Iniciar scheduler solo una vez (evita doble start en runserver o PyInstaller)
+        global _scheduler_started
+        with _scheduler_lock:
+            if _scheduler_started:
+                return
 
-        # Evitar doble start con el autoreloader (Django/ Werkzeug)
-        # if os.environ.get("RUN_MAIN") != "true" and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
-        #   return
+            # Evitar duplicación por autoreloader
+            if os.environ.get("RUN_MAIN") == "true":  # Django
+                pass
+            elif "gunicorn" in " ".join(sys.argv):
+                pass
+            else:
+                # Ejecutando EXE → continuar normal
+                pass
 
-        #try:
-        #    from app_inventario.utils.scheduler import iniciar_tareas_periodicas
-        #    iniciar_tareas_periodicas()
-        #except Exception as e:
-        #    print(f"⚠️ No se pudo iniciar el scheduler: {e}")
+            try:
+                from app_inventario.utils.scheduler import iniciar_tareas_periodicas
+                iniciar_tareas_periodicas()
+                print("✅ Scheduler diario inicializado (23:59).")
+                _scheduler_started = True
+            except Exception as e:
+                print(f"⚠️ No se pudo iniciar el scheduler: {e}")
