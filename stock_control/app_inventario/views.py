@@ -20,6 +20,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.management import call_command 
 
 
+
 from .models import (
     BocaSalida, OrigenIngreso, ProductoFijo,
     RegistroMovimiento, GrupoMovimiento, StockBalde
@@ -278,20 +279,77 @@ def historial(request):
     return render(request, "historial_movimientos.html", {"movimientos": movimientos})
 
 
+# importa tus modelos:
+# from .models import RegistroMovimiento, GrupoMovimiento, StockBalde, ProductoFijo
+
 def historial_movimientos(request):
     """
     Lista de movimientos agrupados por grupo_id mostrando SOLO el último
-    movimiento de cada grupo, con filtros por fecha, local y tipo.
+    movimiento de cada grupo, con filtros por fecha, local, tipo.
+    NUEVO: si viene ?solo_activos=1, lista baldes activos (con filtros por gusto/código).
     """
-    base_qs = RegistroMovimiento.objects.all()
+    # -------- NUEVO: flag de "solo activos" --------
+    solo_activos = request.GET.get("solo_activos") in {"1", "true", "True"}
 
-    # Filtros
+    # Filtros comunes
     desde_str = request.GET.get("desde")
     hasta_str = request.GET.get("hasta")
     local = (request.GET.get("local") or "").strip()
     tipo = (request.GET.get("tipo") or "").strip().lower()
     gusto = (request.GET.get("gusto") or "").strip()     # nombre del gusto a buscar
     codigo = (request.GET.get("codigo") or "").strip()   # EAN-13 exacto o substring
+
+    # ---------------------------------------------------------------------
+    # MODO "SOLO ACTIVOS": devolvemos baldes activos (no historial de grupos)
+    # ---------------------------------------------------------------------
+    if solo_activos:
+        qs = (
+            StockBalde.objects
+            .filter(is_activo=True)
+            .select_related("producto")
+            .only("id", "codigo_barras", "peso", "producto__nombre", "producto__plu", "timestamp")
+        )
+
+        if gusto:
+            qs = qs.filter(producto__nombre__icontains=gusto)
+        if codigo:
+            qs = qs.filter(codigo_barras__icontains=codigo)
+
+        # Orden: por producto y antigüedad (más viejo primero o después como prefieras)
+        qs = qs.order_by("producto__nombre", "timestamp", "id")
+
+        # Totales globales (sobre la búsqueda actual de activos)
+        total_kg_global = qs.aggregate(s=Sum("peso"))["s"] or 0
+
+        # Paginación
+        page_number = request.GET.get("page", 1)
+        paginator = Paginator(qs, 20)
+        activos_page = paginator.get_page(page_number)
+
+        # Render usando misma plantilla, con modo=activos
+        return render(
+            request,
+            "historial_movimientos.html",
+            {
+                "modo": "activos",
+                "movimientos": activos_page,  # ahora son StockBalde
+                "filtros": {
+                    "desde": desde_str or "",
+                    "hasta": hasta_str or "",
+                    "local": local,
+                    "tipo": tipo or "",
+                    "gusto": gusto or "",
+                    "codigo": codigo or "",
+                    "solo_activos": True,
+                },
+                "total_kg_global": total_kg_global,
+            },
+        )
+
+    # ---------------------------------------------------------------------
+    # MODO HISTORIAL (comportamiento actual)
+    # ---------------------------------------------------------------------
+    base_qs = RegistroMovimiento.objects.all()
 
     if desde_str:
         d = parse_date(desde_str)
@@ -311,19 +369,15 @@ def historial_movimientos(request):
 
     if tipo:
         if tipo in ("retiro", "salida"):
-            # Incluir ambos para compatibilidad histórica
             base_qs = base_qs.filter(tipo__in=["retiro", "salida"])
         elif tipo == "ingreso":
             base_qs = base_qs.filter(tipo="ingreso")
         else:
-            # cualquier otro valor ignora el filtro de tipo
             pass
 
     if gusto:
         base_qs = base_qs.filter(producto__nombre__icontains=gusto)
     if codigo:
-        # si queremos exacto: codigo_barras=codigo
-        # si queremos "contiene": codigo_barras__icontains=codigo
         base_qs = base_qs.filter(codigo_barras__icontains=codigo)
 
     # Último movimiento por grupo_id (respetando filtros)
@@ -345,7 +399,6 @@ def historial_movimientos(request):
         .order_by("-timestamp", "-id")
     )
 
-    # Total global (todos los resultados filtrados, sin paginar)
     total_kg_global = base_qs.aggregate(s=Sum("peso"))["s"] or 0
 
     # Paginación
@@ -353,20 +406,14 @@ def historial_movimientos(request):
     paginator = Paginator(movimientos_qs, 20)
     movimientos_page = paginator.get_page(page_number)
 
-    # === NUEVO: total de kilos de los movimientos que se muestran en esta página ===
-
-
-    # ids de grupo visibles en la página actual
+    # Totales de los grupos visibles (tu lógica actual)
     grupo_ids_visibles = [m.grupo_id for m in movimientos_page.object_list]
 
-    # primero intentamos sumar desde GrupoMovimiento (siempre que exista el header)
     total_kg = (
         GrupoMovimiento.objects
         .filter(grupo_id__in=grupo_ids_visibles)
         .aggregate(s=Sum("total_peso"))["s"] or 0
     )
-
-    # fallback: si algún grupo no tiene header, sumamos su peso desde RegistroMovimiento
     grupos_con_header = set(
         GrupoMovimiento.objects
         .filter(grupo_id__in=grupo_ids_visibles)
@@ -382,19 +429,24 @@ def historial_movimientos(request):
         total_kg += total_faltantes
 
     return render(
-    request,
-    "historial_movimientos.html",
-    {
-        "movimientos": movimientos_page,
-        "filtros": {
-            "desde": desde_str or "",
-            "hasta": hasta_str or "",
-            "local": local,
-            "tipo": tipo or "",
+        request,
+        "historial_movimientos.html",
+        {
+            "modo": "historial",
+            "movimientos": movimientos_page,
+            "filtros": {
+                "desde": desde_str or "",
+                "hasta": hasta_str or "",
+                "local": local,
+                "tipo": tipo or "",
+                "gusto": gusto or "",
+                "codigo": codigo or "",
+                "solo_activos": False,
+            },
+            "total_kg_global": total_kg_global,
         },
-        "total_kg_global": total_kg_global,   # 👈 NUEVO: total global filtrado
-    },
-)
+    )
+
 
 
 def detalle_movimiento(request, grupo_id: int):

@@ -861,7 +861,52 @@ button#saveStockMin {
     position: relative;
 }
 
+.badge-activo {
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:10px;
+  background:#e7f8ed;
+  color:#228b47;
+  font-weight:600;
+  font-size:.85rem;
+}
 
+/* contenedor */
+.field { display:flex; align-items:center; }
+
+/* base */
+.toggle { display:inline-flex; align-items:center; gap:.6rem; cursor:pointer; user-select:none; }
+.toggle input { position:absolute; opacity:0; width:1px; height:1px; overflow:hidden; }
+
+/* pista */
+.toggle .track{
+  --h: 22px; --w: 42px;
+  position:relative; width:var(--w); height:var(--h);
+  background:#d7dbe7; border-radius:999px; transition:background .2s ease;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+}
+.toggle .track::after{
+  content:""; position:absolute; top:2px; left:2px;
+  width:calc(var(--h) - 4px); height:calc(var(--h) - 4px);
+  border-radius:50%; background:#fff; transition:transform .2s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,.15);
+}
+
+/* checked */
+.toggle input:checked + .track{ background:#3b82f6; }             /* azul */
+.toggle input:checked + .track::after{ transform:translateX(20px); }
+
+/* focus visible */
+.toggle input:focus-visible + .track{
+  outline:2px solid #93c5fd; outline-offset:3px;
+}
+
+/* label texto */
+.toggle .label{ font-weight:600; }
+@media (prefers-color-scheme: dark){
+  .toggle .track{ background:#334155; }
+  .toggle input:checked + .track{ background:#2563eb; }
+}
 
 
 /* Estilos para la tabla STOCK MÍNIMO */
