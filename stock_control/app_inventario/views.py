@@ -1,5 +1,4 @@
 # views.py (consolidado y corregido)
-from decimal import Decimal
 import time
 from django.utils import timezone
 import os
@@ -75,7 +74,7 @@ def agregar_productos(request):
             if not plu or peso is None:
                 return JsonResponse({"error": "Datos incompletos"}, status=400)
             producto_obj = ProductoFijo.objects.get(plu=plu)
-            StockBalde.objects.create(producto=producto_obj, peso = Decimal(str(peso)))
+            StockBalde.objects.create(producto=producto_obj, peso=float(peso))
 
         return JsonResponse({"message": "Productos agregados exitosamente"}, status=200)
     except ProductoFijo.DoesNotExist:
@@ -485,12 +484,12 @@ def detalle_movimiento(request, grupo_id: int):
             "tipo": tipo,
             "origen": origen,
             "destino": destino.nombre if destino else None,
-            "total_peso": Decimal(total_peso),
+            "total_peso": round(float(total_peso), 2),
             "cantidad_items": int(cantidad_items),
             "items": [
                 {
                     "producto": i.producto.nombre,
-                    "peso": Decimal(i.peso),
+                    "peso": float(i.peso),
                     "codigo_barras": getattr(i, "codigo_barras", None)  # 👈 nuevo
                 }
                 for i in items
@@ -588,7 +587,7 @@ def procesar_codigo(request):
 
     # --- Interpretación del código ---
     plu = codigo_barras[2:5]  # 3 dígitos
-    peso = Decimal(f"{codigo_barras[8]}.{codigo_barras[9:12]}")   # ✅ X.XXX exacto (sin binario)
+    peso = float(f"{codigo_barras[8]}.{codigo_barras[9:12]}")  # X.XXX
 
     # --- Producto existente ---
     try:
@@ -754,7 +753,7 @@ def confirmar_codigos(request):
                 # ✅ Crear balde activo
                 balde = StockBalde.objects.create(
                     producto=producto_obj,
-                    peso = Decimal(str(peso)),
+                    peso=float(peso),
                     codigo_barras=codigo_barras,
                     is_activo=True,
                     fecha_retiro=None,

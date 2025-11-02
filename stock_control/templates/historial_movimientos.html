@@ -98,7 +98,7 @@
                     <div>
                     <strong>{{ b.producto.nombre }}</strong> — 
                     Código: <em>{{ b.codigo_barras|default:"-" }}</em> —
-                    Peso: <b>{{ b.peso }} kg</b> —
+                    Peso: <b>{{ b.peso|floatformat:3 }} kg</b> —
                     Ingresado: {% if b.timestamp %}{{ b.timestamp|date:"d/m/Y H:i" }}{% else %}-{% endif %}
                     </div>
                     <div class="mov-buttons">
@@ -334,7 +334,7 @@
                 <li>
                 <span class="producto">${it.producto}</span>
                 <span class="codigo">${it.codigo_barras ? `<div class="codigo"><small>${it.codigo_barras}</small></div>` : ``}</span>
-                <span class="peso"> — ${it.peso} kg</span>
+                <span class="peso"> — ${Number(it.peso || 0).toFixed(3)} kg</span>
                 </li>
             `).join("");
 
