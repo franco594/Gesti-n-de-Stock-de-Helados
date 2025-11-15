@@ -101,7 +101,7 @@
  [],
  False,
  False,
- 1761451786,
+ 1762047299,
  [('run.exe',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\venv\\Lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\run.exe',

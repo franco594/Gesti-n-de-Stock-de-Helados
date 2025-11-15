@@ -579,23 +579,80 @@ async function confirmarAgregarProductos() {
     }))
   };
   try {
-    const data = await postJSON(API.confirmarIngreso, payload);
-    if (data?.error) {
-      console.error("❌ Error al confirmar productos:", data.error);
-      mostrarModalDenegado(data.error ?? "No se pudo ingresar el producto");
-    } else {
-      console.log("✅ Productos agregados correctamente.");
-      mostrarModalConfirmacion(data.message ?? "Productos agregados");
-      cerrarModal("ingresar");
-      productosEscaneados = [];
-      //await Promise.all([actualizarTablas(), actualizarTablasGrupos()]);
-      location.reload()
-      actualizarTotales();
+    const res = await fetch(API.confirmarIngreso, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+
+    if (res.status === 409) {
+
+      const data409 = await res.json();
+
+      if (data409?.se_puede_forzar) {
+        const fecha = data409.fecha_ingreso 
+          ? new Date(data409.fecha_ingreso).toLocaleString("es-AR")
+          : "-";
+
+        const texto = `
+          ${data409.mensaje}
+          Producto: <b>${data409.producto ?? "-"}</b>
+          Peso previo: <b>${data409.peso_anterior ?? "-"}</b>
+          Fecha ingreso: <b>${fecha}</b>
+        `;
+
+
+        mostrarModalDuplicado(texto, () => {
+          confirmarAgregarProductosConForzar();
+        });
+
+        return;
+      }
+
+      mostrarModalDenegado(data409?.mensaje || "Conflicto detectado");
+      return;
     }
+
+
+    const data = await res.json();
+
+    // ✅ Caso éxito
+    console.log("✅ Productos agregados correctamente.");
+    mostrarModalConfirmacion(data.message ?? "Productos agregados");
+    cerrarModal("ingresar");
+    productosEscaneados = [];
+    location.reload();
+
   } catch (e) {
     console.error("⚠️ Error al agregar productos:", e);
   }
 }
+
+async function confirmarAgregarProductosConForzar() {
+  const boca = byId("input-boca-ingresar")?.value?.trim();
+  const payload = {
+    origen: boca,
+    force: true, // 👈 clave importante
+    productos: productosEscaneados.map(p => ({
+      plu: p.plu,
+      peso: p.peso,
+      codigo_barras: p.codigo_barras
+    }))
+  };
+
+  const res = await fetch(API.confirmarIngreso, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(payload)
+  });
+
+  const data = await res.json();
+  mostrarModalConfirmacion(data.message ?? "Productos agregados");
+  cerrarModal("ingresar");
+  productosEscaneados = [];
+  location.reload();
+}
+
 
 async function confirmarRetirarProductos() {
   const ok = await validarStockParaRetiro();
@@ -712,6 +769,41 @@ function mostrarModalDenegado(mensaje) {
   texto.innerText = mensaje;
   modal.style.display = "block";
 }
+
+function mostrarModalDuplicado(mensaje, onConfirm) {
+  const modal = byId("modal-duplicado");
+  const texto = byId("mensajeDuplicado");
+  const btnAceptar = byId("btnForzarDuplicado");
+  const btnCancelar = byId("btnCancelarDuplicado");
+
+  if (!modal || !texto || !btnAceptar || !btnCancelar) {
+    console.error("⚠️ Modal duplicado no encontrada");
+    return;
+  }
+
+  texto.innerHTML = mensaje;
+  modal.style.display = "block";
+
+  // Limpia listeners anteriores
+  btnAceptar.replaceWith(btnAceptar.cloneNode(true));
+  btnCancelar.replaceWith(btnCancelar.cloneNode(true));
+
+  // Re-selecciona tras clonarlos
+  const newAceptar = byId("btnForzarDuplicado");
+  const newCancelar = byId("btnCancelarDuplicado");
+
+  // Confirmar = ejecutar callback
+  newAceptar.addEventListener("click", () => {
+    modal.style.display = "none";
+    if (typeof onConfirm === "function") onConfirm();
+  });
+
+  // Cancelar = cerrar modal sin hacer nada
+  newCancelar.addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+}
+
 
 /*******************************************
  * 10) Vista: grupos / general             *

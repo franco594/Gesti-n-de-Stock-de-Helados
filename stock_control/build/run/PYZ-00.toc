@@ -455,6 +455,14 @@
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\app_inventario\\utils\\backups.py',
    'PYMODULE'),
+  ('app_inventario.utils.scheduler',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\app_inventario\\utils\\scheduler.py',
+   'PYMODULE'),
+  ('app_inventario.utils.task',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\app_inventario\\utils\\task.py',
+   'PYMODULE'),
   ('app_inventario.views',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\app_inventario\\views.py',
@@ -470,6 +478,162 @@
   ('appconf.utils',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\venv\\Lib\\site-packages\\appconf\\utils.py',
+   'PYMODULE'),
+  ('apscheduler',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\__init__.py',
+   'PYMODULE'),
+  ('apscheduler.events',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\events.py',
+   'PYMODULE'),
+  ('apscheduler.executors',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\executors\\__init__.py',
+   'PYMODULE'),
+  ('apscheduler.executors.asyncio',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\executors\\asyncio.py',
+   'PYMODULE'),
+  ('apscheduler.executors.base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\executors\\base.py',
+   'PYMODULE'),
+  ('apscheduler.executors.debug',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\executors\\debug.py',
+   'PYMODULE'),
+  ('apscheduler.executors.gevent',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\executors\\gevent.py',
+   'PYMODULE'),
+  ('apscheduler.executors.pool',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\executors\\pool.py',
+   'PYMODULE'),
+  ('apscheduler.executors.tornado',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\executors\\tornado.py',
+   'PYMODULE'),
+  ('apscheduler.executors.twisted',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\executors\\twisted.py',
+   'PYMODULE'),
+  ('apscheduler.job',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\job.py',
+   'PYMODULE'),
+  ('apscheduler.jobstores',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\jobstores\\__init__.py',
+   'PYMODULE'),
+  ('apscheduler.jobstores.base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\jobstores\\base.py',
+   'PYMODULE'),
+  ('apscheduler.jobstores.etcd',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\jobstores\\etcd.py',
+   'PYMODULE'),
+  ('apscheduler.jobstores.memory',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\jobstores\\memory.py',
+   'PYMODULE'),
+  ('apscheduler.jobstores.mongodb',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\jobstores\\mongodb.py',
+   'PYMODULE'),
+  ('apscheduler.jobstores.redis',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\jobstores\\redis.py',
+   'PYMODULE'),
+  ('apscheduler.jobstores.rethinkdb',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\jobstores\\rethinkdb.py',
+   'PYMODULE'),
+  ('apscheduler.jobstores.sqlalchemy',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\jobstores\\sqlalchemy.py',
+   'PYMODULE'),
+  ('apscheduler.jobstores.zookeeper',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\jobstores\\zookeeper.py',
+   'PYMODULE'),
+  ('apscheduler.schedulers',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\schedulers\\__init__.py',
+   'PYMODULE'),
+  ('apscheduler.schedulers.asyncio',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\schedulers\\asyncio.py',
+   'PYMODULE'),
+  ('apscheduler.schedulers.background',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\schedulers\\background.py',
+   'PYMODULE'),
+  ('apscheduler.schedulers.base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\schedulers\\base.py',
+   'PYMODULE'),
+  ('apscheduler.schedulers.blocking',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\schedulers\\blocking.py',
+   'PYMODULE'),
+  ('apscheduler.schedulers.gevent',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\schedulers\\gevent.py',
+   'PYMODULE'),
+  ('apscheduler.schedulers.qt',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\schedulers\\qt.py',
+   'PYMODULE'),
+  ('apscheduler.schedulers.tornado',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\schedulers\\tornado.py',
+   'PYMODULE'),
+  ('apscheduler.schedulers.twisted',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\schedulers\\twisted.py',
+   'PYMODULE'),
+  ('apscheduler.triggers',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\triggers\\__init__.py',
+   'PYMODULE'),
+  ('apscheduler.triggers.base',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\triggers\\base.py',
+   'PYMODULE'),
+  ('apscheduler.triggers.calendarinterval',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\triggers\\calendarinterval.py',
+   'PYMODULE'),
+  ('apscheduler.triggers.combining',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\triggers\\combining.py',
+   'PYMODULE'),
+  ('apscheduler.triggers.cron',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\triggers\\cron\\__init__.py',
+   'PYMODULE'),
+  ('apscheduler.triggers.cron.expressions',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\triggers\\cron\\expressions.py',
+   'PYMODULE'),
+  ('apscheduler.triggers.cron.fields',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\triggers\\cron\\fields.py',
+   'PYMODULE'),
+  ('apscheduler.triggers.date',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\triggers\\date.py',
+   'PYMODULE'),
+  ('apscheduler.triggers.interval',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\triggers\\interval.py',
+   'PYMODULE'),
+  ('apscheduler.util',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\apscheduler\\util.py',
    'PYMODULE'),
   ('argparse',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\argparse.py',
@@ -8793,6 +8957,26 @@
   ('tzdata.zoneinfo.US',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\venv\\Lib\\site-packages\\tzdata\\zoneinfo\\US\\__init__.py',
+   'PYMODULE'),
+  ('tzlocal',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\tzlocal\\__init__.py',
+   'PYMODULE'),
+  ('tzlocal.unix',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\tzlocal\\unix.py',
+   'PYMODULE'),
+  ('tzlocal.utils',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\tzlocal\\utils.py',
+   'PYMODULE'),
+  ('tzlocal.win32',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\tzlocal\\win32.py',
+   'PYMODULE'),
+  ('tzlocal.windows_tz',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\tzlocal\\windows_tz.py',
    'PYMODULE'),
   ('unittest',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\unittest\\__init__.py',

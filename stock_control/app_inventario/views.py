@@ -729,7 +729,7 @@ def confirmar_codigos(request):
                     return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
                 # Duplicado (si existe y no es force, devolvemos aviso)
-                duplicado_qs = StockBalde.objects.filter(codigo_barras=codigo_barras)
+                duplicado_qs = StockBalde.objects.filter(codigo_barras=codigo_barras, is_activo=True)
                 if duplicado_qs.exists() and not force:
                     ultimo = (
                         duplicado_qs.order_by("-id")
@@ -744,7 +744,8 @@ def confirmar_codigos(request):
                             "peso_anterior": ultimo.get("peso") if ultimo else None,
                             "fecha_retiro": ultimo.get("fecha_retiro") if ultimo else None,
                             "fecha_ingreso": ultimo.get("timestamp").isoformat() if ultimo and ultimo.get("timestamp") else None,
-                            "mensaje": f"El balde <b>{codigo_barras}</b> ya existe en el sistema.❗",
+                            "mensaje": f"⚠️ Este balde con código <b>{codigo_barras}</b> "
+                                       f"ya se encuentra <b>ACTIVO</b> en el stock.<br><br>",
                             "se_puede_forzar": True
                         },
                         status=409
@@ -797,14 +798,12 @@ def confirmar_codigos(request):
 @csrf_exempt
 def confirmar_retiro(request):
     """
-    Confirma RETIRO de baldes. Soporta trazabilidad por código y stock legacy (sin código).
+    Confirma RETIRO de baldes.
 
-    Flags opcionales en el body:
-      - allow_fallback_legacy (bool, default True): si se envía un código y no existe ese balde,
-        permite caer a un balde legacy (sin código) del mismo PLU.
-      - legacy_ok (bool, default True): permite retirar sin enviar código (toma legacy preferentemente).
-      - legacy_only (bool, default False): si no se envía código, exige que el balde retirado sea legacy.
-        (implica legacy_ok=True)
+    Versión simplificada: TODOS los baldes tienen código.
+    - Requiere para cada item: {plu, codigo_barras} (o "codigo").
+    - Solo retira baldes is_activo=True.
+    - Si hay varios baldes activos con el mismo código y PLU, toma el más viejo.
     """
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
@@ -818,13 +817,6 @@ def confirmar_retiro(request):
     productos = data.get("productos", [])
     destino_nombre = (data.get("destino") or "").strip()
 
-    # Flags de control (con defaults seguros)
-    allow_fallback_legacy = bool(data.get("allow_fallback_legacy", True))
-    legacy_ok = bool(data.get("legacy_ok", True))
-    legacy_only = bool(data.get("legacy_only", False))
-    if legacy_only:
-        legacy_ok = True  # "solo legacy" implica permitir legacy
-
     if not productos:
         return JsonResponse({"error": "No hay productos para retirar"}, status=400)
     if not destino_nombre:
@@ -835,16 +827,23 @@ def confirmar_retiro(request):
     if not destino_obj:
         return JsonResponse({"error": f"Destino '{destino_nombre}' no existe"}, status=400)
 
-    # -------- Normalizar solicitudes [(plu, codigo|None)] --------
+    # -------- Normalizar solicitudes [(plu, codigo)] --------
     solicitudes = []
     for p in productos:
         plu = (p or {}).get("plu")
+        codigo = (p.get("codigo") or p.get("codigo_barras") or "").strip()
+
         if not plu:
             return JsonResponse({"error": "Producto sin PLU"}, status=400)
-        codigo = (p.get("codigo") or p.get("codigo_barras") or "").strip() or None
+        if not codigo:
+            return JsonResponse(
+                {"error": f"El producto con PLU {plu} requiere un código de barras para retirar"},
+                status=400
+            )
+
         solicitudes.append((plu, codigo))
 
-    # -------- Selección de baldes respetando fallback a legacy --------
+    # -------- Selección de baldes (solo activos, sin legacy) --------
     seleccionados = []  # [(producto_obj, balde), ...]
     faltantes = []
 
@@ -857,45 +856,26 @@ def confirmar_retiro(request):
         base = (
             StockBalde.objects
             .filter(producto=producto_obj, is_activo=True)
-            .order_by("-timestamp", "-id")
         )
 
-        balde = None
-        if codigo:
-            # 1) Intento exacto por código
-            # Elegir el más viejo cuando hay múltiples activos con el mismo código
-            balde = base.filter(codigo_barras=codigo).order_by("timestamp", "id").first()
-
-            # 2) Si no hay ese código y se permite fallback, tomar legacy si lo hay
-            if not balde and allow_fallback_legacy:
-                balde_legacy = base.filter(Q(codigo_barras__isnull=True) | Q(codigo_barras="")).first()
-                if balde_legacy:
-                    balde = balde_legacy
-
-            # 3) (opcional) si tampoco hay legacy y no estamos en "solo legacy", tomar cualquiera activo
-            if not balde and allow_fallback_legacy and not legacy_only:
-                balde = base.first()
-        else:
-            # No se envió código
-            if not legacy_ok:
-                faltantes.append(f"{producto_obj.nombre} (requiere código)")
-            else:
-                # Preferir legacy primero
-                balde = base.filter(Q(codigo_barras__isnull=True) | Q(codigo_barras="")).first()
-                if not balde and not legacy_only:
-                    balde = base.first()
+        # Elegimos SIEMPRE el balde activo MÁS VIEJO con ese código
+        balde = (
+            base.filter(codigo_barras=codigo)
+                .order_by("timestamp", "id")
+                .first()
+        )
 
         if not balde:
-            # No se encontró balde elegible
-            if codigo:
-                faltantes.append(f"{producto_obj.nombre} ({codigo})")
-            else:
-                faltantes.append(producto_obj.nombre)
+            # No se encontró balde activo con ese código para ese PLU
+            faltantes.append(f"{producto_obj.nombre} ({codigo})")
         else:
             seleccionados.append((producto_obj, balde))
 
     if faltantes:
-        return JsonResponse({"error": f"No hay stock disponible para: {', '.join(faltantes)}"}, status=400)
+        return JsonResponse(
+            {"error": f"No hay stock disponible para: {', '.join(faltantes)}"},
+            status=400
+        )
 
     # -------- Nuevo grupo_id --------
     ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
@@ -917,8 +897,8 @@ def confirmar_retiro(request):
                     peso=balde.peso,
                     tipo="salida",
                     destino=destino_obj,
-                    boca_salida=destino_nombre,                 # compatibilidad texto
-                    codigo_barras=(balde.codigo_barras or ""),  # legacy: queda vacío
+                    boca_salida=destino_nombre,
+                    codigo_barras=(balde.codigo_barras or ""),
                 )
                 productos_retirados.append(producto_obj.nombre)
 
@@ -943,6 +923,7 @@ def confirmar_retiro(request):
         },
         status=200
     )
+
 
 # =========================================================
 # Catálogos: Bocas / Orígenes

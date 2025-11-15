@@ -73,6 +73,13 @@
             <label>Código de barras</label>
             <input type="text" id="codigo" name="codigo" placeholder="EAN-13">
         </div>
+        <div class="field">
+            <label class="toggle">
+                <input id="solo_activos" type="checkbox" name="solo_activos" value="1" {% if filtros.solo_activos %}checked{% endif %}>
+                <span class="track"></span>
+                <span class="label">Solo baldes activos</span>
+            </label>
+        </div>
         <button type="submit">Filtrar</button>
         </form>
         <button class="btn-volver" onclick="window.history.back()">⬅ Volver</button>4
@@ -80,31 +87,49 @@
         <div class="resumen-pagina" style="margin: 8px 0; padding: 8px 12px; background:#f6f7fb; border:1px solid #e7e9f3; border-radius:8px;">
             <strong>Resumen de la página:</strong>
             Mostrando <strong>{{ movimientos|length }}</strong> movimiento{{ movimientos|length|pluralize }} ·
-            Total global (filtrado): <strong>{{ total_kg_global|floatformat:2 }} kg</strong>
+            Total global (filtrado): <strong>{{ total_kg_global|floatformat:3 }} kg</strong>
         </div>
 
-        <ul class="mov-list">
-            {% for movimiento in movimientos %}
-            <li class="mov-item" data-id="{{ movimiento.grupo_id }}">
-                <div>
-                    <strong>#{{ movimiento.grupo_id }}</strong>     -  
-                    <strong>
-                        {% if movimiento.tipo|lower == "salida" %}RETIRO{% else %}{{ movimiento.tipo|upper }}{% endif %}
-                    </strong>     -
-                    {{ movimiento.timestamp|date:"d/m/Y H:i" }}     - 
+        {% if modo == "activos" %}
+            <!-- MODO: SOLO BALDES ACTIVOS -->
+            <ul class="mov-list">
+                {% for b in movimientos %}
+                <li class="mov-item">
+                    <div>
+                    <strong>{{ b.producto.nombre }}</strong> — 
+                    Código: <em>{{ b.codigo_barras|default:"-" }}</em> —
+                    Peso: <b>{{ b.peso|floatformat:3 }} kg</b> —
+                    Ingresado: {% if b.timestamp %}{{ b.timestamp|date:"d/m/Y H:i" }}{% else %}-{% endif %}
+                    </div>
+                    <div class="mov-buttons">
+                    <span class="badge-activo">Activo</span>
+                    </div>
+                </li>
+                {% empty %}
+                <li class="mov-item" style="opacity:.6; text-align:center;">Sin resultados</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <!-- MODO: HISTORIAL (tu lista actual de grupos) -->
+            <ul class="mov-list">
+                {% for movimiento in movimientos %}
+                <li class="mov-item" data-id="{{ movimiento.grupo_id }}">
+                    <div>
+                    <strong>#{{ movimiento.grupo_id }}</strong> - 
+                    <strong>{% if movimiento.tipo|lower == "salida" %}RETIRO{% else %}{{ movimiento.tipo|upper }}{% endif %}</strong> - 
+                    {{ movimiento.timestamp|date:"d/m/Y H:i" }} - 
                     <em>📍 {{ movimiento.boca_salida|default:"-" }}</em>
-                </div>
-                <div class="mov-buttons">
+                    </div>
+                    <div class="mov-buttons">
                     <button class="btn-view" onclick="verDetalleMovimiento('{{ movimiento.grupo_id }}')">Ver Detalles</button>
-                    <button type="button"
-        class="btn btn-sm btn-secondary js-reimprimir"
-        data-grupo="{{ movimiento.grupo_id }}"
-        title="Reimprimir comprobante">📄</button>
+                    <button type="button" class="btn btn-sm btn-secondary js-reimprimir" data-grupo="{{ movimiento.grupo_id }}" title="Reimprimir comprobante">📄</button>
                     <button class="btn-delete" onclick="confirmarEliminacion('{{ movimiento.grupo_id }}')">🗑</button>
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
         <div id="paginacion">
             {% if movimientos.has_previous %}
                 <button onclick="cargarPagina('{{ movimientos.previous_page_number }}')">⬅ Anterior</button>
@@ -213,8 +238,10 @@
             tipo:  document.getElementById('tipo')?.value,
             gusto: document.getElementById('gusto')?.value?.trim(),
             codigo: document.getElementById('codigo')?.value?.trim(),
+            solo_activos: document.getElementById('solo_activos')?.checked ? '1' : ''
         };
         }
+
 
         // Interceptar submit para recargar con filtros por AJAX
         document.getElementById('filtrosForm').addEventListener('submit', (e) => {
@@ -307,7 +334,7 @@
                 <li>
                 <span class="producto">${it.producto}</span>
                 <span class="codigo">${it.codigo_barras ? `<div class="codigo"><small>${it.codigo_barras}</small></div>` : ``}</span>
-                <span class="peso"> — ${Number(it.peso || 0).toFixed(2)} kg</span>
+                <span class="peso"> — ${Number(it.peso || 0).toFixed(3)} kg</span>
                 </li>
             `).join("");
 
