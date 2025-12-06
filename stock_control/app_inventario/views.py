@@ -800,10 +800,13 @@ def confirmar_retiro(request):
     """
     Confirma RETIRO de baldes.
 
-    Versión simplificada: TODOS los baldes tienen código.
-    - Requiere para cada item: {plu, codigo_barras} (o "codigo").
-    - Solo retira baldes is_activo=True.
-    - Si hay varios baldes activos con el mismo código y PLU, toma el más viejo.
+    Escenario actual:
+      - TODOS los baldes tienen código de barras.
+      - Para cada ítem se espera: {plu, codigo_barras}
+      - No hay baldes "legacy" sin código.
+      - Si el mismo (plu, codigo_barras) viene repetido en el payload,
+        sólo se procesa UNA vez (deduplicación en backend).
+      - Si no existe un balde ACTIVO con ese código, se informa como faltante.
     """
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
@@ -827,23 +830,31 @@ def confirmar_retiro(request):
     if not destino_obj:
         return JsonResponse({"error": f"Destino '{destino_nombre}' no existe"}, status=400)
 
-    # -------- Normalizar solicitudes [(plu, codigo)] --------
+    # -------- Normalizar solicitudes y EVITAR DUPLICADOS --------
+    # Generamos una lista de (plu, codigo) única
     solicitudes = []
+    vistos = set()   # set de (plu, codigo_barras)
+
     for p in productos:
-        plu = (p or {}).get("plu")
-        codigo = (p.get("codigo") or p.get("codigo_barras") or "").strip()
+        p = p or {}
+        plu = p.get("plu")
+        codigo = (p.get("codigo_barras") or p.get("codigo") or "").strip()
 
         if not plu:
             return JsonResponse({"error": "Producto sin PLU"}, status=400)
         if not codigo:
-            return JsonResponse(
-                {"error": f"El producto con PLU {plu} requiere un código de barras para retirar"},
-                status=400
-            )
+            return JsonResponse({"error": f"Producto {plu} sin código de barras"}, status=400)
+        if len(codigo) != 13 or not codigo.isdigit():
+            return JsonResponse({"error": f"Código inválido para PLU {plu}: debe ser EAN-13"}, status=400)
 
+        clave = (plu, codigo)
+        if clave in vistos:
+            # Ya tenemos este mismo balde en la lista, lo ignoramos
+            continue
+        vistos.add(clave)
         solicitudes.append((plu, codigo))
 
-    # -------- Selección de baldes (solo activos, sin legacy) --------
+    # -------- Selección de baldes (siempre con código) --------
     seleccionados = []  # [(producto_obj, balde), ...]
     faltantes = []
 
@@ -853,20 +864,16 @@ def confirmar_retiro(request):
         except ProductoFijo.DoesNotExist:
             return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
-        base = (
-            StockBalde.objects
-            .filter(producto=producto_obj, is_activo=True)
-        )
-
-        # Elegimos SIEMPRE el balde activo MÁS VIEJO con ese código
+        # Buscamos SIEMPRE por código y sólo baldes activos
+        # Si hubiera más de uno con el mismo código, tomamos el MÁS VIEJO
         balde = (
-            base.filter(codigo_barras=codigo)
-                .order_by("timestamp", "id")
-                .first()
+            StockBalde.objects
+            .filter(producto=producto_obj, is_activo=True, codigo_barras=codigo)
+            .order_by("timestamp", "id")
+            .first()
         )
 
         if not balde:
-            # No se encontró balde activo con ese código para ese PLU
             faltantes.append(f"{producto_obj.nombre} ({codigo})")
         else:
             seleccionados.append((producto_obj, balde))
@@ -886,8 +893,10 @@ def confirmar_retiro(request):
     try:
         with transaction.atomic():
             for producto_obj, balde in seleccionados:
-                # Soft-delete: marcar inactivo
+                # Marcar balde como inactivo
                 balde.is_activo = False
+                # (Opcional: si tenés campo fecha_retiro, podés setearlo acá)
+                # balde.fecha_retiro = timezone.now()
                 balde.save(update_fields=["is_activo"])
 
                 # Registrar movimiento
@@ -906,7 +915,7 @@ def confirmar_retiro(request):
             _actualizar_total_grupo(
                 nuevo_grupo_id,
                 tipo="salida",
-                destino_nombre=destino_nombre
+                destino_nombre=destino_nombre,
             )
 
     except Exception as e:
@@ -919,11 +928,10 @@ def confirmar_retiro(request):
             "grupo_id": nuevo_grupo_id,
             "destino": destino_nombre,
             "productos": productos_retirados,
-            "message": msg
+            "message": msg,
         },
-        status=200
+        status=200,
     )
-
 
 # =========================================================
 # Catálogos: Bocas / Orígenes

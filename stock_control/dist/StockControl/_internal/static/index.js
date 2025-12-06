@@ -621,7 +621,7 @@ async function confirmarAgregarProductos() {
     mostrarModalConfirmacion(data.message ?? "Productos agregados");
     cerrarModal("ingresar");
     productosEscaneados = [];
-    location.reload();
+    //location.reload();
 
   } catch (e) {
     console.error("⚠️ Error al agregar productos:", e);
@@ -650,7 +650,7 @@ async function confirmarAgregarProductosConForzar() {
   mostrarModalConfirmacion(data.message ?? "Productos agregados");
   cerrarModal("ingresar");
   productosEscaneados = [];
-  location.reload();
+  //location.reload();
 }
 
 
@@ -692,7 +692,7 @@ async function confirmarRetirarProductos() {
     cerrarModal("retirar");
     productosEscaneados = [];
     //await Promise.all([actualizarTablas(), actualizarTablasGrupos()]);
-    location.reload()
+    //location.reload()
     actualizarTotales();
   } catch (e) {
     console.error("❌ Error al retirar productos:", e);
