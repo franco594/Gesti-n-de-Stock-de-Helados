@@ -7,6 +7,11 @@ import sqlite3
 import logging
 import pandas as pd
 
+from io import BytesIO
+from django.http import HttpResponse
+from datetime import datetime
+
+
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 from django.core.paginator import Paginator
@@ -82,6 +87,138 @@ def agregar_productos(request):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
+# --- API CRUD PRODUCTOS
+
+@csrf_exempt
+def api_listar_productos(request):
+    if request.method != "GET":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+
+    productos = ProductoFijo.objects.all().order_by("nombre")
+
+    data = [
+        {
+            # si querés un identificador genérico, podés usar "pk"
+            "plu": p.plu,
+            "nombre": p.nombre,
+            "stock_minimo": p.stock_minimo,
+        }
+        for p in productos
+    ]
+
+    return JsonResponse({"productos": data})
+
+
+@csrf_exempt
+def api_crear_producto(request):
+    try:
+        data = json.loads(request.body or "{}")
+    except:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+
+    nombre = (data.get("nombre") or "").strip()
+    plu = (data.get("plu") or "").strip().zfill(3)
+    minimo = int(data.get("stock_minimo") or 0)
+
+    if not nombre:
+        return JsonResponse({"error": "El nombre es obligatorio"}, status=400)
+
+    if ProductoFijo.objects.filter(plu=plu).exists():
+        return JsonResponse({"error": f"Ya existe un producto con PLU {plu}"}, status=400)
+
+    ProductoFijo.objects.create(nombre=nombre, plu=plu, stock_minimo=minimo)
+
+    return JsonResponse({"success": True, "message": "Producto creado correctamente"})
+
+
+@csrf_exempt
+def api_eliminar_producto(request):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "JSON inválido"}, status=400)
+
+    plu = (data.get("plu") or "").strip()
+    if not plu:
+        return JsonResponse({"success": False, "error": "Falta 'plu' del producto"}, status=400)
+
+    try:
+        p = ProductoFijo.objects.get(plu=plu)
+    except ProductoFijo.DoesNotExist:
+        return JsonResponse({"success": False, "error": f"Producto con PLU {plu} no encontrado"}, status=404)
+
+    # (Opcional) Evitar borrar si tiene stock/movimientos asociados
+    tiene_stock = StockBalde.objects.filter(producto=p).exists()
+    tiene_movs = RegistroMovimiento.objects.filter(producto=p).exists()
+    if tiene_stock or tiene_movs:
+        return JsonResponse({
+            "success": False,
+            "error": "No se puede eliminar el producto porque tiene stock o movimientos asociados."
+        }, status=400)
+
+    p.delete()
+    return JsonResponse({"success": True, "message": f"Producto {p.nombre} (PLU {plu}) eliminado correctamente."})
+
+
+@csrf_exempt
+def api_actualizar_producto(request):
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "error": "Método no permitido"},
+            status=405
+        )
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"success": False, "error": "JSON inválido"},
+            status=400
+        )
+
+    plu = (data.get("plu") or "").strip()
+    nombre = (data.get("nombre") or "").strip()
+    stock_minimo = data.get("stock_minimo")
+
+    if not plu:
+        return JsonResponse(
+            {"success": False, "error": "Falta PLU del producto"},
+            status=400
+        )
+
+    try:
+        p = ProductoFijo.objects.get(plu=plu)
+    except ProductoFijo.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "error": f"No existe producto con PLU {plu}"},
+            status=404
+        )
+
+    # Actualizar nombre (si vino)
+    if nombre:
+        p.nombre = nombre
+
+    # Actualizar stock_minimo (si vino)
+    if stock_minimo not in (None, ""):
+        try:
+            p.stock_minimo = int(stock_minimo)
+        except ValueError:
+            return JsonResponse(
+                {"success": False, "error": "stock_minimo debe ser numérico"},
+                status=400
+            )
+
+    p.save()
+
+    return JsonResponse(
+        {"success": True, "message": "Producto actualizado correctamente"},
+        status=200
+    )
+
+# ---  FIN API CRUD PRODUCTOS
 
 def actualizar_stock_minimo(request):
     try:
@@ -235,6 +372,46 @@ def cargar_productos_excel(request):
 def importar_productos(request):
     resultado = cargar_productos_desde_excel()
     return JsonResponse(resultado)
+
+
+def exportar_productos_excel(request):
+    """
+    Exporta un Excel con las columnas:
+    - Nombre
+    - PLU
+
+    Lo podés usar como plantilla: agregás nuevas filas y luego
+    lo volvés a subir por /cargar_excel/ para alta masiva.
+    """
+    productos = ProductoFijo.objects.all().order_by("plu")
+
+    filas = [
+        {"Nombre": p.nombre, "PLU": p.plu}
+        for p in productos
+    ]
+
+    # Si no hay productos aún, devolvemos solo el header
+    if filas:
+        df = pd.DataFrame(filas)
+    else:
+        df = pd.DataFrame(columns=["Nombre", "PLU"])
+
+    # Escribir a un buffer en memoria
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Productos")
+
+    buffer.seek(0)
+
+    filename = f"productos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+    response = HttpResponse(
+        buffer,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
 
 
 @cache_page(5)

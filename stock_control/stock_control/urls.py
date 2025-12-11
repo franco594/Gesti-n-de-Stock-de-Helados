@@ -1,7 +1,7 @@
 from django.urls import path
 from app_inventario.views import (
     # Home / stock
-    index, cargar_productos_excel, importar_productos,
+    api_actualizar_producto, api_crear_producto, api_eliminar_producto, api_listar_productos, exportar_productos_excel, index, cargar_productos_excel, importar_productos,
     obtener_stock, api_stock_detallado, stock_detallado,
     actualizar_stock_minimo,
 
@@ -33,10 +33,16 @@ urlpatterns = [
     # Home / stock
     path('', index, name="index"),
     path('api/importar_productos/', importar_productos, name="importar_productos"),
+     # 🔹 Productos (admin)
+    path("api/productos/", api_listar_productos, name="api_listar_productos"),
+    path("api/crear_producto/", api_crear_producto, name="api_crear_producto"),
+    path("api/actualizar_producto/", api_actualizar_producto, name="api_actualizar_producto"),  # 👈 NUEVA
+    path("api/eliminar_producto/", api_eliminar_producto, name="api_eliminar_producto"),
     path('api/obtener_stock/', obtener_stock, name='obtener_stock'),
     path('api/stock_detallado/', api_stock_detallado, name="api_stock_detallado"),
     path('stock/detallado/', stock_detallado, name="stock_detallado"),
     path('cargar_excel/', cargar_productos_excel, name="cargar_excel"),
+    path("exportar_productos_excel/", exportar_productos_excel, name="exportar_productos_excel"),
     path("api/actualizar_stock_minimo/", actualizar_stock_minimo, name="actualizar_stock_minimo"),
 
     # Historial / movimientos agrupados

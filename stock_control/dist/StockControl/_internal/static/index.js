@@ -806,6 +806,89 @@ function mostrarModalDuplicado(mensaje, onConfirm) {
 
 
 /*******************************************
+ *          CRUD PRODUCTOS                 *
+ *******************************************/
+async function abrirAdminProductos() {
+  const modal = document.getElementById("modal-admin-productos");
+  modal.style.display = "block";
+
+  const data = await getJSON("/api/productos/");
+  const tbody = document.querySelector("#tabla-productos tbody");
+  tbody.innerHTML = "";
+
+  (data.productos || []).forEach(p => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${p.plu}</td>
+      <td>${p.nombre}</td>
+      <td>${p.stock_minimo}</td>
+      <td>
+        <button onclick="editarProducto('${p.plu}', '${p.nombre.replace(/'/g, "\\'")}', '${p.stock_minimo}')" class="btn-edit">✏️</button>
+        <button onclick="eliminarProducto('${p.plu}')" class="btn-delete">🗑</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+
+async function abrirModalCrearProducto() {
+  const nombre = prompt("Nombre del producto:");
+  if (!nombre) return;
+
+  const plu = prompt("PLU (3 dígitos):");
+  const minimo = prompt("Stock mínimo:");
+
+  const data = await postJSON("/api/crear_producto/", {
+    nombre, plu, stock_minimo: minimo
+  });
+
+  alert(data.message || data.error);
+  abrirAdminProductos();
+}
+
+async function eliminarProducto(plu) {
+  if (!confirm("¿Eliminar el producto permanentemente?")) return;
+
+  const data = await postJSON("/api/eliminar_producto/", { plu });  // 👈 mandamos 'plu'
+
+  alert(data.message || data.error);
+  if (data.success) {
+    abrirAdminProductos();  // recargar lista solo si fue bien
+  }
+}
+
+async function editarProducto(plu, nombreActual, minimoActual) {
+  // Nuevo nombre
+  const nuevoNombre = prompt("Nuevo nombre del producto:", nombreActual);
+  if (nuevoNombre === null) return; // usuario canceló
+
+  // Nuevo stock mínimo
+  const nuevoMinimoStr = prompt("Nuevo stock mínimo:", minimoActual ?? "");
+  if (nuevoMinimoStr === null) return; // usuario canceló
+
+  const payload = {
+    plu,
+    nombre: nuevoNombre.trim(),
+    stock_minimo: nuevoMinimoStr.trim()
+  };
+
+  const data = await postJSON("/api/actualizar_producto/", payload);
+  alert(data.message || data.error);
+
+  if (data.success) {
+    abrirAdminProductos(); // recargar lista
+  }
+}
+
+
+
+function cerrarModalAdminProductos() {
+  const modal = byId("modal-admin-productos");
+  if (modal) modal.style.display = "none";
+}
+
+/*******************************************
  * 10) Vista: grupos / general             *
  *******************************************/
 const GRUPOS = {
@@ -869,6 +952,8 @@ const GRUPOS = {
   ],
   zambayon: ["SAMBAYON", "SAMBAYON PORTOFINO"],
   oleosa: ["ALMENDRADO", "CREMA RUSA", "MARROC"],
+  tortas: ["TORTA ALMENDRADO", "TORTA CHOCOTORTA", "TORTA OREO","TORTA PANNACOTTA", "TORTA TRICOLOR" ],
+  barras: ["BARRA ALMENDRADO", "BARRA CHOCOTORTA", "BARRA OREO","BARRA PANNACOTTA", "BARRA TRICOLOR" ],
 };
 
 function mostrarVistaGrupos() {
@@ -896,6 +981,8 @@ function mostrarVistaGrupos() {
     neutra: byId("neutra-body"),
     zambayon: byId("zambayon-body"),
     oleosa: byId("oleosa-body"),
+    tortas: byId("tortas-body"),
+    barras: byId("barras-body"),
   };
   Object.values(gruposBody).forEach((el) => el && (el.innerHTML = ""));
 
@@ -982,7 +1069,12 @@ Object.assign(window, {
   mostrarVistaGeneral,
   openMenu,
   closeMenu,
+  abrirAdminProductos,
+  abrirModalCrearProducto,
+  eliminarProducto,
+  editarProducto,              // 👈 agregá esto
 });
+
 
 // seleccionarBoca expuesta (usa dataset + input hidden)
 function seleccionarBoca(nombre, tipo) {

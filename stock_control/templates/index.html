@@ -26,13 +26,17 @@
         <button class="menu-btn" id="menu-btn" onclick="openMenu()">☰</button>
         <div id="app-version-badge" style="position:fixed; top:10px; right:12px; z-index:9999;
         padding:6px 10px; border-radius:12px; font-size:.85rem; backdrop-filter: blur(6px);
-        background: rgba(0, 0, 0, 0.375); color:#fff;">v1.4.2</div>
+        background: rgba(0, 0, 0, 0.375); color:#fff;">v1.5.3</div>
     
         <div class="sidebar" id="sidebar">
             <a href="{% url 'historial_movimientos' %}"><button id="historial-btn">Movimientos</button></a>
             <button id="configButton"  onclick="abrirModalStock()">Stock</button>
             <button id="configButton"  onclick="abrirModalCrearBoca('ingresar')">Origen</button>
             <button id="configButton"  onclick="abrirModalCrearBoca('retirar')">Salidas</button>
+            <button id="configButton"  onclick="abrirAdminProductos()">Administrar PLU</button>
+            <a href="{% url 'exportar_productos_excel' %}">
+                <button id="configButton">Exportar productos</button>
+            </a>
             <input type="file" id="archivoExcel" name="archivo" accept=".xlsx" style="display: none;">
             <button type="button" id="botonCargarExcel">Productos</button>
             <a href="{% url 'descargar_backup' %}"><button id="configButton">Exportar BD</button></a>
@@ -190,6 +194,28 @@
                 <tbody id="oleosa-body"></tbody>
             </table>
         </div>
+        <div class="grupo" id="tortas">
+            <h3>TORTAS</h3>
+            <table>
+                <thead>
+                    <tr>
+                       
+                    </tr>
+                </thead>
+                <tbody id="tortas-body"></tbody>
+            </table>
+        </div>
+        <div class="grupo" id="barras">
+            <h3>BARRAS</h3>
+            <table>
+                <thead>
+                    <tr>
+                       
+                    </tr>
+                </thead>
+                <tbody id="barras-body"></tbody>
+            </table>
+        </div>
     </div>
 
     <input type="text" id="codigoScanner" autofocus style="visibility: hidden;" placeholder="Ingrese un código" autocomplete="off">
@@ -257,6 +283,29 @@
             <ul id="listaHistorial"></ul>
         </div>
     </div>
+
+    <div id="modal-admin-productos" class="modal">
+        <div class="modal-content">
+            <h2>Administrar Productos</h2>
+
+            <button onclick="abrirModalCrearProducto()" class="btn-normal">➕ Crear producto</button>
+
+            <table id="tabla-productos" class="tabla-admin">
+            <thead>
+                <tr>
+                <th>PLU</th>
+                <th>Nombre</th>
+                <th>Stock mínimo</th>
+                <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            </table>
+
+            <button class="btn-cerrar" onclick="cerrarModalAdminProductos()">Cerrar</button>
+        </div>
+    </div>
+
     
     <!-- Modal de edición de stock mínimo -->
     <div id="modalStockMinimo" class="modal">
