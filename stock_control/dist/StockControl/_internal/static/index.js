@@ -81,6 +81,7 @@ const API = {
   eliminarBoca: "/api/eliminar_boca_salida/",
   eliminarOrigen: "/api/eliminar_origen/",
   eliminarTemporal: "/api/eliminar_producto_temporal/",
+  imprimirStockTotal: "/api/print_stock_total/",
 };
 
 /********************************
@@ -1159,3 +1160,22 @@ async function eliminarBocaDesdeModal(nombre) {
   }
 }
 window.eliminarBocaDesdeModal = eliminarBocaDesdeModal;
+
+
+async function imprimirStockTotal() {
+  if (!confirm("¿Imprimir el stock total en la impresora de tickets?")) return;
+
+  try {
+    const data = await postJSON(API.imprimirStockTotal, {});
+    if (data.ok) {
+      alert(data.message || "Stock total enviado a la impresora.");
+    } else {
+      alert("No se pudo imprimir el stock.\n" + (data.error || "Error desconocido"));
+    }
+  } catch (e) {
+    console.error("Error al imprimir stock total:", e);
+    alert("Error al imprimir el stock total.");
+  }
+}
+window.imprimirStockTotal = imprimirStockTotal;
+

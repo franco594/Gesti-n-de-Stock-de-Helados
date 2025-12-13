@@ -22,7 +22,9 @@ from django.shortcuts import render
 from django.utils.dateparse import parse_date
 from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import csrf_exempt
-from django.core.management import call_command 
+from django.core.management import call_command
+
+from app_inventario.services.printing import print_stock_total 
 
 
 
@@ -302,7 +304,21 @@ def reimprimir_ticket(request, grupo_id: int):
         logger.exception("Error reimprimiendo grupo #%s", grupo_id)
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
+@csrf_exempt
+def imprimir_stock_total(request):
+    """
+    Endpoint para imprimir el stock total en la impresora de tickets.
+    """
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "Método no permitido"}, status=405)
 
+    try:
+        print_stock_total()
+        return JsonResponse({"ok": True, "message": "Impresión de stock enviada a la impresora."})
+    except Exception as e:
+        # si querés loggear:
+        # logger.exception("Error imprimiendo stock total")
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
 # =========================================================
 # Vistas principales
 # =========================================================
