@@ -993,19 +993,41 @@ function mostrarVistaGrupos() {
     const nombre = row.cells[0].textContent.trim().toUpperCase();
     const cantidad = row.cells[1].textContent.trim();
 
+    // nombre ya en MAYÚSCULAS
+    const nombreNorm = nombre
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .trim();
+
     let grupoAsignado = "otros";
-   // 👇 1) PRIORIDAD: productos gastronómicos
-    if (nombre.includes("GASTRO")) {
+
+    // 1) Si ES GASTRO, solo entra si también contiene alguna string de GRUPOS
+    if (/\bGASTRO\b$/.test(nombreNorm)) {
+    const base = nombreNorm.replace(/\s*\bGASTRO\b\s*$/, "").trim();
+
+    // armar un Set con todos los nombres válidos (sin el grupo gastro)
+    const validos = new Set(
+      Object.entries(GRUPOS)
+        .filter(([g]) => g !== "gastronomico" && g !== "gastronomicos")
+        .flatMap(([, arr]) => arr.map(s => String(s).toUpperCase().trim()))
+    );
+
+    if (validos.has(base)) {
       grupoAsignado = "gastronomicos";
     } else {
-      // 👇 2) Grupos normales
-      for (const [grupo, productos] of Object.entries(GRUPOS)) {
-        if (productos.includes(nombre)) {
-          grupoAsignado = grupo;
-          break;
-        }
+      grupoAsignado = "otros";
+    }
+  } else {
+    // tu lógica normal (no gastro)
+    for (const [grupo, productos] of Object.entries(GRUPOS)) {
+      if (productos.map(x => x.toUpperCase().trim()).includes(nombreNorm)) {
+        grupoAsignado = grupo;
+        break;
       }
     }
+  }
+
+
 
     const nueva = document.createElement("tr");
     nueva.innerHTML = `<td>${nombre}</td><td>${cantidad}</td>`;
