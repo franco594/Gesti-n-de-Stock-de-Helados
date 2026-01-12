@@ -870,11 +870,11 @@ def confirmar_agregado(request):
 def confirmar_codigos(request):
     """
     Confirma un INGRESO de baldes con trazabilidad por código de barras.
-    - Requiere para cada item: {plu, nombre?, peso, codigo_barras}
-    - Si existe un balde con el mismo código y force=False → devuelve 409 y pide confirmación.
-    - Si force=True → ingresa igual (permitiendo múltiples ingresos con el mismo código).
-    - Cada ingreso genera un StockBalde activo y un RegistroMovimiento tipo 'ingreso'.
-    - Se agrupan todos en un nuevo grupo_id.
+
+    Mejoras anti-duplicados:
+    - nuevo_grupo_id se calcula dentro de transaction y serializado
+    - opcional: client_txn_id (idempotencia) guardado en sesión
+    - chequeo de duplicado con select_for_update para evitar carreras
     """
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
@@ -889,19 +889,43 @@ def confirmar_codigos(request):
     origen = (data.get("origen") or "").strip()
     force = bool(data.get("force", False))
 
+    # ✅ Token opcional para hacer la operación idempotente (recomendado)
+    # En el front mandás un UUID por cada confirmación (una sola vez).
+    client_txn_id = (data.get("client_txn_id") or "").strip()
+
     if not productos:
         return JsonResponse({"error": "No hay productos para ingresar"}, status=400)
     if not origen:
         return JsonResponse({"error": "Debe indicar un origen"}, status=400)
 
-    # --- Nuevo grupo ---
-    ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
-    nuevo_grupo_id = ultimo_grupo + 1
+    # ---- Idempotencia por sesión (opcional) ----
+    # Evita que si el usuario confirma 2 veces, la segunda repita todo.
+    if client_txn_id:
+        processed = request.session.get("processed_txn_ids", [])
+        if client_txn_id in processed:
+            # Ya procesado: devolvemos OK sin volver a ingresar.
+            return JsonResponse({
+                "success": True,
+                "status": "ya_procesado",
+                "message": "Esta confirmación ya fue procesada.",
+            }, status=200)
 
     ingresados = []
 
     try:
         with transaction.atomic():
+            # ✅ Serializar la generación del grupo_id para evitar carreras
+            # Bloquea la fila más “alta” de grupo_id momentáneamente.
+            ultimo = (
+                RegistroMovimiento.objects
+                .select_for_update()
+                .order_by("-grupo_id")
+                .values_list("grupo_id", flat=True)
+                .first()
+            )
+            ultimo_grupo = ultimo or 0
+            nuevo_grupo_id = ultimo_grupo + 1
+
             for p in productos:
                 plu = (p or {}).get("plu")
                 peso = (p or {}).get("peso")
@@ -910,10 +934,15 @@ def confirmar_codigos(request):
                 # Validaciones
                 if not plu:
                     return JsonResponse({"error": "Producto sin PLU"}, status=400)
-                if not peso:
+                if peso in (None, "", 0):
                     return JsonResponse({"error": f"Producto {plu} sin peso"}, status=400)
-                if not codigo_barras or len(str(codigo_barras)) != 13:
-                    return JsonResponse({"error": "Cada balde debe incluir 'codigo_barras' de 13 dígitos"}, status=400)
+
+                codigo_str = str(codigo_barras or "")
+                if len(codigo_str) != 13 or not codigo_str.isdigit():
+                    return JsonResponse(
+                        {"error": "Cada balde debe incluir 'codigo_barras' de 13 dígitos"},
+                        status=400
+                    )
 
                 # Producto
                 try:
@@ -921,10 +950,16 @@ def confirmar_codigos(request):
                 except ProductoFijo.DoesNotExist:
                     return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
-                # Duplicado (si existe y no es force, devolvemos aviso)
-                duplicado_qs = StockBalde.objects.filter(codigo_barras=codigo_barras, is_activo=True)
+                # ✅ Anti-carrera: bloqueamos cualquier balde existente con ese código
+                # Si otro request está tratando el mismo código, uno va a esperar al otro.
+                duplicado_qs = (
+                    StockBalde.objects
+                    .select_for_update()
+                    .filter(codigo_barras=codigo_str, is_activo=True)
+                )
+
                 if duplicado_qs.exists() and not force:
-                    ultimo = (
+                    ultimo_dup = (
                         duplicado_qs.order_by("-id")
                         .values("producto__nombre", "peso", "fecha_retiro", "timestamp")
                         .first()
@@ -932,12 +967,13 @@ def confirmar_codigos(request):
                     return JsonResponse(
                         {
                             "status": "duplicado_detectado",
-                            "codigo_barras": codigo_barras,
-                            "producto": ultimo.get("producto__nombre") if ultimo else None,
-                            "peso_anterior": ultimo.get("peso") if ultimo else None,
-                            "fecha_retiro": ultimo.get("fecha_retiro") if ultimo else None,
-                            "fecha_ingreso": ultimo.get("timestamp").isoformat() if ultimo and ultimo.get("timestamp") else None,
-                            "mensaje": f"⚠️ Este balde con código <b>{codigo_barras}</b> "
+                            "codigo_barras": codigo_str,
+                            "producto": ultimo_dup.get("producto__nombre") if ultimo_dup else None,
+                            "peso_anterior": ultimo_dup.get("peso") if ultimo_dup else None,
+                            "fecha_retiro": ultimo_dup.get("fecha_retiro") if ultimo_dup else None,
+                            "fecha_ingreso": ultimo_dup.get("timestamp").isoformat()
+                                if ultimo_dup and ultimo_dup.get("timestamp") else None,
+                            "mensaje": f"⚠️ Este balde con código <b>{codigo_str}</b> "
                                        f"ya se encuentra <b>ACTIVO</b> en el stock.<br><br>",
                             "se_puede_forzar": True
                         },
@@ -948,7 +984,7 @@ def confirmar_codigos(request):
                 balde = StockBalde.objects.create(
                     producto=producto_obj,
                     peso=float(peso),
-                    codigo_barras=codigo_barras,
+                    codigo_barras=codigo_str,
                     is_activo=True,
                     fecha_retiro=None,
                 )
@@ -960,8 +996,8 @@ def confirmar_codigos(request):
                     peso=float(peso),
                     tipo="ingreso",
                     origen=origen,
-                    boca_salida=origen,   # compatibilidad con layouts existentes
-                    codigo_barras=codigo_barras,
+                    boca_salida=origen,  # compatibilidad con layouts existentes
+                    codigo_barras=codigo_str,
                 )
 
                 ingresados.append(producto_obj.nombre)
@@ -972,6 +1008,14 @@ def confirmar_codigos(request):
             # ✅ Limpiar sesión temporal
             if "productos_temporales" in request.session:
                 request.session["productos_temporales"] = []
+                request.session.modified = True
+
+            # ✅ Marcar txn_id como procesado (idempotencia)
+            if client_txn_id:
+                processed = request.session.get("processed_txn_ids", [])
+                processed.append(client_txn_id)
+                # evito crecimiento infinito
+                request.session["processed_txn_ids"] = processed[-50:]
                 request.session.modified = True
 
     except Exception as e:
