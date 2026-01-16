@@ -10,6 +10,8 @@ import pandas as pd
 from io import BytesIO
 from django.http import HttpResponse
 from datetime import datetime
+from django.utils.dateparse import parse_datetime
+from datetime import datetime, time
 
 
 from django.conf import settings
@@ -475,11 +477,45 @@ def historial(request):
 # importa tus modelos:
 # from .models import RegistroMovimiento, GrupoMovimiento, StockBalde, ProductoFijo
 
+# views.py (agrega/asegúrate de tener estos imports arriba del archivo)
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+from datetime import datetime, time
+from django.db.models import Q, Sum, OuterRef, Subquery
+from django.core.paginator import Paginator
+
+from datetime import datetime
+from django.utils.timezone import make_aware
+
+from datetime import datetime, time
+from django.utils.timezone import make_aware
+
+def _parse_dt_local(value, is_end=False):
+    """
+    Parsea 'YYYY-MM-DDTHH:MM' (input datetime-local)
+    is_end=True -> ajusta al final del minuto
+    """
+    if not value:
+        return None
+
+    try:
+        dt = datetime.strptime(value, "%Y-%m-%dT%H:%M")
+
+        if is_end:
+            dt = dt.replace(second=59, microsecond=999999)
+
+        return make_aware(dt)
+
+    except ValueError:
+        return None
+
+
 def historial_movimientos(request):
     """
     Lista de movimientos agrupados por grupo_id mostrando SOLO el último
     movimiento de cada grupo, con filtros por fecha, local, tipo.
     NUEVO: si viene ?solo_activos=1, lista baldes activos (con filtros por gusto/código).
+    Ahora 'desde' y 'hasta' aceptan también fecha y hora (datetime-local).
     """
     # -------- NUEVO: flag de "solo activos" --------
     solo_activos = request.GET.get("solo_activos") in {"1", "true", "True"}
@@ -492,6 +528,10 @@ def historial_movimientos(request):
     gusto = (request.GET.get("gusto") or "").strip()     # nombre del gusto a buscar
     codigo = (request.GET.get("codigo") or "").strip()   # EAN-13 exacto o substring
 
+    # Parseo robusto de fechas/horas
+    dt_desde = _parse_dt_local(desde_str, is_end=False)
+    dt_hasta = _parse_dt_local(hasta_str, is_end=True)
+
     # ---------------------------------------------------------------------
     # MODO "SOLO ACTIVOS": devolvemos baldes activos (no historial de grupos)
     # ---------------------------------------------------------------------
@@ -503,12 +543,17 @@ def historial_movimientos(request):
             .only("id", "codigo_barras", "peso", "producto__nombre", "producto__plu", "timestamp")
         )
 
+        # Rango de tiempo sobre 'timestamp' del StockBalde
+        if dt_desde:
+            qs = qs.filter(timestamp__gte=dt_desde)
+        if dt_hasta:
+            qs = qs.filter(timestamp__lte=dt_hasta)
+
         if gusto:
             qs = qs.filter(producto__nombre__icontains=gusto)
         if codigo:
             qs = qs.filter(codigo_barras__icontains=codigo)
 
-        # Orden: por producto y antigüedad (más viejo primero o después como prefieras)
         qs = qs.order_by("producto__nombre", "timestamp", "id")
 
         # Totales globales (sobre la búsqueda actual de activos)
@@ -519,7 +564,6 @@ def historial_movimientos(request):
         paginator = Paginator(qs, 20)
         activos_page = paginator.get_page(page_number)
 
-        # Render usando misma plantilla, con modo=activos
         return render(
             request,
             "historial_movimientos.html",
@@ -540,18 +584,15 @@ def historial_movimientos(request):
         )
 
     # ---------------------------------------------------------------------
-    # MODO HISTORIAL (comportamiento actual)
+    # MODO HISTORIAL (comportamiento actual, con nuevo rango fecha/hora)
     # ---------------------------------------------------------------------
     base_qs = RegistroMovimiento.objects.all()
 
-    if desde_str:
-        d = parse_date(desde_str)
-        if d:
-            base_qs = base_qs.filter(timestamp__date__gte=d)
-    if hasta_str:
-        h = parse_date(hasta_str)
-        if h:
-            base_qs = base_qs.filter(timestamp__date__lte=h)
+    # Rango de tiempo sobre 'timestamp' del movimiento
+    if dt_desde:
+        base_qs = base_qs.filter(timestamp__gte=dt_desde)
+    if dt_hasta:
+        base_qs = base_qs.filter(timestamp__lte=dt_hasta)
 
     if local:
         base_qs = base_qs.filter(
@@ -566,6 +607,7 @@ def historial_movimientos(request):
         elif tipo == "ingreso":
             base_qs = base_qs.filter(tipo="ingreso")
         else:
+            # cualquier otro valor -> sin filtro adicional
             pass
 
     if gusto:
@@ -592,6 +634,7 @@ def historial_movimientos(request):
         .order_by("-timestamp", "-id")
     )
 
+    # Total global de kilos sobre los movimientos filtrados (no sólo visibles)
     total_kg_global = base_qs.aggregate(s=Sum("peso"))["s"] or 0
 
     # Paginación
@@ -599,7 +642,7 @@ def historial_movimientos(request):
     paginator = Paginator(movimientos_qs, 20)
     movimientos_page = paginator.get_page(page_number)
 
-    # Totales de los grupos visibles (tu lógica actual)
+    # Totales de los grupos visibles
     grupo_ids_visibles = [m.grupo_id for m in movimientos_page.object_list]
 
     total_kg = (
