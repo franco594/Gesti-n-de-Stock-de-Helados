@@ -26,7 +26,7 @@
         <button class="menu-btn" id="menu-btn" onclick="openMenu()">☰</button>
         <div id="app-version-badge" style="position:fixed; top:10px; right:12px; z-index:9999;
         padding:6px 10px; border-radius:12px; font-size:.85rem; backdrop-filter: blur(6px);
-        background: rgba(0, 0, 0, 0.375); color:#fff;">v1.5.3</div>
+        background: rgba(0, 0, 0, 0.375); color:#fff;">v1.5.7</div>
     
         <div class="sidebar" id="sidebar">
             <a href="{% url 'historial_movimientos' %}"><button id="historial-btn">Movimientos</button></a>
@@ -219,6 +219,12 @@
                 <tbody id="barras-body"></tbody>
             </table>
         </div>
+        <div class="grupo" id="gastronomicos">
+            <h3>GASTRONÓMICOS</h3>
+            <table>
+                <tbody id="gastronomicos-body"></tbody>
+            </table>
+            </div>
     </div>
 
     <input type="text" id="codigoScanner" autofocus style="visibility: hidden;" placeholder="Ingrese un código" autocomplete="off">

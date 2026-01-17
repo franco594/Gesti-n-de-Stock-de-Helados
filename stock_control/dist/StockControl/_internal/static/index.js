@@ -955,6 +955,7 @@ const GRUPOS = {
   oleosa: ["ALMENDRADO", "CREMA RUSA", "MARROC"],
   tortas: ["TORTA ALMENDRADO", "TORTA CHOCOTORTA", "TORTA OREO","TORTA PANNACOTTA", "TORTA TRICOLOR" ],
   barras: ["BARRA ALMENDRADO", "BARRA CHOCOTORTA", "BARRA OREO","BARRA PANNACOTTA", "BARRA TRICOLOR" ],
+  gastronomico: ["GASTRO"]
 };
 
 function mostrarVistaGrupos() {
@@ -984,6 +985,7 @@ function mostrarVistaGrupos() {
     oleosa: byId("oleosa-body"),
     tortas: byId("tortas-body"),
     barras: byId("barras-body"),
+    gastronomicos: byId("gastronomicos-body"), // 👈 NUEVO
   };
   Object.values(gruposBody).forEach((el) => el && (el.innerHTML = ""));
 
@@ -992,8 +994,17 @@ function mostrarVistaGrupos() {
     const cantidad = row.cells[1].textContent.trim();
 
     let grupoAsignado = "otros";
-    for (const [grupo, productos] of Object.entries(GRUPOS)) {
-      if (productos.includes(nombre)) { grupoAsignado = grupo; break; }
+   // 👇 1) PRIORIDAD: productos gastronómicos
+    if (nombre.includes("GASTRO")) {
+      grupoAsignado = "gastronomicos";
+    } else {
+      // 👇 2) Grupos normales
+      for (const [grupo, productos] of Object.entries(GRUPOS)) {
+        if (productos.includes(nombre)) {
+          grupoAsignado = grupo;
+          break;
+        }
+      }
     }
 
     const nueva = document.createElement("tr");
