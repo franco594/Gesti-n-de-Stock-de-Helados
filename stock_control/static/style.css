@@ -518,11 +518,35 @@ th {
     pointer-events: none;
 }
 
+.modal.zoom-out {
+    animation: zoomOut 0.3s ease-in-out forwards;
+}
+
 .modal-content.zoom-out {
     animation: zoomOut 0.3s ease-in-out forwards;
 }
 
 .modalStockMinimo.fade-out {
+    animation: fadeOut 0.3s ease-in-out forwards;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-admin-productos.zoom-out {
+    animation: zoomOut 0.3s ease-in-out forwards;
+}
+
+.modal-admin-productos.fade-out {
+    animation: fadeOut 0.3s ease-in-out forwards;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modalCrearBoca.zoom-out {
+    animation: zoomOut 0.3s ease-in-out forwards;
+}
+
+.modalCrearBoca.fade-out {
     animation: fadeOut 0.3s ease-in-out forwards;
     opacity: 0;
     pointer-events: none;
@@ -806,7 +830,7 @@ button#ver-detalle:hover {
 }
 
 .modal-content::-webkit-scrollbar {
-    width: 25px;
+    width: 30px;
 }
 
 .modal-content::-webkit-scrollbar-thumb {
@@ -1498,7 +1522,7 @@ td input {
 }
 
 .modal .modal-content .scrollable::-webkit-scrollbar-track {
-  background: #e9eef5;    /* pista clara */
+  background: #a9aeb5;    /* pista clara */
   border-radius: 10px;
 }
 

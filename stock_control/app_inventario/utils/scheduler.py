@@ -14,8 +14,8 @@ def iniciar_tareas_periodicas():
     # ⏰ Todos los días 23:59 (hora Buenos Aires)
     scheduler.add_job(
         enviar_reporte_stock,
-        trigger=CronTrigger(hour=23, minute=59),
-        id="reporte_stock_diario_2359",
+        trigger=CronTrigger(hour=4, minute=00),
+        id="reporte_stock_diario_359",
         replace_existing=True,
         coalesce=True,            # si se salteó una ejecución, junta en una sola
         misfire_grace_time=300,   # 5 min de gracia si el proceso se despierta tarde
