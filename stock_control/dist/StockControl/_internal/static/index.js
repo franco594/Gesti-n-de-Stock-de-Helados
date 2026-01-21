@@ -886,9 +886,14 @@ async function editarProducto(plu, nombreActual, minimoActual) {
 
 function cerrarModalAdminProductos() {
   const modal = byId("modal-admin-productos");
-  if (modal) modal.style.display = "none";
+  if (!modal) return;
+  modal.classList.add("zoom-out", "fade-out");
+  setTimeout(() => {
+      modal.style.display = "none";
+      modal.classList.remove("fade-out", "zoom-out");
+  }, 300);
+  
 }
-
 /*******************************************
  * 10) Vista: grupos / general             *
  *******************************************/
@@ -927,10 +932,12 @@ const GRUPOS = {
     "GRANIZADO",
     "MENTA GRANIZADA",
     "CREMA FLAN",
+    "FLAN MIXTO",
     "FRUTOS DEL BOSQUE",
     "CREMA DEL CIELO",
     "PANNACOTA",
     "MASCARPONE",
+    "CHEESE CAKE",
     "CAPUCCINO",
     "OREO",
     "SNIKERS",
@@ -1135,7 +1142,12 @@ window.abrirModalCrearBoca = abrirModalCrearBoca;
 
 function cerrarModalCrearBoca() {
   const modal = byId("modalCrearBoca");
-  if (modal) modal.style.display = "none";
+  if (!modal) return;
+    modal.classList.add("zoom-out", "fade-out");
+    setTimeout(() => {
+        modal.style.display = "none";
+        modal.classList.remove("fade-out", "zoom-out");
+    }, 300);
 }
 window.cerrarModalCrearBoca = cerrarModalCrearBoca;
 

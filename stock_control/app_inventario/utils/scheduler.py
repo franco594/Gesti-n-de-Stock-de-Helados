@@ -23,4 +23,4 @@ def iniciar_tareas_periodicas():
     )
 
     scheduler.start()
-    print("🕒 Scheduler iniciado: 'reporte_stock_diario_2359' programado a las 23:59.")
+    print("🕒 Scheduler iniciado: 'reporte_stock_diario_359' programado a las 3:59.")

@@ -80,6 +80,10 @@
                 <span class="label">Solo baldes activos</span>
             </label>
         </div>
+        <div>
+            <input type="text" name="plus" value="{{ filtros.plus }}"
+            placeholder="PLUs separados por coma (ej: 101,102,205)">
+        </div>
         <button type="submit">Filtrar</button>
         </form>
         <button class="btn-volver" onclick="window.history.back()">⬅ Volver</button>4
@@ -89,6 +93,36 @@
             Mostrando <strong>{{ movimientos|length }}</strong> movimiento{{ movimientos|length|pluralize }} ·
             Total global (filtrado): <strong>{{ total_kg_global|floatformat:3 }} kg</strong>
         </div>
+
+       {% if modo == "historial" and totales_plus %}
+        <details id="resumen-retiros" class="panel" style="margin:16px 0;">
+        <summary style="cursor:pointer;font-weight:700;">
+            Resumen de retiros por PLU ({{ totales_plus.total_baldes_retirados }} baldes · {{ totales_plus.total_kg_retirados|floatformat:2 }} kg)
+        </summary>
+        <table style="width:100%;margin-top:10px;">
+            <thead>
+            <tr>
+                <th>PLU</th>
+                <th>Producto</th>
+                <th>Cant. baldes</th>
+                <th>Kilos</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for r in totales_plus.detalle_por_plu %}
+            <tr>
+                <td>{{ r.producto__plu }}</td>
+                <td>{{ r.producto__nombre }}</td>
+                <td>{{ r.cant }}</td>
+                <td>{{ r.kg|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </details>
+        {% endif %}
+
+
 
         {% if modo == "activos" %}
             <!-- MODO: SOLO BALDES ACTIVOS -->

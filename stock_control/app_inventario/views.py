@@ -512,29 +512,33 @@ def _parse_dt_local(value, is_end=False):
 
 def historial_movimientos(request):
     """
-    Lista de movimientos agrupados por grupo_id mostrando SOLO el último
-    movimiento de cada grupo, con filtros por fecha, local, tipo.
-    NUEVO: si viene ?solo_activos=1, lista baldes activos (con filtros por gusto/código).
-    Ahora 'desde' y 'hasta' aceptan también fecha y hora (datetime-local).
+    Lista de movimientos agrupados por grupo_id mostrando SOLO el último movimiento
+    de cada grupo, con filtros por fecha/hora, local, tipo, gusto, código.
+    - ?solo_activos=1 -> muestra baldes activos (StockBalde), con mismos filtros básicos.
+    - ?plus=101,102   -> afecta SOLO el resumen de retiros por PLU (no la grilla principal).
+    - 'desde' y 'hasta' aceptan date o datetime-local.
     """
-    # -------- NUEVO: flag de "solo activos" --------
+    # -------- Flags y filtros comunes ----------
     solo_activos = request.GET.get("solo_activos") in {"1", "true", "True"}
 
-    # Filtros comunes
     desde_str = request.GET.get("desde")
     hasta_str = request.GET.get("hasta")
     local = (request.GET.get("local") or "").strip()
     tipo = (request.GET.get("tipo") or "").strip().lower()
-    gusto = (request.GET.get("gusto") or "").strip()     # nombre del gusto a buscar
-    codigo = (request.GET.get("codigo") or "").strip()   # EAN-13 exacto o substring
+    gusto = (request.GET.get("gusto") or "").strip()
+    codigo = (request.GET.get("codigo") or "").strip()
 
-    # Parseo robusto de fechas/horas
+    # Plus para RESUMEN por PLU (separado por coma o punto y coma)
+    plus_str = (request.GET.get("plus") or "").strip()
+    plus_list = [p.strip() for p in plus_str.replace(";", ",").split(",") if p.strip()]
+
+    # Parse de fechas/horas
     dt_desde = _parse_dt_local(desde_str, is_end=False)
     dt_hasta = _parse_dt_local(hasta_str, is_end=True)
 
-    # ---------------------------------------------------------------------
-    # MODO "SOLO ACTIVOS": devolvemos baldes activos (no historial de grupos)
-    # ---------------------------------------------------------------------
+    # ============================================================
+    # MODO "SOLO ACTIVOS": devolver baldes activos (no historial)
+    # ============================================================
     if solo_activos:
         qs = (
             StockBalde.objects
@@ -542,13 +546,10 @@ def historial_movimientos(request):
             .select_related("producto")
             .only("id", "codigo_barras", "peso", "producto__nombre", "producto__plu", "timestamp")
         )
-
-        # Rango de tiempo sobre 'timestamp' del StockBalde
         if dt_desde:
             qs = qs.filter(timestamp__gte=dt_desde)
         if dt_hasta:
             qs = qs.filter(timestamp__lte=dt_hasta)
-
         if gusto:
             qs = qs.filter(producto__nombre__icontains=gusto)
         if codigo:
@@ -556,10 +557,8 @@ def historial_movimientos(request):
 
         qs = qs.order_by("producto__nombre", "timestamp", "id")
 
-        # Totales globales (sobre la búsqueda actual de activos)
         total_kg_global = qs.aggregate(s=Sum("peso"))["s"] or 0
 
-        # Paginación
         page_number = request.GET.get("page", 1)
         paginator = Paginator(qs, 20)
         activos_page = paginator.get_page(page_number)
@@ -569,7 +568,7 @@ def historial_movimientos(request):
             "historial_movimientos.html",
             {
                 "modo": "activos",
-                "movimientos": activos_page,  # ahora son StockBalde
+                "movimientos": activos_page,   # iterables de StockBalde
                 "filtros": {
                     "desde": desde_str or "",
                     "hasta": hasta_str or "",
@@ -577,23 +576,26 @@ def historial_movimientos(request):
                     "tipo": tipo or "",
                     "gusto": gusto or "",
                     "codigo": codigo or "",
+                    "plus": plus_str or "",
                     "solo_activos": True,
                 },
                 "total_kg_global": total_kg_global,
+                "totales_plus": None,          # Resumen aplica sólo al modo historial
             },
         )
 
-    # ---------------------------------------------------------------------
-    # MODO HISTORIAL (comportamiento actual, con nuevo rango fecha/hora)
-    # ---------------------------------------------------------------------
+    # ========================================
+    # MODO HISTORIAL (último de cada grupo_id)
+    # ========================================
     base_qs = RegistroMovimiento.objects.all()
 
-    # Rango de tiempo sobre 'timestamp' del movimiento
+    # Rango de tiempo
     if dt_desde:
         base_qs = base_qs.filter(timestamp__gte=dt_desde)
     if dt_hasta:
         base_qs = base_qs.filter(timestamp__lte=dt_hasta)
 
+    # Filtro por local/origen/destino
     if local:
         base_qs = base_qs.filter(
             Q(boca_salida__icontains=local) |
@@ -601,21 +603,22 @@ def historial_movimientos(request):
             Q(destino__nombre__icontains=local)
         )
 
+    # Filtro por tipo
     if tipo:
         if tipo in ("retiro", "salida"):
             base_qs = base_qs.filter(tipo__in=["retiro", "salida"])
         elif tipo == "ingreso":
             base_qs = base_qs.filter(tipo="ingreso")
         else:
-            # cualquier otro valor -> sin filtro adicional
-            pass
+            pass  # cualquier otro valor: no filtra
 
+    # Filtro por gusto/código
     if gusto:
         base_qs = base_qs.filter(producto__nombre__icontains=gusto)
     if codigo:
         base_qs = base_qs.filter(codigo_barras__icontains=codigo)
 
-    # Último movimiento por grupo_id (respetando filtros)
+    # Subquery: id del último movimiento por grupo, respetando los filtros
     latest_in_group = (
         base_qs.filter(grupo_id=OuterRef("grupo_id"))
                .order_by("-timestamp", "-id")
@@ -634,7 +637,7 @@ def historial_movimientos(request):
         .order_by("-timestamp", "-id")
     )
 
-    # Total global de kilos sobre los movimientos filtrados (no sólo visibles)
+    # Total global de kilos (sobre TODO el base_qs filtrado, no sólo la página visible)
     total_kg_global = base_qs.aggregate(s=Sum("peso"))["s"] or 0
 
     # Paginación
@@ -642,28 +645,34 @@ def historial_movimientos(request):
     paginator = Paginator(movimientos_qs, 20)
     movimientos_page = paginator.get_page(page_number)
 
-    # Totales de los grupos visibles
-    grupo_ids_visibles = [m.grupo_id for m in movimientos_page.object_list]
+    # ------------------------------------------------------------
+    # Resumen de retiros por PLU (SIN mezclar con otros PLUs)
+    # Se construye sobre base_qs, pero restringido a retiros/salidas.
+    # Si '?plus=' viene, se filtra sólo por esos PLUs en el resumen.
+    # ------------------------------------------------------------
+    qs_retiros = base_qs.filter(tipo__in=["retiro", "salida"])
+    if plus_list:
+        qs_retiros = qs_retiros.filter(producto__plu__in=plus_list)
 
-    total_kg = (
-        GrupoMovimiento.objects
-        .filter(grupo_id__in=grupo_ids_visibles)
-        .aggregate(s=Sum("total_peso"))["s"] or 0
-    )
-    grupos_con_header = set(
-        GrupoMovimiento.objects
-        .filter(grupo_id__in=grupo_ids_visibles)
-        .values_list("grupo_id", flat=True)
-    )
-    faltantes = set(grupo_ids_visibles) - grupos_con_header
-    if faltantes:
-        total_faltantes = (
-            RegistroMovimiento.objects
-            .filter(grupo_id__in=faltantes)
-            .aggregate(s=Sum("peso"))["s"] or 0
+    detalle_por_plu_qs = (
+        qs_retiros
+        .values("producto__plu", "producto__nombre")
+        .annotate(
+            cant=Count("id"),
+            kg=Sum("peso"),
         )
-        total_kg += total_faltantes
+        .order_by("producto__nombre", "producto__plu")
+    )
+    # Evaluamos para poder sumar sin tocar el queryset luego
+    detalle_por_plu = list(detalle_por_plu_qs)
 
+    totales_plus = {
+        "detalle_por_plu": detalle_por_plu,
+        "total_baldes_retirados": sum(r["cant"] for r in detalle_por_plu),
+        "total_kg_retirados": sum((r["kg"] or 0) for r in detalle_por_plu),
+    } if detalle_por_plu else None
+
+    # Render
     return render(
         request,
         "historial_movimientos.html",
@@ -677,12 +686,13 @@ def historial_movimientos(request):
                 "tipo": tipo or "",
                 "gusto": gusto or "",
                 "codigo": codigo or "",
+                "plus": plus_str or "",
                 "solo_activos": False,
             },
             "total_kg_global": total_kg_global,
+            "totales_plus": totales_plus,
         },
     )
-
 
 
 def detalle_movimiento(request, grupo_id: int):
