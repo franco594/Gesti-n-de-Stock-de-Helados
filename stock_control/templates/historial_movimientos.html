@@ -95,10 +95,43 @@
         </div>
 
        {% if modo == "historial" and totales_plus %}
-        <details id="resumen-retiros" class="panel" style="margin:16px 0;">
+        <details id="resumen-retiros" class="panel" style="margin:16px 0;" open>
         <summary style="cursor:pointer;font-weight:700;">
             Resumen de retiros por PLU ({{ totales_plus.total_baldes_retirados }} baldes · {{ totales_plus.total_kg_retirados|floatformat:2 }} kg)
         </summary>
+
+        <div style="margin:10px 0; display:flex; gap:10px; align-items:center;">
+            <!-- Orden -->
+            <form method="get" style="display:inline;">
+            {# preserva filtros existentes #}
+            <input type="hidden" name="desde" value="{{ filtros.desde }}">
+            <input type="hidden" name="hasta" value="{{ filtros.hasta }}">
+            <input type="hidden" name="local" value="{{ filtros.local }}">
+            <input type="hidden" name="tipo" value="{{ filtros.tipo }}">
+            <input type="hidden" name="gusto" value="{{ filtros.gusto }}">
+            <input type="hidden" name="codigo" value="{{ filtros.codigo }}">
+            <input type="hidden" name="plus" value="{{ filtros.plus }}">
+            <select name="orden" onchange="this.form.submit()">
+                <option value="kg_desc" {% if filtros.orden == 'kg_desc' %}selected{% endif %}>Kilos ↓</option>
+                <option value="kg_asc"  {% if filtros.orden == 'kg_asc'  %}selected{% endif %}>Kilos ↑</option>
+            </select>
+            </form>
+
+            <!-- Exportar Excel -->
+            <form method="get" style="display:inline;">
+            <input type="hidden" name="desde" value="{{ filtros.desde }}">
+            <input type="hidden" name="hasta" value="{{ filtros.hasta }}">
+            <input type="hidden" name="local" value="{{ filtros.local }}">
+            <input type="hidden" name="tipo" value="{{ filtros.tipo }}">
+            <input type="hidden" name="gusto" value="{{ filtros.gusto }}">
+            <input type="hidden" name="codigo" value="{{ filtros.codigo }}">
+            <input type="hidden" name="plus" value="{{ filtros.plus }}">
+            <input type="hidden" name="orden" value="{{ filtros.orden }}">
+            <input type="hidden" name="export" value="xlsx">
+            <button type="submit">⬇️ Exportar Excel</button>
+            </form>
+        </div>
+
         <table style="width:100%;margin-top:10px;">
             <thead>
             <tr>
@@ -121,6 +154,7 @@
         </table>
         </details>
         {% endif %}
+
 
 
 
