@@ -157,7 +157,7 @@ th, td {
 
 th {
     background-color: #0056b3;
-    color: white;
+    color: rgb(0, 0, 0);
     text-transform: uppercase;
 }
 
@@ -1625,3 +1625,32 @@ td input {
   .ret-totales { grid-template-columns: 1fr; }
   .ret-summary { padding: .5rem .75rem; }
 }
+
+.box-resumen {
+  margin: 18px 0;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+.box-resumen > summary {
+  cursor: pointer;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.resumen-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+.resumen-toolbar .btn {
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #007bff;
+  color: #fff;
+}
+.resumen-toolbar .btn:hover { background:#0056b3; }
+

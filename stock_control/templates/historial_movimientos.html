@@ -95,9 +95,21 @@
         </div>
 
        {% if modo == "historial" and totales_plus %}
-        <details id="resumen-retiros" class="panel" style="margin:16px 0;" open>
+        <details id="resumen-retiros" class="box-resumen" {% if request.GET.expand_ing %}open{% endif %}>
+        <!--<summary style="cursor:pointer;font-weight:700;">
+           📥 Resumen de RETIROS por PLU ({{ totales_plus.total_baldes_retirados }} baldes · {{ totales_plus.total_kg_retirados|floatformat:2 }} kg)
+        </summary>-->
+
         <summary style="cursor:pointer;font-weight:700;">
-            Resumen de retiros por PLU ({{ totales_plus.total_baldes_retirados }} baldes · {{ totales_plus.total_kg_retirados|floatformat:2 }} kg)
+            📥 Resumen de RETIROS por PLU
+            {% if filtros.desde or filtros.hasta %}
+            — <small>
+                período:
+                {{ filtros.desde|default:"(sin desde)" }}
+                a
+                {{ filtros.hasta|default:"(sin hasta)" }}
+            </small>
+            {% endif %}
         </summary>
 
         <div style="margin:10px 0; display:flex; gap:10px; align-items:center;">
@@ -151,9 +163,87 @@
             </tr>
             {% endfor %}
             </tbody>
+            <tfoot>
+                <tr>
+                <th colspan="2">TOTAL</th>
+                <th>{{ totales_plus_ing.total_baldes_ingresados }}</th>
+                <th>{{ totales_plus_ing.total_kg_ingresados|floatformat:2 }}</th>
+                </tr>
+            </tfoot>
         </table>
         </details>
         {% endif %}
+
+        {% with q=request.GET.urlencode %}
+        <details id="resumen-ingresos" class="box-resumen" {% if request.GET.expand_ing %}open{% endif %}>
+        <summary>
+            📥 Resumen de INGRESOS por PLU
+            {% if filtros.desde or filtros.hasta %}
+            — <small>
+                período:
+                {{ filtros.desde|default:"(sin desde)" }}
+                a
+                {{ filtros.hasta|default:"(sin hasta)" }}
+            </small>
+            {% endif %}
+        </summary>
+
+        <div class="resumen-toolbar">
+            <form method="get" class="inline">
+            {# preserva filtros actuales #}
+            {% for k,v in request.GET.items %}
+                {% if k != 'orden_ing' and k != 'export' and k != 'page' %}
+                <input type="hidden" name="{{ k }}" value="{{ v }}">
+                {% endif %}
+            {% endfor %}
+
+            <label></label>
+            <select name="orden_ing" onchange="this.form.submit()">
+                <option value="kg_desc" {% if totales_plus_ing and totales_plus_ing.orden_ing == 'kg_desc' %}selected{% endif %}>Kilos ↓</option>
+                <option value="kg_asc"  {% if totales_plus_ing and totales_plus_ing.orden_ing == 'kg_asc' %}selected{% endif %}>Kilos ↑</option>
+            </select>
+            <input type="hidden" name="expand_ing" value="1">
+            </form>
+
+            <a  href="?{% if q %}{{ q }}&{% endif %}export=ing_xlsx">
+            <button type="submit">⬇️ Exportar Excel</button>
+            </a>
+            
+        </div>
+
+        {% if totales_plus_ing and totales_plus_ing.detalle_por_plu %}
+            <table class="tabla-resumen">
+            <thead>
+                <tr>
+                <th>PLU</th>
+                <th>Producto</th>
+                <th>Cant. baldes</th>
+                <th>Kilos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in totales_plus_ing.detalle_por_plu %}
+                <tr>
+                    <td>{{ r.producto__plu }}</td>
+                    <td>{{ r.producto__nombre }}</td>
+                    <td>{{ r.cant }}</td>
+                    <td>{{ r.kg|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                <th colspan="2">TOTAL</th>
+                <th>{{ totales_plus_ing.total_baldes_ingresados }}</th>
+                <th>{{ totales_plus_ing.total_kg_ingresados|floatformat:2 }}</th>
+                </tr>
+            </tfoot>
+            </table>
+        {% else %}
+            <p style="margin-top:.5rem;">No hay ingresos en el período o con los PLUs filtrados.</p>
+        {% endif %}
+        </details>
+        {% endwith %}
 
 
 

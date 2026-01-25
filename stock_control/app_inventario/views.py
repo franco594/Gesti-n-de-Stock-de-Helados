@@ -533,36 +533,36 @@ def _parse_dt_local(s: str | None, is_end: bool = False):
 
 def historial_movimientos(request):
     """
-    Historial + modo activos. Incluye 'Resumen de retiros por PLU' con:
-    - orden configurable (?orden=kg_desc|kg_asc)
-    - exportación a Excel (?export=xlsx) del resumen.
+    Historial + modo activos.
+    Incluye:
+      - Resumen de RETIROS por PLU (orden ?orden=kg_desc|kg_asc, export ?export=xlsx)
+      - Resumen de INGRESOS por PLU (orden ?orden_ing=kg_desc|kg_asc, export ?export=ing_xlsx)
+    Acepta 'desde' y 'hasta' con fecha u hora (datetime-local).
     """
-    # -------- Flags y filtros comunes ----------
+    # -------- Flags y filtros ----------
     solo_activos = request.GET.get("solo_activos") in {"1", "true", "True"}
 
-    desde_str = request.GET.get("desde")
-    hasta_str = request.GET.get("hasta")
+    desde_str = (request.GET.get("desde") or "").strip()
+    hasta_str = (request.GET.get("hasta") or "").strip()
     local = (request.GET.get("local") or "").strip()
     tipo = (request.GET.get("tipo") or "").strip().lower()
     gusto = (request.GET.get("gusto") or "").strip()
     codigo = (request.GET.get("codigo") or "").strip()
 
-    # Plus para RESUMEN por PLU (separado por coma o punto y coma)
     plus_str = (request.GET.get("plus") or "").strip()
     plus_list = [p.strip() for p in plus_str.replace(";", ",").split(",") if p.strip()]
 
-    # Orden del resumen
-    orden = (request.GET.get("orden") or "kg_desc").lower()  # 'kg_desc' (default) o 'kg_asc'
+    # Ordenes y export
+    orden = (request.GET.get("orden") or "kg_desc").lower()           # retiros
+    orden_ing = (request.GET.get("orden_ing") or "kg_desc").lower()   # ingresos
+    export = (request.GET.get("export") or "").lower()                # 'xlsx' | 'ing_xlsx'
 
-    # Export
-    export = (request.GET.get("export") or "").lower()       # 'xlsx' para Excel
-
-    # Parse de fechas/horas
+    # Fechas / horas
     dt_desde = _parse_dt_local(desde_str, is_end=False)
     dt_hasta = _parse_dt_local(hasta_str, is_end=True)
 
     # ============================================================
-    # MODO "SOLO ACTIVOS": devolver baldes activos (no historial)
+    # MODO "SOLO ACTIVOS"
     # ============================================================
     if solo_activos:
         qs = (
@@ -581,7 +581,6 @@ def historial_movimientos(request):
             qs = qs.filter(codigo_barras__icontains=codigo)
 
         qs = qs.order_by("producto__nombre", "timestamp", "id")
-
         total_kg_global = qs.aggregate(s=Sum("peso"))["s"] or 0
 
         page_number = request.GET.get("page", 1)
@@ -593,20 +592,22 @@ def historial_movimientos(request):
             "historial_movimientos.html",
             {
                 "modo": "activos",
-                "movimientos": activos_page,   # StockBalde
+                "movimientos": activos_page,
                 "filtros": {
-                    "desde": desde_str or "",
-                    "hasta": hasta_str or "",
+                    "desde": desde_str,
+                    "hasta": hasta_str,
                     "local": local,
-                    "tipo": tipo or "",
-                    "gusto": gusto or "",
-                    "codigo": codigo or "",
-                    "plus": plus_str or "",
+                    "tipo": tipo,
+                    "gusto": gusto,
+                    "codigo": codigo,
+                    "plus": plus_str,
                     "orden": orden,
+                    "orden_ing": orden_ing,
                     "solo_activos": True,
                 },
                 "total_kg_global": total_kg_global,
                 "totales_plus": None,
+                "totales_plus_ing": None,
             },
         )
 
@@ -615,13 +616,11 @@ def historial_movimientos(request):
     # ========================================
     base_qs = RegistroMovimiento.objects.all()
 
-    # Rango de tiempo
     if dt_desde:
         base_qs = base_qs.filter(timestamp__gte=dt_desde)
     if dt_hasta:
         base_qs = base_qs.filter(timestamp__lte=dt_hasta)
 
-    # Filtro por local/origen/destino
     if local:
         base_qs = base_qs.filter(
             Q(boca_salida__icontains=local) |
@@ -629,22 +628,18 @@ def historial_movimientos(request):
             Q(destino__nombre__icontains=local)
         )
 
-    # Filtro por tipo
     if tipo:
         if tipo in ("retiro", "salida"):
             base_qs = base_qs.filter(tipo__in=["retiro", "salida"])
         elif tipo == "ingreso":
             base_qs = base_qs.filter(tipo="ingreso")
-        else:
-            pass
 
-    # Filtro por gusto/código
     if gusto:
         base_qs = base_qs.filter(producto__nombre__icontains=gusto)
     if codigo:
         base_qs = base_qs.filter(codigo_barras__icontains=codigo)
 
-    # Último movimiento por grupo_id (respetando filtros)
+    # ------- grilla principal: último por grupo -------
     latest_in_group = (
         base_qs.filter(grupo_id=OuterRef("grupo_id"))
                .order_by("-timestamp", "-id")
@@ -655,24 +650,20 @@ def historial_movimientos(request):
                .annotate(latest_id=Subquery(latest_in_group))
                .values("latest_id")
     )
-
     movimientos_qs = (
         RegistroMovimiento.objects
         .filter(id__in=Subquery(latest_ids_subq))
         .select_related("producto", "destino")
         .order_by("-timestamp", "-id")
     )
-
-    # Total global de kilos (sobre TODO el base_qs filtrado)
     total_kg_global = base_qs.aggregate(s=Sum("peso"))["s"] or 0
 
-    # Paginación de la grilla principal
     page_number = request.GET.get("page", 1)
     paginator = Paginator(movimientos_qs, 20)
     movimientos_page = paginator.get_page(page_number)
 
     # ------------------------------------------------------------
-    # Resumen de retiros por PLU (SIN mezclar con otros PLUs)
+    # Resumen de RETIROS por PLU
     # ------------------------------------------------------------
     qs_retiros = base_qs.filter(tipo__in=["retiro", "salida"])
     if plus_list:
@@ -681,20 +672,14 @@ def historial_movimientos(request):
     detalle_por_plu_qs = (
         qs_retiros
         .values("producto__plu", "producto__nombre")
-        .annotate(
-            cant=Count("id"),
-            kg=Sum("peso"),
-        )
+        .annotate(cant=Count("id"), kg=Sum("peso"))
     )
-
-    # Ordenar por kilos
     if orden == "kg_asc":
         detalle_por_plu_qs = detalle_por_plu_qs.order_by("kg", "producto__nombre", "producto__plu")
-    else:  # default: kg_desc
+    else:
         detalle_por_plu_qs = detalle_por_plu_qs.order_by("-kg", "producto__nombre", "producto__plu")
 
     detalle_por_plu = list(detalle_por_plu_qs)
-
     totales_plus = None
     if detalle_por_plu:
         totales_plus = {
@@ -704,24 +689,58 @@ def historial_movimientos(request):
             "orden": orden,
         }
 
+    # ------------------------------------------------------------
+    # Resumen de INGRESOS por PLU
+    # ------------------------------------------------------------
+    qs_ingresos = base_qs.filter(tipo="ingreso")
+    if plus_list:
+        qs_ingresos = qs_ingresos.filter(producto__plu__in=plus_list)
+
+    detalle_por_plu_ing_qs = (
+        qs_ingresos
+        .values("producto__plu", "producto__nombre")
+        .annotate(cant=Count("id"), kg=Sum("peso"))
+    )
+    if orden_ing == "kg_asc":
+        detalle_por_plu_ing_qs = detalle_por_plu_ing_qs.order_by("kg", "producto__nombre", "producto__plu")
+    else:
+        detalle_por_plu_ing_qs = detalle_por_plu_ing_qs.order_by("-kg", "producto__nombre", "producto__plu")
+
+    detalle_por_plu_ing = list(detalle_por_plu_ing_qs)
+    totales_plus_ing = None
+    if detalle_por_plu_ing:
+        totales_plus_ing = {
+            "detalle_por_plu": detalle_por_plu_ing,
+            "total_baldes_ingresados": sum(r["cant"] for r in detalle_por_plu_ing),
+            "total_kg_ingresados": sum((r["kg"] or 0) for r in detalle_por_plu_ing),
+            "orden_ing": orden_ing,
+        }
+
     # ----------------------------------------
-    # Exportar el RESUMEN a Excel si se pidió
+    # Exportaciones (antes del render)
     # ----------------------------------------
-    if export == "xlsx":
-        # Si no hay resumen, devolvemos un Excel vacío con headers
+    if export in {"xlsx", "ing_xlsx"}:
         from openpyxl import Workbook
         from openpyxl.utils import get_column_letter
+        import io
+
+        if export == "xlsx":
+            sheet_title = "Retiros por PLU"
+            rows = detalle_por_plu
+            fname = "resumen_retiros_por_plu.xlsx"
+        else:
+            sheet_title = "Ingresos por PLU"
+            rows = detalle_por_plu_ing
+            fname = "resumen_ingresos_por_plu.xlsx"
 
         wb = Workbook()
         ws = wb.active
-        ws.title = "Retiros por PLU"
+        ws.title = sheet_title
 
-        # Encabezado
         headers = ["PLU", "Producto", "Cant. baldes", "Kilos"]
         ws.append(headers)
 
-        # Filas
-        for r in detalle_por_plu:
+        for r in rows:
             ws.append([
                 r.get("producto__plu", ""),
                 r.get("producto__nombre", ""),
@@ -729,13 +748,14 @@ def historial_movimientos(request):
                 float(r.get("kg") or 0),
             ])
 
-        # Totales al pie
-        if detalle_por_plu:
+        if rows:
             ws.append([])
-            ws.append(["", "TOTAL", sum(x["cant"] for x in detalle_por_plu),
-                       float(sum((x["kg"] or 0) for x in detalle_por_plu))])
+            ws.append([
+                "", "TOTAL",
+                sum(x["cant"] for x in rows),
+                float(sum((x["kg"] or 0) for x in rows)),
+            ])
 
-        # Autofit simple
         for col in ws.columns:
             max_len = 0
             col_letter = get_column_letter(col[0].column)
@@ -746,12 +766,9 @@ def historial_movimientos(request):
                     pass
             ws.column_dimensions[col_letter].width = min(max_len + 2, 50)
 
-        # Descargar
         buf = io.BytesIO()
         wb.save(buf)
         buf.seek(0)
-
-        fname = "resumen_retiros_por_plu.xlsx"
         resp = HttpResponse(
             buf.getvalue(),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -759,7 +776,7 @@ def historial_movimientos(request):
         resp["Content-Disposition"] = f'attachment; filename="{fname}"'
         return resp
 
-    # Render HTML normal
+    # -------- Render HTML --------
     return render(
         request,
         "historial_movimientos.html",
@@ -767,20 +784,25 @@ def historial_movimientos(request):
             "modo": "historial",
             "movimientos": movimientos_page,
             "filtros": {
-                "desde": desde_str or "",
-                "hasta": hasta_str or "",
+                "desde": desde_str,
+                "hasta": hasta_str,
                 "local": local,
-                "tipo": tipo or "",
-                "gusto": gusto or "",
-                "codigo": codigo or "",
-                "plus": plus_str or "",
+                "tipo": tipo,
+                "gusto": gusto,
+                "codigo": codigo,
+                "plus": plus_str,
                 "orden": orden,
+                "orden_ing": orden_ing,
                 "solo_activos": False,
             },
             "total_kg_global": total_kg_global,
             "totales_plus": totales_plus,
+            "totales_plus_ing": totales_plus_ing,
         },
     )
+
+
+    
 
 
 def detalle_movimiento(request, grupo_id: int):
