@@ -1070,7 +1070,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureEl(SELECTORS.overlay)?.addEventListener("click", closeMenu);
 
   // Polling suave: solo hace trabajo si la modal está abierta
-  setInterval(() => { if (modalAbierta) obtenerProductosEscaneados(); }, 500);
+  setInterval(() => { if (modalAbierta) obtenerProductosEscaneados(); }, 2000);
 });
 
 /*******************************************
