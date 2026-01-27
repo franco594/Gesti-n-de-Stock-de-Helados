@@ -250,7 +250,7 @@
 
         {% if modo == "activos" %}
             <!-- MODO: SOLO BALDES ACTIVOS -->
-            <ul class="mov-list">
+            
                 {% for b in movimientos %}
                 <li class="mov-item">
                     <div>
@@ -372,10 +372,10 @@
             if (!resp.ok || !data.ok) {
                 throw new Error(data.error || `HTTP ${resp.status}`);
             }
-            alert(data.message || 'Reimpresión enviada');
+            Toast.info(data.message || 'Reimpresión enviada');
             } catch (err) {
             console.error(err);
-            alert('No se pudo reimprimir el comprobante. Revisá la conexión con la impresora.');
+            Toast.info('No se pudo reimprimir el comprobante. Revisá la conexión con la impresora.');
             } finally {
             btn.disabled = false;
             btn.textContent = prevText;
@@ -501,7 +501,7 @@
             })
             .catch(err => {
             console.error("No se pudo cargar el detalle:", err);
-            alert("No se pudo cargar el detalle del movimiento.");
+            Toast.info("No se pudo cargar el detalle del movimiento.");
             });
         }
 
@@ -559,7 +559,7 @@
                         setTimeout(actualizarHistorial, 200);  
                     } else {
                         console.error("❌ Error al eliminar el movimiento:", data.error);
-                        alert("Error al eliminar el movimiento.");
+                        Toast.info("Error al eliminar el movimiento.");
                         // Restaurar la fila si hay error
                         elemento.style.transform = "translateX(0)";
                         elemento.style.opacity = "1";
@@ -578,27 +578,27 @@
 
 
         function actualizarHistorial() {
-            fetch("/historial_movimientos/?page=1", { 
-                headers: { "X-Requested-With": "XMLHttpRequest" } 
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.text();
-            })
+        const lista = document.querySelector('.mov-list');
+        if (!lista) return;
+        
+        // ✅ Mostrar skeletons
+        SkeletonLoader.show(lista, 'movimiento', 10);
+        
+        fetch('/historial_movimientos/')
+            .then(r => r.text())
             .then(html => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, "text/html");
-                const container = doc.querySelector(".container");
-
-                if (!container) {
-                    throw new Error("❌ No se encontró el contenedor de historial en la respuesta.");
-                }
-
-                document.querySelector(".container").innerHTML = container.innerHTML;
+            const doc = new DOMParser().parseFromString(html, "text/html");
+            const nuevaLista = doc.querySelector('.mov-list');
+            
+            if (nuevaLista) {
+                // ✅ Reemplazar skeletons
+                SkeletonLoader.replace(lista, nuevaLista.innerHTML);
+            }
             })
-            .catch(error => console.error("❌ Error al actualizar historial:", error));
+            .catch(err => {
+            SkeletonLoader.hide(lista);
+            Toast.error('Error al cargar historial');
+            });
         }
 
         function cargarPagina(pagina) {
@@ -616,11 +616,11 @@
                 })
                 .catch(error => {
                 console.error("❌ Error al cargar página:", error);
-                alert("No se pudo cargar la página.");
+                Toast.info("No se pudo cargar la página.");
                 });
         }
 
     </script>
-
+    <div id="toast-container" class="toast-container"></div>
 </body>
 </html>

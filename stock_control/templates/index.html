@@ -119,7 +119,14 @@
     </div>
 
     <!-- Contenedor de la Vista de Grupos (Inicialmente Oculto) -->
+     <!-- ============================================
+     HTML - Estructura inicial con skeletons
+     ============================================ -->
+
+   
+    
     <div id="vistaGrupos" class="grupos-container" style="display: flex;">
+        
         <div class="grupo" id="jarabe">
             <h3>JARABE</h3>
             <table>
@@ -431,7 +438,7 @@
     });
 
     if (productos.length === 0) {
-        alert("No hay cambios para guardar.");
+        Toast.info("No hay cambios para guardar.");
         return;
     }
 
@@ -469,7 +476,7 @@
         cerrarModalStockMinimo();
     } catch (err) {
         console.error("Error:", err);
-        alert("Error al actualizar stock mínimo: " + err.message);
+        Toast.info("Error al actualizar stock mínimo: " + err.message);
     }
     }
 </script>
@@ -490,7 +497,7 @@
                 body: formData
             })
             .then(response => response.json())
-            .then(data => alert(data.message || data.error))
+            .then(data => Toast.info(data.message || data.error))
             .catch(error => console.error("Error al subir el archivo:", error));
         }
     });
@@ -509,7 +516,7 @@
                 })
                 .then(res => res.json())
                 .then(data => {
-                    alert(data.message || data.error);
+                    Toast.info(data.message || data.error);
                     if (data.success) {
                         location.reload();
                     }
@@ -525,7 +532,7 @@
                 })
                 .then(res => res.json())
                 .then(data => {
-                    alert(data.message || data.error);
+                    Toast.info(data.message || data.error);
                     if (data.success) {
                         location.reload();
                     }
@@ -551,7 +558,19 @@
             <div id="chipsExistentes" class="bocas-container"></div>
         </div>
     </div>
-
+    <!-- Container para las notificaciones -->
+    <div id="toast-container" class="toast-container"></div>
+    <div id="confirm-dialog" class="modal" style="display: none;">
+    <div class="modal-content confirm-dialog">
+        <div class="confirm-icon">⚠️</div>
+        <h3 id="confirm-title" class="confirm-title">Confirmar acción</h3>
+        <p id="confirm-message" class="confirm-message">¿Estás seguro?</p>
+        <div class="confirm-buttons">
+        <button id="confirm-cancel" class="btn-secondary">Cancelar</button>
+        <button id="confirm-accept" class="btn-primary">Aceptar</button>
+        </div>
+    </div>
+</div>
     
 </body>
 </html>
