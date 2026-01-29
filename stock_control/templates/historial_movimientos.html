@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Historial de Movimientos</title>
+    <title>Movimientos - Gestión de Stock</title>
     {% load static %}
     {% load compress %}
     {% compress css %}
@@ -86,8 +86,8 @@
         </div>
         <button type="submit">Filtrar</button>
         </form>
-        <button class="btn-volver" onclick="window.history.back()">⬅ Volver</button>4
-
+        <a href="{% url 'index' %}" class="btn-secondary">← Volver</a>
+    
         <div class="resumen-pagina" style="margin: 8px 0; padding: 8px 12px; background:#f6f7fb; border:1px solid #e7e9f3; border-radius:8px;">
             <strong>Resumen de la página:</strong>
             Mostrando <strong>{{ movimientos|length }}</strong> movimiento{{ movimientos|length|pluralize }} ·

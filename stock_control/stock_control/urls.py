@@ -1,7 +1,7 @@
 from django.urls import path
 from app_inventario.views import (
     # Home / stock
-    api_actualizar_producto, api_crear_producto, api_eliminar_producto, api_listar_productos, exportar_productos_excel, imprimir_stock_total, index, cargar_productos_excel, importar_productos,
+    api_actualizar_producto, api_crear_producto, api_dashboard_metricas, api_eliminar_producto, api_listar_productos, dashboard, exportar_productos_excel, imprimir_stock_total, index, cargar_productos_excel, importar_productos,
     obtener_stock, api_stock_detallado, stock_detallado,
     actualizar_stock_minimo,
 
@@ -27,6 +27,8 @@ from app_inventario.views import (
     descargar_backup, importar_backup, reiniciar_stock,
 
     reimprimir_ticket,
+
+    
 )
 
 urlpatterns = [
@@ -86,4 +88,8 @@ urlpatterns = [
     path('descargar_backup/', descargar_backup, name='descargar_backup'),
     path('importar_backup/', importar_backup, name='importar_backup'),
     path('reiniciar_stock/', reiniciar_stock, name="reiniciar_stock"),
+
+    # Dashboard
+    path('dashboard/', dashboard, name='dashboard'),
+    path('api/dashboard/metricas/', api_dashboard_metricas, name='api_dashboard_metricas'),
 ]

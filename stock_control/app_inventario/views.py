@@ -10,7 +10,7 @@ import pandas as pd
 
 from io import BytesIO
 from django.http import HttpResponse
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.utils.dateparse import parse_datetime
 from datetime import datetime, time
 
@@ -27,7 +27,9 @@ from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import csrf_exempt
 from django.core.management import call_command
 
-from app_inventario.services.printing import print_stock_total 
+from app_inventario.services.printing import print_stock_total
+from datetime import datetime, time, timedelta
+from django.db.models import Sum, Count, Q, F, Avg  # ← F y Avg incluidos
 
 
 
@@ -1556,3 +1558,447 @@ def reiniciar_stock(request):
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)}, status=500)
     return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+
+# views.py
+def dashboard(request):
+    hoy = timezone.now().date()
+    
+    # Movimientos del día
+    movimientos_hoy = RegistroMovimiento.objects.filter(
+        timestamp__date=hoy
+    ).aggregate(
+        ingresos=Count('id', filter=Q(tipo='ingreso')),
+        retiros=Count('id', filter=Q(tipo='salida'))
+    )
+    
+    # Top 5 productos más rotados (últimos 30 días)
+    hace_30_dias = timezone.now() - timedelta(days=30)
+    top_productos = (RegistroMovimiento.objects
+        .filter(timestamp__gte=hace_30_dias)
+        .values('producto__nombre')
+        .annotate(movimientos=Count('id'))
+        .order_by('-movimientos')[:5]
+    )
+    
+    # Productos bajo stock mínimo
+    productos_bajo_stock = ProductoFijo.objects.annotate(
+        stock_actual=Count('stockbalde', filter=Q(stockbalde__is_activo=True))
+    ).filter(stock_actual__lt=F('stock_minimo'))
+    
+    context = {
+        'movimientos_hoy': movimientos_hoy,
+        'top_productos': top_productos,
+        'productos_bajo_stock': productos_bajo_stock,
+    }
+    return render(request, 'dashboard.html', context)
+
+
+def api_dashboard_metricas(request):
+    """
+    API que devuelve todas las métricas para el dashboard
+    """
+    try:
+        hoy = timezone.now()
+        inicio_dia = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
+        hace_7_dias = hoy - timedelta(days=7)
+        hace_30_dias = hoy - timedelta(days=30)
+        inicio_mes = hoy.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        # ============================================================
+        # 1. RESUMEN GENERAL
+        # ============================================================
+        
+        # Stock actual
+        total_baldes = StockBalde.objects.filter(is_activo=True).count()
+        total_kilos = StockBalde.objects.filter(is_activo=True).aggregate(
+            total=Sum('peso')
+        )['total'] or 0
+        
+        # Valor del inventario (ejemplo: cada kg vale $100)
+        valor_por_kg = 22500
+        valor_inventario = float(total_kilos) * valor_por_kg
+        
+        # Productos únicos en stock
+        productos_en_stock = StockBalde.objects.filter(
+            is_activo=True
+        ).values('producto').distinct().count()
+        
+        # ============================================================
+        # 2. MOVIMIENTOS DEL DÍA
+        # ============================================================
+        
+        movimientos_hoy = RegistroMovimiento.objects.filter(
+            timestamp__gte=inicio_dia
+        ).aggregate(
+            ingresos=Count('id', filter=Q(tipo='ingreso')),
+            retiros=Count('id', filter=Q(tipo='salida')),
+            kg_ingresados=Sum('peso', filter=Q(tipo='ingreso')),
+            kg_retirados=Sum('peso', filter=Q(tipo='salida'))
+        )
+        
+        # ============================================================
+        # 3. TENDENCIAS (Comparación con ayer y semana pasada)
+        # ============================================================
+        
+        # Ayer
+        inicio_ayer = inicio_dia - timedelta(days=1)
+        fin_ayer = inicio_dia
+        
+        movimientos_ayer = RegistroMovimiento.objects.filter(
+            timestamp__gte=inicio_ayer,
+            timestamp__lt=fin_ayer
+        ).aggregate(
+            ingresos=Count('id', filter=Q(tipo='ingreso')),
+            retiros=Count('id', filter=Q(tipo='salida'))
+        )
+        
+        # Calcular porcentajes de cambio
+        def calcular_cambio(actual, anterior):
+            if anterior == 0:
+                return 100 if actual > 0 else 0
+            return round(((actual - anterior) / anterior) * 100, 1)
+        
+        cambio_ingresos = calcular_cambio(
+            movimientos_hoy['ingresos'] or 0,
+            movimientos_ayer['ingresos'] or 0
+        )
+        
+        cambio_retiros = calcular_cambio(
+            movimientos_hoy['retiros'] or 0,
+            movimientos_ayer['retiros'] or 0
+        )
+        
+        # ============================================================
+        # 4. TOP PRODUCTOS MÁS MOVIDOS (Últimos 30 días)
+        # ============================================================
+        
+        top_productos = (
+            RegistroMovimiento.objects
+            .filter(timestamp__gte=hace_30_dias)
+            .values('producto__nombre', 'producto__plu')
+            .annotate(
+                total_movimientos=Count('id'),
+                total_kg=Sum('peso'),
+                ingresos=Count('id', filter=Q(tipo='ingreso')),
+                retiros=Count('id', filter=Q(tipo='salida'))
+            )
+            .order_by('-total_movimientos')[:10]
+        )
+        
+        # ============================================================
+        # 5. PRODUCTOS BAJO STOCK MÍNIMO
+        # ============================================================
+        
+        productos_bajo_stock = ProductoFijo.objects.annotate(
+            stock_actual=Count('stockbalde', filter=Q(stockbalde__is_activo=True))
+        ).filter(
+            stock_actual__lt=F('stock_minimo')
+        ).values(
+            'plu', 'nombre', 'stock_minimo', 'stock_actual'
+        ).order_by('stock_actual')
+        
+        # Calcular déficit
+        productos_bajo_stock_list = []
+        for p in productos_bajo_stock:
+            deficit = p['stock_minimo'] - p['stock_actual']
+            productos_bajo_stock_list.append({
+                **p,
+                'deficit': deficit,
+                'porcentaje_stock': round((p['stock_actual'] / p['stock_minimo'] * 100), 1) if p['stock_minimo'] > 0 else 0
+            })
+        
+        # ============================================================
+        # 6. PRODUCTOS SIN MOVIMIENTO (Últimos 30 días)
+        # ============================================================
+        
+        productos_con_movimiento = RegistroMovimiento.objects.filter(
+            timestamp__gte=hace_30_dias
+        ).values_list('producto_id', flat=True).distinct()
+        
+        productos_sin_movimiento = ProductoFijo.objects.exclude(
+            plu__in=productos_con_movimiento
+        ).annotate(
+            stock_actual=Count('stockbalde', filter=Q(stockbalde__is_activo=True))
+        ).filter(stock_actual__gt=0).values(
+            'plu', 'nombre', 'stock_actual'
+        )[:10]
+        
+        # ============================================================
+        # 7. GRÁFICO DE MOVIMIENTOS (Últimos 7 días)
+        # ============================================================
+        
+        movimientos_7_dias = []
+        for i in range(7):
+            dia = inicio_dia - timedelta(days=6-i)
+            dia_siguiente = dia + timedelta(days=1)
+            
+            movs = RegistroMovimiento.objects.filter(
+                timestamp__gte=dia,
+                timestamp__lt=dia_siguiente
+            ).aggregate(
+                ingresos=Count('id', filter=Q(tipo='ingreso')),
+                retiros=Count('id', filter=Q(tipo='salida')),
+                kg_ingresados=Sum('peso', filter=Q(tipo='ingreso')),
+                kg_retirados=Sum('peso', filter=Q(tipo='salida'))
+            )
+            
+            movimientos_7_dias.append({
+                'fecha': dia.strftime('%d/%m'),
+                'dia_completo': dia.strftime('%Y-%m-%d'),
+                'ingresos': movs['ingresos'] or 0,
+                'retiros': movs['retiros'] or 0,
+                'kg_ingresados': float(movs['kg_ingresados'] or 0),
+                'kg_retirados': float(movs['kg_retirados'] or 0)
+            })
+        
+        # ============================================================
+        # 8. DISTRIBUCIÓN POR GRUPO DE PRODUCTOS
+        # ============================================================
+        
+        grupos_productos = {
+            'jarabe': [
+                "LIMON", "FRUTILLA AL AGUA", "DURAZNO"
+            ],
+            'chocolates': [
+                "CHOCOLATE", "CHOCOLAE BLOCK", "CH. CABSHA", "CHOCO DUBAI",
+                "AMARGO", "CH. ALMENDRAS", "CH. PASAS RHUM", "CHOCOLAT PORTOFINO",
+                "CHOCOLATE INTENSO", "CHOCOLAT DEBILIDAD", "CHOC. BLANCO",
+                "ROCHER", "TOFFEE BLANCO"
+            ],
+            'dulces': [
+                "DCE LECHE", "DCE. LECHE NUEZ", "DCE. GRANIZADO", "SUPER DCE LECHE",
+                "DCE. VAUQUITA", "D. LECHE PORTOFINO", "DCE. LECHE COOKIES",
+                "BASE DULCE LECHE", "CHOCOTORTA"
+            ],
+            'blanca': [
+                "AMERICANA", "VAINILLA", "TRAMONTANA", "GRANIZADO",
+                "MENTA GRANIZADA", "CREMA FLAN", "FLAN MIXTO",
+                "FRUTOS DEL BOSQUE", "CREMA DEL CIELO", "PANNACOTA",
+                "MASCARPONE", "CHEESE CAKE", "CAPUCCINO", "OREO", "SNIKERS"
+            ],
+            'neutra': [
+                "CEREZA", "PISTACHO", "FRUTILLA CREMA", "BANANA SPLIT",
+                "MARACUYA", "ANANA AL CHANTILLY", "FRAMBUESA C/ CHOCO",
+                "KINOTOS AL WHISKY", "DURAZNOS AL OPORTO", "MANZANA VERDE",
+                "LEMON PIE", "LIMON C/MARACUYA", "FRAMBUESA C/CHOCO",
+                "HAVANETA LIMON"
+            ],
+            'zambayon': [
+                "SAMBAYON", "SAMBAYON PORTOFINO"
+            ],
+            'oleosa': [
+                "ALMENDRADO", "CREMA RUSA", "MARROC"
+            ],
+            'tortas': [
+                "TORTA ALMENDRADO", "TORTA CHOCOTORTA", "TORTA OREO",
+                "TORTA PANNACOTTA", "TORTA TRICOLOR"
+            ],
+            'barras': [
+                "BARRA ALMENDRADO", "BARRA CHOCOTORTA", "BARRA OREO",
+                "BARRA PANNACOTTA", "BARRA TRICOLOR"
+            ],
+            'gastronomico': [
+                "GASTRO"
+            ]
+        }
+
+        # Función para clasificar un producto
+        def clasificar_producto_exacto(nombre_producto):
+            """
+            Clasifica un producto buscando coincidencia exacta o parcial.
+            Primero busca coincidencia exacta, luego parcial.
+            """
+            nombre_upper = nombre_producto.upper().strip()
+            
+            # 1. Buscar coincidencia EXACTA
+            for grupo, nombres in grupos_productos.items():
+                for nombre_grupo in nombres:
+                    if nombre_upper == nombre_grupo.upper():
+                        return grupo
+            
+            # 2. Buscar coincidencia PARCIAL (contiene)
+            for grupo, nombres in grupos_productos.items():
+                for nombre_grupo in nombres:
+                    # Si el nombre del producto contiene el nombre del grupo
+                    if nombre_grupo.upper() in nombre_upper:
+                        return grupo
+                    # O si el nombre del grupo contiene el nombre del producto
+                    # (útil para nombres más largos en la base de datos)
+                    if nombre_upper in nombre_grupo.upper():
+                        return grupo
+            
+            return None
+
+        # Obtener todos los productos únicos con stock
+        productos_con_stock = (
+            StockBalde.objects
+            .filter(is_activo=True)
+            .values('producto__plu', 'producto__nombre')
+            .distinct()
+        )
+
+        # Inicializar contadores
+        distribucion_grupos = {grupo: 0 for grupo in grupos_productos.keys()}
+        productos_sin_clasificar = 0
+
+        # Clasificar cada producto y contar baldes
+        for p in productos_con_stock:
+            plu = p['producto__plu']
+            nombre = p['producto__nombre']
+            
+            # Contar cuántos baldes tiene este producto
+            cantidad = StockBalde.objects.filter(
+                is_activo=True,
+                producto__plu=plu
+            ).count()
+            
+            # Clasificar el producto
+            grupo = clasificar_producto_exacto(nombre)
+            
+            if grupo:
+                distribucion_grupos[grupo] += cantidad
+            else:
+                productos_sin_clasificar += cantidad
+
+        # Agregar "otros" solo si hay productos sin clasificar
+        if productos_sin_clasificar > 0:
+            distribucion_grupos['otros'] = productos_sin_clasificar
+
+        # Log para debugging (opcional)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"📊 Distribución de grupos: {distribucion_grupos}")
+        if productos_sin_clasificar > 0:
+            logger.warning(f"⚠️ {productos_sin_clasificar} baldes sin clasificar")
+        
+        # ============================================================
+        # 9. ACTIVIDAD POR HORA (Hoy)
+        # ============================================================
+        
+        actividad_horas = []
+        for hora in range(24):
+            inicio_hora = inicio_dia.replace(hour=hora)
+            fin_hora = inicio_hora + timedelta(hours=1)
+            
+            count = RegistroMovimiento.objects.filter(
+                timestamp__gte=inicio_hora,
+                timestamp__lt=fin_hora
+            ).count()
+            
+            actividad_horas.append({
+                'hora': f'{hora:02d}:00',
+                'movimientos': count
+            })
+        
+        # ============================================================
+        # 10. ORÍGENES Y DESTINOS MÁS USADOS
+        # ============================================================
+        
+        # Top orígenes (ingresos)
+        top_origenes = (
+            RegistroMovimiento.objects
+            .filter(tipo='ingreso', timestamp__gte=hace_30_dias)
+            .exclude(origen__isnull=True)
+            .exclude(origen='')
+            .values('origen')
+            .annotate(
+                cantidad=Count('id'),
+                kg_total=Sum('peso')
+            )
+            .order_by('-cantidad')[:5]
+        )
+        
+        # Top destinos (retiros)
+        top_destinos = (
+            RegistroMovimiento.objects
+            .filter(tipo='salida', timestamp__gte=hace_30_dias)
+            .exclude(boca_salida__isnull=True)
+            .exclude(boca_salida='')
+            .values('boca_salida')
+            .annotate(
+                cantidad=Count('id'),
+                kg_total=Sum('peso')
+            )
+            .order_by('-cantidad')[:5]
+        )
+        
+        # ============================================================
+        # 11. ESTADÍSTICAS DEL MES
+        # ============================================================
+        
+        stats_mes = RegistroMovimiento.objects.filter(
+            timestamp__gte=inicio_mes
+        ).aggregate(
+            total_ingresos=Count('id', filter=Q(tipo='ingreso')),
+            total_retiros=Count('id', filter=Q(tipo='salida')),
+            kg_ingresados=Sum('peso', filter=Q(tipo='ingreso')),
+            kg_retirados=Sum('peso', filter=Q(tipo='salida')),
+            peso_promedio=Avg('peso')
+        )
+        
+        # ============================================================
+        # 12. ÚLTIMOS MOVIMIENTOS AGRUPADOS
+        # ============================================================
+        
+        ultimos_movimientos = GrupoMovimiento.objects.all().order_by('-fecha')[:10]
+        ultimos_movimientos_list = []
+        
+        for grupo in ultimos_movimientos:
+            ultimos_movimientos_list.append({
+                'grupo_id': grupo.grupo_id,
+                'tipo': grupo.tipo,
+                'origen': grupo.origen or '',
+                'destino': grupo.destino.nombre if grupo.destino else '',
+                'total_peso': float(grupo.total_peso),
+                'cantidad_items': grupo.cantidad_items,
+                'fecha': grupo.fecha.strftime('%d/%m/%Y %H:%M')
+            })
+        
+        # ============================================================
+        # RESPUESTA JSON
+        # ============================================================
+        
+        response_data = {
+            'timestamp': timezone.now().isoformat(),
+            'resumen_general': {
+                'total_baldes': total_baldes,
+                'total_kilos': round(float(total_kilos), 2),
+                'valor_inventario': valor_inventario,
+                'productos_en_stock': productos_en_stock,
+            },
+            'movimientos_hoy': {
+                'ingresos': movimientos_hoy['ingresos'] or 0,
+                'retiros': movimientos_hoy['retiros'] or 0,
+                'kg_ingresados': round(float(movimientos_hoy['kg_ingresados'] or 0), 2),
+                'kg_retirados': round(float(movimientos_hoy['kg_retirados'] or 0), 2),
+                'cambio_ingresos': cambio_ingresos,
+                'cambio_retiros': cambio_retiros,
+            },
+            'top_productos': list(top_productos),
+            'productos_bajo_stock': productos_bajo_stock_list,
+            'productos_sin_movimiento': list(productos_sin_movimiento),
+            'movimientos_7_dias': movimientos_7_dias,
+            'distribucion_grupos': distribucion_grupos,
+            'actividad_horas': actividad_horas,
+            'top_origenes': list(top_origenes),
+            'top_destinos': list(top_destinos),
+            'estadisticas_mes': {
+                'total_ingresos': stats_mes['total_ingresos'] or 0,
+                'total_retiros': stats_mes['total_retiros'] or 0,
+                'kg_ingresados': round(float(stats_mes['kg_ingresados'] or 0), 2),
+                'kg_retirados': round(float(stats_mes['kg_retirados'] or 0), 2),
+                'peso_promedio': round(float(stats_mes['peso_promedio'] or 0), 2),
+            },
+            'ultimos_movimientos': ultimos_movimientos_list,
+        }
+        
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        import traceback
+        return JsonResponse({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
+    
+

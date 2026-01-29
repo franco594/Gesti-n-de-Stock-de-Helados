@@ -29,6 +29,9 @@
         background: rgba(0, 0, 0, 0.375); color:#fff;">v1.6.0</div>
     
         <div class="sidebar" id="sidebar">
+            <a href="{% url 'dashboard' %}">
+                <button id="configButton">Dashboard</button>
+            </a>
             <a href="{% url 'historial_movimientos' %}"><button id="historial-btn">Movimientos</button></a>
             <button id="configButton"  onclick="abrirModalStock()">Stock</button>
             <button id="configButton"  onclick="abrirModalCrearBoca('ingresar')">Origen</button>
@@ -354,6 +357,8 @@
                 <button onclick="cerrarModalStockMinimo()">Cancelar</button>
             </div>
         </div>
+    </div>
+
     </div>
 
     {% compress js %}

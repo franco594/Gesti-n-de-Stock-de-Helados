@@ -1571,3 +1571,623 @@ const SkeletonLoader = {
 
 // Exponer globalmente
 window.SkeletonLoader = SkeletonLoader;
+
+// dashboard.js - Lógica del Dashboard (VERSIÓN CORREGIDA)
+
+/**
+ * VARIABLES GLOBALES
+ */
+let dashboardData = null;
+let chartMovimientos = null;
+let chartDistribucion = null;
+let chartActividad = null;
+let autoRefreshInterval = null;
+let isAutoRefresh = false;
+
+/**
+ * CONFIGURACIÓN
+ */
+const CONFIG = {
+    API_URL: '/api/dashboard/metricas/',
+    REFRESH_INTERVAL: 60000, // 60 segundos
+    CHART_COLORS: {
+        ingreso: 'rgba(40, 167, 69, 0.8)',
+        ingresoLight: 'rgba(40, 167, 69, 0.2)',
+        retiro: 'rgba(220, 53, 69, 0.8)',
+        retiroLight: 'rgba(220, 53, 69, 0.2)',
+        primary: 'rgba(0, 86, 179, 0.8)',
+        primaryLight: 'rgba(0, 86, 179, 0.2)',
+    }
+};
+
+/**
+ * HELPER: Convertir a número seguro
+ */
+function toNumber(value, defaultValue = 0) {
+    const num = parseFloat(value);
+    return isNaN(num) ? defaultValue : num;
+}
+
+/**
+ * INICIALIZACIÓN
+ */
+function inicializarDashboard() {
+    console.log('🚀 Inicializando dashboard...');
+    cargarDatos();
+}
+
+/**
+ * CARGA DE DATOS DESDE LA API
+ */
+async function cargarDatos() {
+    mostrarLoading(true);
+    
+    try {
+        const response = await fetch(CONFIG.API_URL);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        dashboardData = await response.json();
+        console.log('✅ Datos cargados:', dashboardData);
+        
+        // Actualizar todos los componentes
+        actualizarResumenGeneral();
+        actualizarMovimientosHoy();
+        actualizarGraficos();
+        actualizarTopProductos();
+        actualizarAlertas();
+        actualizarUltimosMovimientos();
+        actualizarProductosSinMovimiento();
+        actualizarOrigenesDestinos();
+        
+        // Actualizar timestamp
+        const now = new Date();
+        document.getElementById('lastUpdate').textContent = 
+            now.toLocaleTimeString('es-AR', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        
+    } catch (error) {
+        console.error('❌ Error cargando datos:', error);
+        mostrarError('Error al cargar los datos del dashboard');
+    } finally {
+        mostrarLoading(false);
+    }
+}
+
+/**
+ * ACTUALIZAR RESUMEN GENERAL (KPIs)
+ */
+function actualizarResumenGeneral() {
+    const { resumen_general } = dashboardData;
+    
+    animarNumero('totalBaldes', resumen_general.total_baldes);
+    animarNumero('totalKilos', resumen_general.total_kilos);
+    animarNumero('productosEnStock', resumen_general.productos_en_stock);
+    
+    // Formatear valor del inventario
+    const valorFormateado = resumen_general.valor_inventario.toLocaleString('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+        minimumFractionDigits: 0
+    });
+    document.getElementById('valorInventario').textContent = valorFormateado;
+}
+
+/**
+ * ACTUALIZAR MOVIMIENTOS DE HOY
+ */
+function actualizarMovimientosHoy() {
+    const { movimientos_hoy } = dashboardData;
+    
+    document.getElementById('ingresosHoy').textContent = movimientos_hoy.ingresos;
+    document.getElementById('kgIngresadosHoy').textContent = toNumber(movimientos_hoy.kg_ingresados).toFixed(2);
+    
+    document.getElementById('retirosHoy').textContent = movimientos_hoy.retiros;
+    document.getElementById('kgRetiradosHoy').textContent = toNumber(movimientos_hoy.kg_retirados).toFixed(2);
+    
+    actualizarTendencia('trendIngresos', movimientos_hoy.cambio_ingresos);
+    actualizarTendencia('trendRetiros', movimientos_hoy.cambio_retiros);
+}
+
+/**
+ * ACTUALIZAR TENDENCIA
+ */
+function actualizarTendencia(elementId, cambio) {
+    const elemento = document.getElementById(elementId);
+    if (!elemento) return;
+    
+    let icono, clase, texto;
+    
+    if (cambio > 0) {
+        icono = '📈';
+        clase = 'trend-positive';
+        texto = `+${cambio}% vs ayer`;
+    } else if (cambio < 0) {
+        icono = '📉';
+        clase = 'trend-negative';
+        texto = `${cambio}% vs ayer`;
+    } else {
+        icono = '➡️';
+        clase = 'trend-neutral';
+        texto = 'Sin cambios vs ayer';
+    }
+    
+    elemento.className = `today-trend ${clase}`;
+    elemento.innerHTML = `
+        <span class="trend-icon">${icono}</span>
+        <span class="trend-text">${texto}</span>
+    `;
+}
+
+/**
+ * ACTUALIZAR GRÁFICOS
+ */
+function actualizarGraficos() {
+    crearGraficoMovimientos();
+    crearGraficoDistribucion();
+    crearGraficoActividad();
+}
+
+/**
+ * GRÁFICO DE MOVIMIENTOS (7 días)
+ */
+function crearGraficoMovimientos() {
+    const ctx = document.getElementById('chartMovimientos');
+    if (!ctx) return;
+    
+    const { movimientos_7_dias } = dashboardData;
+    
+    if (chartMovimientos) {
+        chartMovimientos.destroy();
+    }
+    
+    chartMovimientos = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: movimientos_7_dias.map(d => d.fecha),
+            datasets: [
+                {
+                    label: 'Ingresos',
+                    data: movimientos_7_dias.map(d => d.ingresos),
+                    borderColor: CONFIG.CHART_COLORS.ingreso,
+                    backgroundColor: CONFIG.CHART_COLORS.ingresoLight,
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Retiros',
+                    data: movimientos_7_dias.map(d => d.retiros),
+                    borderColor: CONFIG.CHART_COLORS.retiro,
+                    backgroundColor: CONFIG.CHART_COLORS.retiroLight,
+                    tension: 0.4,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(context) {
+                            const index = context.dataIndex;
+                            const kg = context.dataset.label === 'Ingresos' 
+                                ? movimientos_7_dias[index].kg_ingresados
+                                : movimientos_7_dias[index].kg_retirados;
+                            return `${toNumber(kg).toFixed(2)} kg`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * GRÁFICO DE DISTRIBUCIÓN
+ */
+function crearGraficoDistribucion() {
+    const ctx = document.getElementById('chartDistribucion');
+    if (!ctx) return;
+    
+    const { distribucion_grupos } = dashboardData;
+    
+    if (chartDistribucion) {
+        chartDistribucion.destroy();
+    }
+    
+    const labels = Object.keys(distribucion_grupos).map(k => 
+        k.charAt(0).toUpperCase() + k.slice(1)
+    );
+    const data = Object.values(distribucion_grupos);
+    
+    const colores = [
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(54, 162, 235, 0.8)',
+        'rgba(255, 206, 86, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(153, 102, 255, 0.8)',
+        'rgba(255, 159, 64, 0.8)',
+        'rgba(199, 199, 199, 0.8)',
+        'rgba(83, 102, 255, 0.8)',
+        'rgba(255, 99, 255, 0.8)'
+    ];
+    
+    chartDistribucion = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colores,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            return data.labels.map((label, i) => {
+                                const value = data.datasets[0].data[i];
+                                return {
+                                    text: `${label}: ${value}`,
+                                    fillStyle: data.datasets[0].backgroundColor[i],
+                                    hidden: false,
+                                    index: i
+                                };
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * GRÁFICO DE ACTIVIDAD POR HORA
+ */
+function crearGraficoActividad() {
+    const ctx = document.getElementById('chartActividad');
+    if (!ctx) return;
+    
+    const { actividad_horas } = dashboardData;
+    
+    if (chartActividad) {
+        chartActividad.destroy();
+    }
+    
+    chartActividad = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: actividad_horas.map(h => h.hora),
+            datasets: [{
+                label: 'Movimientos',
+                data: actividad_horas.map(h => h.movimientos),
+                backgroundColor: CONFIG.CHART_COLORS.primary,
+                borderColor: CONFIG.CHART_COLORS.primary,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * ACTUALIZAR TOP PRODUCTOS
+ */
+function actualizarTopProductos() {
+    const tbody = document.querySelector('#tableTopProductos tbody');
+    if (!tbody) return;
+    
+    const { top_productos } = dashboardData;
+    
+    if (!top_productos || top_productos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="no-data">No hay datos disponibles</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = top_productos.map((producto, index) => {
+        const totalKg = toNumber(producto.total_kg);
+        return `
+            <tr>
+                <td><strong>${index + 1}</strong></td>
+                <td>${producto.producto__nombre || 'Sin nombre'}</td>
+                <td>${producto.total_movimientos || 0}</td>
+                <td>${totalKg.toFixed(2)} kg</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+/**
+ * ACTUALIZAR ALERTAS
+ */
+function actualizarAlertas() {
+    const container = document.getElementById('alertasContainer');
+    const badge = document.getElementById('alertCount');
+    
+    if (!container || !badge) return;
+    
+    const { productos_bajo_stock } = dashboardData;
+    
+    badge.textContent = productos_bajo_stock ? productos_bajo_stock.length : 0;
+    
+    if (!productos_bajo_stock || productos_bajo_stock.length === 0) {
+        container.innerHTML = '<p class="no-data">Todo en orden 👍</p>';
+        return;
+    }
+    
+    container.innerHTML = productos_bajo_stock.map(p => {
+        const esCritica = p.porcentaje_stock < 50;
+        return `
+            <div class="alerta-item ${esCritica ? 'critica' : ''}">
+                <div class="alerta-content">
+                    <div class="alerta-producto">${p.nombre}</div>
+                    <div class="alerta-detalle">
+                        Stock: ${p.stock_actual} / ${p.stock_minimo} 
+                        (${p.porcentaje_stock}%)
+                    </div>
+                </div>
+                <span class="alerta-badge-small">-${p.deficit}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * ACTUALIZAR ÚLTIMOS MOVIMIENTOS
+ */
+function actualizarUltimosMovimientos() {
+    const container = document.getElementById('ultimosMovimientos');
+    if (!container) return;
+    
+    const { ultimos_movimientos } = dashboardData;
+    
+    if (!ultimos_movimientos || ultimos_movimientos.length === 0) {
+        container.innerHTML = '<p class="no-data">No hay movimientos recientes</p>';
+        return;
+    }
+    
+    container.innerHTML = ultimos_movimientos.map(m => {
+        const totalPeso = toNumber(m.total_peso);
+        return `
+            <div class="movement-item ${m.tipo}">
+                <div class="movement-info">
+                    <div class="movement-tipo">
+                        ${m.tipo === 'ingreso' ? '📥 Ingreso' : '📤 Retiro'}
+                        ${m.origen ? `desde ${m.origen}` : ''}
+                        ${m.destino ? `hacia ${m.destino}` : ''}
+                    </div>
+                    <div class="movement-detalle">
+                        Grupo #${m.grupo_id}
+                    </div>
+                    <div class="movement-fecha">${m.fecha}</div>
+                </div>
+                <div class="movement-stats">
+                    <div class="movement-peso">${totalPeso.toFixed(2)} kg</div>
+                    <div class="movement-items">${m.cantidad_items} items</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * ACTUALIZAR PRODUCTOS SIN MOVIMIENTO
+ */
+function actualizarProductosSinMovimiento() {
+    const container = document.getElementById('productosSinMovimiento');
+    if (!container) return;
+    
+    const { productos_sin_movimiento } = dashboardData;
+    
+    if (!productos_sin_movimiento || productos_sin_movimiento.length === 0) {
+        container.innerHTML = '<p class="no-data">Todos los productos tienen movimiento 👍</p>';
+        return;
+    }
+    
+    container.innerHTML = productos_sin_movimiento.map(p => `
+        <div class="product-badge">
+            <div class="product-name">${p.nombre}</div>
+            <div class="product-stock">Stock: ${p.stock_actual}</div>
+        </div>
+    `).join('');
+}
+
+/**
+ * ACTUALIZAR ORÍGENES Y DESTINOS
+ */
+function actualizarOrigenesDestinos() {
+    // Orígenes
+    const containerOrigenes = document.getElementById('topOrigenes');
+    if (containerOrigenes) {
+        const { top_origenes } = dashboardData;
+        
+        if (!top_origenes || top_origenes.length === 0) {
+            containerOrigenes.innerHTML = '<p class="no-data">No hay datos</p>';
+        } else {
+            containerOrigenes.innerHTML = top_origenes.map(o => {
+                const kgTotal = toNumber(o.kg_total);
+                return `
+                    <div class="list-item">
+                        <span class="list-item-name">${o.origen}</span>
+                        <div class="list-item-stats">
+                            <span>${o.cantidad} mov.</span>
+                            <span>${kgTotal.toFixed(2)} kg</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+    
+    // Destinos
+    const containerDestinos = document.getElementById('topDestinos');
+    if (containerDestinos) {
+        const { top_destinos } = dashboardData;
+        
+        if (!top_destinos || top_destinos.length === 0) {
+            containerDestinos.innerHTML = '<p class="no-data">No hay datos</p>';
+        } else {
+            containerDestinos.innerHTML = top_destinos.map(d => {
+                const kgTotal = toNumber(d.kg_total);
+                return `
+                    <div class="list-item">
+                        <span class="list-item-name">${d.boca_salida}</span>
+                        <div class="list-item-stats">
+                            <span>${d.cantidad} mov.</span>
+                            <span>${kgTotal.toFixed(2)} kg</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+
+/**
+ * UTILIDADES
+ */
+function animarNumero(elementId, valorFinal) {
+    const elemento = document.getElementById(elementId);
+    if (!elemento) return;
+    
+    const valorInicial = parseFloat(elemento.textContent) || 0;
+    const duracion = 1000;
+    const incremento = (valorFinal - valorInicial) / (duracion / 16);
+    
+    let valorActual = valorInicial;
+    
+    const intervalo = setInterval(() => {
+        valorActual += incremento;
+        
+        if ((incremento > 0 && valorActual >= valorFinal) || 
+            (incremento < 0 && valorActual <= valorFinal)) {
+            valorActual = valorFinal;
+            clearInterval(intervalo);
+        }
+        
+        if (elementId === 'totalKilos') {
+            elemento.textContent = valorActual.toFixed(2);
+        } else {
+            elemento.textContent = Math.round(valorActual);
+        }
+    }, 16);
+}
+
+function mostrarLoading(mostrar) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        if (mostrar) {
+            overlay.classList.add('active');
+        } else {
+            overlay.classList.remove('active');
+        }
+    }
+}
+
+function mostrarError(mensaje) {
+    console.error(mensaje);
+    alert(mensaje);
+}
+
+/**
+ * FUNCIONES PÚBLICAS
+ */
+function actualizarDashboard() {
+    console.log('🔄 Actualizando dashboard...');
+    cargarDatos();
+}
+
+function toggleAutoRefresh() {
+    isAutoRefresh = !isAutoRefresh;
+    const btn = document.getElementById('autoRefreshBtn');
+    
+    if (isAutoRefresh) {
+        btn.classList.add('active');
+        btn.title = 'Desactivar auto-actualización';
+        autoRefreshInterval = setInterval(cargarDatos, CONFIG.REFRESH_INTERVAL);
+        console.log('✅ Auto-refresh activado');
+    } else {
+        btn.classList.remove('active');
+        btn.title = 'Activar auto-actualización';
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+        console.log('❌ Auto-refresh desactivado');
+    }
+}
+
+// Exportar funciones
+window.inicializarDashboard = inicializarDashboard;
+window.actualizarDashboard = actualizarDashboard;
+window.toggleAutoRefresh = toggleAutoRefresh;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
