@@ -28,6 +28,9 @@
                     <button class="btn-icon" onclick="toggleAutoRefresh()" id="autoRefreshBtn" title="Auto-actualizar">
                         ⏱️
                     </button>
+                    <a href="{% url 'historial_movimientos' %}" class="btn-icon" id="btn-icon" title="Movimientos" style="margin-top: 10px;">
+                        📋
+                    </a>
                     <a href="{% url 'index' %}" class="btn-secondary">← Volver</a>
                 </div>
             </div>
@@ -130,24 +133,36 @@
         </section>
 
         <!-- Gráficos -->
-        <section class="charts-section">
+        <section class="chart-section" style="margin-bottom: 30px;">
+            
             <div class="chart-container">
-                <div class="chart-header">
-                    <h3>📈 Movimientos - Últimos 7 Días</h3>
-                    <div class="chart-legend">
-                        <span class="legend-item legend-ingreso">● Ingresos</span>
-                        <span class="legend-item legend-retiro">● Retiros</span>
+                <div class="card-header">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3>📈 Gráfico de Movimientos </h3>
+                        
+                        <!-- SELECTOR DE PERÍODO -->
+                        <div class="period-selector">
+                            <label for="periodo-selector" style="margin-right: 10px; font-weight: 600;">
+                                Ver:
+                            </label>
+                            <select id="periodo-selector" class="select-period">
+                                <option value="7dias">Últimos 7 días</option>
+                                <option value="30dias">Últimos 30 días</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-                <canvas id="chartMovimientos"></canvas>
-            </div>
 
-            <div class="chart-container">
-                <div class="chart-header">
-                    <h3>🥧 Distribución por Grupo</h3>
+                <div class="chart-grafico" style="height: 400px; padding: 20px;">
+                    <canvas id="chartMovimientos"></canvas>  <!-- ← ESTO ES LO IMPORTANTE -->
                 </div>
-                <canvas id="chartDistribucion"></canvas>
+
+                <div id="resumen-30dias" class="resumen-mes-container" style="display: none;"></div>
+                
             </div>
+            
+            <!-- RESUMEN DEL MES (se muestra solo cuando está seleccionado "Mes") -->
+            
         </section>
 
         <!-- Top Productos y Alertas -->

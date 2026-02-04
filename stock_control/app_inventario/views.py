@@ -288,7 +288,7 @@ def _print_group_if_enabled(grupo_id: int):
     except Exception:
         logger.exception("Error al imprimir ticket del grupo #%s (desde view)", grupo_id)
 
-
+@csrf_exempt
 def reimprimir_ticket(request, grupo_id: int):
     """
     Reimprime el comprobante del movimiento agrupado (grupo_id).
@@ -685,11 +685,11 @@ def historial_movimientos(request):
     totales_plus = None
     if detalle_por_plu:
         totales_plus = {
-            "detalle_por_plu": detalle_por_plu,
-            "total_baldes_retirados": sum(r["cant"] for r in detalle_por_plu),
-            "total_kg_retirados": sum((r["kg"] or 0) for r in detalle_por_plu),
-            "orden": orden,
-        }
+        "detalle_retiros": detalle_por_plu,  # ← Nombre específico para retiros
+        "total_baldes_retirados": sum(r["cant"] for r in detalle_por_plu),
+        "total_kg_retirados": sum((r["kg"] or 0) for r in detalle_por_plu),
+        "orden": orden,
+    }
 
     # ------------------------------------------------------------
     # Resumen de INGRESOS por PLU
@@ -711,8 +711,9 @@ def historial_movimientos(request):
     detalle_por_plu_ing = list(detalle_por_plu_ing_qs)
     totales_plus_ing = None
     if detalle_por_plu_ing:
+        # ✅ DESPUÉS (cambiar el nombre de la clave)
         totales_plus_ing = {
-            "detalle_por_plu": detalle_por_plu_ing,
+            "detalle_ingresos": detalle_por_plu_ing,  # ← Nombre específico para ingresos
             "total_baldes_ingresados": sum(r["cant"] for r in detalle_por_plu_ing),
             "total_kg_ingresados": sum((r["kg"] or 0) for r in detalle_por_plu_ing),
             "orden_ing": orden_ing,
@@ -1750,6 +1751,48 @@ def api_dashboard_metricas(request):
                 'kg_ingresados': float(movs['kg_ingresados'] or 0),
                 'kg_retirados': float(movs['kg_retirados'] or 0)
             })
+
+        # ============================================================
+        # 7B. GRÁFICO DE MOVIMIENTOS ÚLTIMOS 30 DÍAS
+        # ============================================================
+
+        movimientos_30_dias = []
+        for i in range(30):
+            dia = inicio_dia - timedelta(days=29-i)  # Empezar desde hace 29 días
+            dia_siguiente = dia + timedelta(days=1)
+            
+            movs = RegistroMovimiento.objects.filter(
+                timestamp__gte=dia,
+                timestamp__lt=dia_siguiente
+            ).aggregate(
+                ingresos=Count('id', filter=Q(tipo='ingreso')),
+                retiros=Count('id', filter=Q(tipo='salida')),
+                kg_ingresados=Sum('peso', filter=Q(tipo='ingreso')),
+                kg_retirados=Sum('peso', filter=Q(tipo='salida'))
+            )
+            
+            movimientos_30_dias.append({
+                'dia': i + 1,
+                'fecha': dia.strftime('%d/%m'),
+                'fecha_completa': dia.strftime('%Y-%m-%d'),
+                'ingresos': movs['ingresos'] or 0,
+                'retiros': movs['retiros'] or 0,
+                'kg_ingresados': float(movs['kg_ingresados'] or 0),
+                'kg_retirados': float(movs['kg_retirados'] or 0),
+                'es_hoy': dia.date() == hoy.date()
+            })
+
+        # Resumen de los últimos 30 días
+        resumen_30_dias = {
+            'total_dias': 30,
+            'total_ingresos': sum(m['ingresos'] for m in movimientos_30_dias),
+            'total_retiros': sum(m['retiros'] for m in movimientos_30_dias),
+            'total_kg_ingresados': sum(m['kg_ingresados'] for m in movimientos_30_dias),
+            'total_kg_retirados': sum(m['kg_retirados'] for m in movimientos_30_dias),
+            'promedio_ingresos_dia': round(sum(m['ingresos'] for m in movimientos_30_dias) / 30, 1),
+            'promedio_retiros_dia': round(sum(m['retiros'] for m in movimientos_30_dias) / 30, 1),
+            'periodo': 'Últimos 30 días'
+        }
         
         # ============================================================
         # 8. DISTRIBUCIÓN POR GRUPO DE PRODUCTOS
@@ -1870,6 +1913,51 @@ def api_dashboard_metricas(request):
         logger.info(f"📊 Distribución de grupos: {distribucion_grupos}")
         if productos_sin_clasificar > 0:
             logger.warning(f"⚠️ {productos_sin_clasificar} baldes sin clasificar")
+
+
+                # ← AQUÍ FALTA TODO ESTE CÓDIGO ↓
+
+        def clasificar_producto_exacto(nombre_producto):
+            """
+            Clasifica un producto en UN SOLO grupo (sin duplicación).
+            Retorna el nombre del grupo o None.
+            """
+            nombre_upper = nombre_producto.upper().strip()
+            
+            # 1. Primero buscar coincidencia EXACTA
+            for grupo, nombres in grupos_productos.items():
+                for nombre_grupo in nombres:
+                    if nombre_upper == nombre_grupo.upper():
+                        return grupo
+            
+            # 2. Luego buscar coincidencia PARCIAL (contiene)
+            for grupo, nombres in grupos_productos.items():
+                for nombre_grupo in nombres:
+                    if nombre_grupo.upper() in nombre_upper:
+                        return grupo
+            
+            return None
+
+        # Clasificar cada balde en su grupo (sin duplicación)
+        distribucion_grupos = {grupo: 0 for grupo in grupos_productos.keys()}
+        distribucion_grupos['otros'] = 0
+
+        baldes_activos = StockBalde.objects.filter(
+            is_activo=True
+        ).select_related('producto')
+
+        for balde in baldes_activos:
+            grupo = clasificar_producto_exacto(balde.producto.nombre)
+            if grupo:
+                distribucion_grupos[grupo] += 1
+            else:
+                distribucion_grupos['otros'] += 1
+
+        # Verificación (opcional, para debugging en consola)
+        suma_grupos = sum(distribucion_grupos.values())
+        if total_baldes != suma_grupos:
+            print(f"⚠️ Discrepancia: {total_baldes} baldes vs {suma_grupos} en gráfico")
+
         
         # ============================================================
         # 9. ACTIVIDAD POR HORA (Hoy)
@@ -1978,6 +2066,8 @@ def api_dashboard_metricas(request):
             'productos_bajo_stock': productos_bajo_stock_list,
             'productos_sin_movimiento': list(productos_sin_movimiento),
             'movimientos_7_dias': movimientos_7_dias,
+            'movimientos_30_dias': movimientos_30_dias,  # ← NUEVO
+            'resumen_30_dias': resumen_30_dias,          # ← NUEVO
             'distribucion_grupos': distribucion_grupos,
             'actividad_horas': actividad_horas,
             'top_origenes': list(top_origenes),

@@ -1608,18 +1608,11 @@ function toNumber(value, defaultValue = 0) {
     return isNaN(num) ? defaultValue : num;
 }
 
-/**
- * INICIALIZACIÓN
- */
-function inicializarDashboard() {
-    console.log('🚀 Inicializando dashboard...');
-    cargarDatos();
-}
 
 /**
- * CARGA DE DATOS DESDE LA API
+ * CARGA DE DATOS DESDE LA API (RENOMBRADA)
  */
-async function cargarDatos() {
+async function cargarDashboard() {
     mostrarLoading(true);
     
     try {
@@ -1642,14 +1635,31 @@ async function cargarDatos() {
         actualizarProductosSinMovimiento();
         actualizarOrigenesDestinos();
         
+        // Mostrar/ocultar resumen del mes según selección
+        const selector = document.getElementById('periodo-selector');
+        const resumen30 = document.getElementById('resumen-30dias');
+        
+        if (selector && resumen30) {
+            if (selector.value === '30dias') {
+                resumen30.style.display = 'block';
+                if (dashboardData.resumen_30_dias) {
+                    actualizarResumen30Dias(dashboardData.resumen_30_dias);
+                }
+            } else {
+                resumen30.style.display = 'none';
+            }
+        }
+        
         // Actualizar timestamp
         const now = new Date();
-        document.getElementById('lastUpdate').textContent = 
-            now.toLocaleTimeString('es-AR', { 
+        const lastUpdateEl = document.getElementById('lastUpdate');
+        if (lastUpdateEl) {
+            lastUpdateEl.textContent = now.toLocaleTimeString('es-AR', { 
                 hour: '2-digit', 
                 minute: '2-digit',
                 second: '2-digit'
             });
+        }
         
     } catch (error) {
         console.error('❌ Error cargando datos:', error);
@@ -1658,6 +1668,9 @@ async function cargarDatos() {
         mostrarLoading(false);
     }
 }
+
+// Alias para compatibilidad
+const cargarDatos = cargarDashboard;
 
 /**
  * ACTUALIZAR RESUMEN GENERAL (KPIs)
@@ -1734,14 +1747,44 @@ function actualizarGraficos() {
 }
 
 /**
- * GRÁFICO DE MOVIMIENTOS (7 días)
+
+/**
+ * ACTUALIZAR GRÁFICOS
+ */
+function actualizarGraficos() {
+    crearGraficoMovimientos();
+    crearGraficoDistribucion();
+    crearGraficoActividad();
+}
+
+/**
+ * GRÁFICO DE MOVIMIENTOS (con selector de período)
  */
 function crearGraficoMovimientos() {
     const ctx = document.getElementById('chartMovimientos');
     if (!ctx) return;
     
-    const { movimientos_7_dias } = dashboardData;
+    // Verificar qué período está seleccionado
+    const periodoSelector = document.getElementById('periodo-selector');
+    const periodo = periodoSelector ? periodoSelector.value : '7dias';
     
+    let labels, dataIngresos, dataRetiros, tooltipData;
+    
+    if (periodo === '30dias' && dashboardData.movimientos_30_dias) {
+        // Últimos 30 días
+        labels = dashboardData.movimientos_30_dias.map(m => m.fecha);
+        dataIngresos = dashboardData.movimientos_30_dias.map(m => m.ingresos);
+        dataRetiros = dashboardData.movimientos_30_dias.map(m => m.retiros);
+        tooltipData = dashboardData.movimientos_30_dias;
+    } else {
+        // Últimos 7 días
+        labels = dashboardData.movimientos_7_dias.map(m => m.fecha);
+        dataIngresos = dashboardData.movimientos_7_dias.map(m => m.ingresos);
+        dataRetiros = dashboardData.movimientos_7_dias.map(m => m.retiros);
+        tooltipData = dashboardData.movimientos_7_dias;
+    }
+    
+    // Destruir gráfico anterior si existe
     if (chartMovimientos) {
         chartMovimientos.destroy();
     }
@@ -1749,23 +1792,25 @@ function crearGraficoMovimientos() {
     chartMovimientos = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: movimientos_7_dias.map(d => d.fecha),
+            labels: labels,
             datasets: [
                 {
                     label: 'Ingresos',
-                    data: movimientos_7_dias.map(d => d.ingresos),
+                    data: dataIngresos,
                     borderColor: CONFIG.CHART_COLORS.ingreso,
                     backgroundColor: CONFIG.CHART_COLORS.ingresoLight,
                     tension: 0.4,
-                    fill: true
+                    fill: true,
+                    borderWidth: 2
                 },
                 {
                     label: 'Retiros',
-                    data: movimientos_7_dias.map(d => d.retiros),
+                    data: dataRetiros,
                     borderColor: CONFIG.CHART_COLORS.retiro,
                     backgroundColor: CONFIG.CHART_COLORS.retiroLight,
                     tension: 0.4,
-                    fill: true
+                    fill: true,
+                    borderWidth: 2
                 }
             ]
         },
@@ -1774,15 +1819,22 @@ function crearGraficoMovimientos() {
             maintainAspectRatio: true,
             plugins: {
                 legend: {
-                    display: false
+                    display: true,
+                    position: 'top'
+                },
+                title: {
+                    display: true,
+                    text: periodo === '30dias' 
+                        ? 'Movimientos de los Últimos 30 Días' 
+                        : 'Movimientos Últimos 7 Días'
                 },
                 tooltip: {
                     callbacks: {
                         afterLabel: function(context) {
                             const index = context.dataIndex;
                             const kg = context.dataset.label === 'Ingresos' 
-                                ? movimientos_7_dias[index].kg_ingresados
-                                : movimientos_7_dias[index].kg_retirados;
+                                ? tooltipData[index].kg_ingresados
+                                : tooltipData[index].kg_retirados;
                             return `${toNumber(kg).toFixed(2)} kg`;
                         }
                     }
@@ -1792,7 +1844,8 @@ function crearGraficoMovimientos() {
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        stepSize: 1
+                        stepSize: 1,
+                        precision: 0
                     }
                 }
             }
@@ -2086,6 +2139,48 @@ function actualizarOrigenesDestinos() {
 }
 
 /**
+ * ACTUALIZAR RESUMEN DEL MES
+ */
+function actualizarResumen30Dias(resumen) {
+    const contenedor = document.getElementById('resumen-30dias');
+    if (!contenedor || !resumen) return;
+    
+    contenedor.style.display = 'block';
+    contenedor.innerHTML = `
+        <div class="resumen-mes-grid">
+            <div class="resumen-item">
+                <span class="resumen-label">📅 Días transcurridos:</span>
+                <span class="resumen-value">${resumen.total_dias}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📥 Total Ingresos:</span>
+                <span class="resumen-value text-success">${resumen.total_ingresos}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📤 Total Retiros:</span>
+                <span class="resumen-value text-danger">${resumen.total_retiros}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📊 Promedio/día (Ingresos):</span>
+                <span class="resumen-value">${resumen.promedio_ingresos_dia}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📊 Promedio/día (Retiros):</span>
+                <span class="resumen-value">${resumen.promedio_retiros_dia}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">⚖️ Total kg Ingresados:</span>
+                <span class="resumen-value">${toNumber(resumen.total_kg_ingresados).toFixed(2)} kg</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">⚖️ Total kg Retirados:</span>
+                <span class="resumen-value">${toNumber(resumen.total_kg_retirados).toFixed(2)} kg</span>
+            </div>
+        </div>
+    `;
+}
+
+/**
  * UTILIDADES
  */
 function animarNumero(elementId, valorFinal) {
@@ -2139,15 +2234,28 @@ function actualizarDashboard() {
     cargarDatos();
 }
 
+/**
+ * FUNCIONES PÚBLICAS
+ */
+function actualizarDashboard() {
+    console.log('🔄 Actualizando dashboard...');
+    cargarDashboard();
+}
+
 function toggleAutoRefresh() {
     isAutoRefresh = !isAutoRefresh;
     const btn = document.getElementById('autoRefreshBtn');
     
+    if (!btn) return;
+    
     if (isAutoRefresh) {
         btn.classList.add('active');
         btn.title = 'Desactivar auto-actualización';
-        autoRefreshInterval = setInterval(cargarDatos, CONFIG.REFRESH_INTERVAL);
+        autoRefreshInterval = setInterval(cargarDashboard, CONFIG.REFRESH_INTERVAL);
         console.log('✅ Auto-refresh activado');
+        if (window.Toast) {
+            window.Toast.info('Auto-actualización activada');
+        }
     } else {
         btn.classList.remove('active');
         btn.title = 'Activar auto-actualización';
@@ -2156,38 +2264,33 @@ function toggleAutoRefresh() {
             autoRefreshInterval = null;
         }
         console.log('❌ Auto-refresh desactivado');
+        if (window.Toast) {
+            window.Toast.info('Auto-actualización desactivada');
+        }
     }
 }
 
-// Exportar funciones
+/**
+ * INICIALIZACIÓN DEL DASHBOARD
+ */
+function inicializarDashboard() {
+    console.log('🚀 Inicializando dashboard...');
+    
+    // Event listener para el selector de período
+    const selector = document.getElementById('periodo-selector');
+    if (selector) {
+        selector.addEventListener('change', function() {
+            console.log('📊 Cambiando período a:', this.value);
+            cargarDashboard();
+        });
+    }
+    
+    // Carga inicial
+    cargarDashboard();
+}
+
+// Exportar funciones globales
 window.inicializarDashboard = inicializarDashboard;
 window.actualizarDashboard = actualizarDashboard;
+window.cargarDashboard = cargarDashboard;
 window.toggleAutoRefresh = toggleAutoRefresh;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
