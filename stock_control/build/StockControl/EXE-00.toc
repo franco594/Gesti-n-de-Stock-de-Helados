@@ -4,7 +4,7 @@
  False,
  True,
  'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
- 'Helados\\venv\\Lib\\site-packages\\PyInstaller\\bootloader\\images\\icon-console.ico',
+ 'Helados\\stock_control\\venv\\Lib\\site-packages\\PyInstaller\\bootloader\\images\\icon-console.ico',
  None,
  False,
  False,
@@ -60,27 +60,39 @@
    'PYMODULE'),
   ('pyiboot01_bootstrap',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
-   'Helados\\venv\\Lib\\site-packages\\PyInstaller\\loader\\pyiboot01_bootstrap.py',
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PyInstaller\\loader\\pyiboot01_bootstrap.py',
    'PYSOURCE'),
   ('pyi_rth_inspect',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
-   'Helados\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_inspect.py',
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_inspect.py',
    'PYSOURCE'),
-  ('pyi_rth_multiprocessing',
+  ('pyi_rth_usb',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
-   'Helados\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_multiprocessing.py',
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks\\pyi_rth_usb.py',
    'PYSOURCE'),
   ('pyi_rth_setuptools',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
-   'Helados\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_setuptools.py',
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_setuptools.py',
    'PYSOURCE'),
   ('pyi_rth_pkgutil',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
-   'Helados\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_pkgutil.py',
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_pkgutil.py',
+   'PYSOURCE'),
+  ('pyi_rth_multiprocessing',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_multiprocessing.py',
+   'PYSOURCE'),
+  ('pyi_rth_pkgres',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_pkgres.py',
+   'PYSOURCE'),
+  ('pyi_rth_pywintypes',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\rthooks\\pyi_rth_pywintypes.py',
    'PYSOURCE'),
   ('pyi_rth_django',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
-   'Helados\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_django.py',
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_django.py',
    'PYSOURCE'),
   ('run',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
@@ -89,9 +101,9 @@
  [],
  False,
  False,
- 1768806522,
+ 1770414620,
  [('run.exe',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
-   'Helados\\venv\\Lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\run.exe',
+   'Helados\\stock_control\\venv\\Lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit-intel\\run.exe',
    'EXECUTABLE')],
  'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\python312.dll')
