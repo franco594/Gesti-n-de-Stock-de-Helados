@@ -1598,12 +1598,17 @@ def api_dashboard_metricas(request):
     """
     API que devuelve todas las métricas para el dashboard
     """
+    
     try:
+        # Obtener parámetros de fecha (opcional)
+        fecha_desde_str = request.GET.get('desde')
+        fecha_hasta_str = request.GET.get('hasta')
         hoy = timezone.now()
         inicio_dia = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
         hace_7_dias = hoy - timedelta(days=7)
         hace_30_dias = hoy - timedelta(days=30)
         inicio_mes = hoy.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
         
         # ============================================================
         # 1. RESUMEN GENERAL
@@ -1794,6 +1799,66 @@ def api_dashboard_metricas(request):
             'periodo': 'Últimos 30 días'
         }
         
+
+        # ✅ NUEVO: Movimientos período custom
+        movimientos_custom = None
+        resumen_custom = None
+        
+        if fecha_desde_str and fecha_hasta_str:
+            try:
+                from datetime import datetime
+                
+                # Parsear fechas
+                fecha_desde = datetime.strptime(fecha_desde_str, '%Y-%m-%d')
+                fecha_hasta = datetime.strptime(fecha_hasta_str, '%Y-%m-%d')
+                
+                # Hacer aware (con timezone)
+                fecha_desde = timezone.make_aware(fecha_desde.replace(hour=0, minute=0, second=0))
+                fecha_hasta = timezone.make_aware(fecha_hasta.replace(hour=23, minute=59, second=59))
+                
+                # Calcular días
+                diff_days = (fecha_hasta.date() - fecha_desde.date()).days + 1
+                
+                # Generar datos día por día
+                movimientos_custom = []
+                for i in range(diff_days):
+                    dia = fecha_desde + timedelta(days=i)
+                    dia_siguiente = dia + timedelta(days=1)
+                    
+                    movs = RegistroMovimiento.objects.filter(
+                        timestamp__gte=dia,
+                        timestamp__lt=dia_siguiente
+                    ).aggregate(
+                        ingresos=Count('id', filter=Q(tipo='ingreso')),
+                        retiros=Count('id', filter=Q(tipo='salida')),
+                        kg_ingresados=Sum('peso', filter=Q(tipo='ingreso')),
+                        kg_retirados=Sum('peso', filter=Q(tipo='salida'))
+                    )
+                    
+                    movimientos_custom.append({
+                        'dia': i + 1,
+                        'fecha': dia.strftime('%d/%m'),
+                        'fecha_completa': dia.strftime('%Y-%m-%d'),
+                        'ingresos': movs['ingresos'] or 0,
+                        'retiros': movs['retiros'] or 0,
+                        'kg_ingresados': float(movs['kg_ingresados'] or 0),
+                        'kg_retirados': float(movs['kg_retirados'] or 0),
+                        'es_hoy': dia.date() == hoy.date()
+                    })
+                
+                # Resumen del período custom
+                resumen_custom = {
+                    'total_dias': diff_days,
+                    'total_ingresos': sum(m['ingresos'] for m in movimientos_custom),
+                    'total_retiros': sum(m['retiros'] for m in movimientos_custom),
+                    'total_kg_ingresados': sum(m['kg_ingresados'] for m in movimientos_custom),
+                    'total_kg_retirados': sum(m['kg_retirados'] for m in movimientos_custom),
+                    'periodo': f'{fecha_desde_str} a {fecha_hasta_str}'
+                }
+                
+            except Exception as e:
+                print(f"Error procesando fechas custom: {e}")
+
         # ============================================================
         # 8. DISTRIBUCIÓN POR GRUPO DE PRODUCTOS
         # ============================================================
@@ -2068,6 +2133,9 @@ def api_dashboard_metricas(request):
             'movimientos_7_dias': movimientos_7_dias,
             'movimientos_30_dias': movimientos_30_dias,  # ← NUEVO
             'resumen_30_dias': resumen_30_dias,          # ← NUEVO
+            # ✅ Agregar datos custom
+            'movimientos_custom': movimientos_custom,
+            'resumen_custom': resumen_custom,
             'distribucion_grupos': distribucion_grupos,
             'actividad_horas': actividad_horas,
             'top_origenes': list(top_origenes),

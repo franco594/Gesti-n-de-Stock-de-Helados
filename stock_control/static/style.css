@@ -2303,6 +2303,7 @@ td input {
     padding: 25px;
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-md);
+    margin-bottom: 30px;
 }
 
 .chart-grafico {
@@ -3448,6 +3449,7 @@ canvas {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 15px;
+    margin-bottom: 30px;
 }
 
 .resumen-item {
@@ -3496,3 +3498,149 @@ canvas {
         grid-template-columns: 1fr;
     }
 }
+
+
+
+/* Controles de período custom */
+.period-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+}
+
+.period-selector {
+    display: flex;
+    align-items: center;
+}
+
+.select-period {
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: 600;
+    color: #343a40;
+}
+
+.select-period:hover {
+    border-color: #0056b3;
+}
+
+.select-period:focus {
+    outline: none;
+    border-color: #0056b3;
+    box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1);
+}
+
+/* Fechas personalizadas */
+.custom-dates {
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.date-inputs {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.date-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.date-input-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #666;
+}
+
+.date-input {
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: inherit;
+}
+
+.date-input:hover {
+    border-color: #0056b3;
+}
+
+.date-input:focus {
+    outline: none;
+    border-color: #0056b3;
+    box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1);
+}
+
+.btn-apply {
+    padding: 8px 16px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+}
+
+.btn-apply:hover {
+    background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.btn-apply:active {
+    transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .period-controls {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .period-selector {
+        width: 100%;
+    }
+    
+    .select-period {
+        width: 100%;
+    }
+    
+    .date-inputs {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .date-input-group {
+        width: 100%;
+    }
+    
+    .date-input,
+    .btn-apply {
+        width: 100%;
+    }
+}
+

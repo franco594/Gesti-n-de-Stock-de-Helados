@@ -133,14 +133,13 @@
         </section>
 
         <!-- Gráficos -->
-        <section class="chart-section" style="margin-bottom: 30px;">
-            
-            <div class="chart-container">
-                <div class="card-header">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h3>📈 Gráfico de Movimientos </h3>
-                        
-                        <!-- SELECTOR DE PERÍODO -->
+        <section class="chart-section">
+            <div class="card-header">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <h3>📈 Gráfico de Movimientos</h3>
+                    
+                    <div class="period-controls">
+                        <!-- Selector de período rápido -->
                         <div class="period-selector">
                             <label for="periodo-selector" style="margin-right: 10px; font-weight: 600;">
                                 Ver:
@@ -148,21 +147,46 @@
                             <select id="periodo-selector" class="select-period">
                                 <option value="7dias">Últimos 7 días</option>
                                 <option value="30dias">Últimos 30 días</option>
+                                <option value="custom">📅 Personalizado</option>
                             </select>
+                        </div>
+                        
+                        <!-- Fechas personalizadas (ocultas por defecto) -->
+                        <div id="custom-dates" class="custom-dates" style="display: none;">
+                            <div class="date-inputs">
+                                <div class="date-input-group">
+                                    <label for="fecha-desde">Desde:</label>
+                                    <input 
+                                        type="date" 
+                                        id="fecha-desde" 
+                                        class="date-input"
+                                    >
+                                </div>
+                                <div class="date-input-group">
+                                    <label for="fecha-hasta">Hasta:</label>
+                                    <input 
+                                        type="date" 
+                                        id="fecha-hasta" 
+                                        class="date-input"
+                                    >
+                                </div>
+                                <button 
+                                    onclick="aplicarPeriodoCustom()" 
+                                    class="btn-apply"
+                                >
+                                    ✓ Aplicar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-
-                <div class="chart-grafico" style="height: 400px; padding: 20px;">
-                    <canvas id="chartMovimientos"></canvas>  <!-- ← ESTO ES LO IMPORTANTE -->
-                </div>
-
-                <div id="resumen-30dias" class="resumen-mes-container" style="display: none;"></div>
-                
             </div>
             
-            <!-- RESUMEN DEL MES (se muestra solo cuando está seleccionado "Mes") -->
+            <div class="chart-container">
+                <canvas id="chartMovimientos"></canvas>
+            </div>
             
+            <div id="resumen-30dias" style="display: none;"></div>
         </section>
 
         <!-- Top Productos y Alertas -->
