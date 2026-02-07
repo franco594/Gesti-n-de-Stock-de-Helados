@@ -1,41 +1,25 @@
 "use strict";
 /**
- * index.js — App de Gestión de Stock (Frontend)
+ * index.js – App de Gestión de Stock (Frontend)
  * ------------------------------------------------------------
- * Propósito: manejar UI, escaneo de códigos de barras, modales y
- * comunicación con endpoints Django.
- *
- * Cambios clave en este refactor:
- *  - Estructura por secciones y utilidades reutilizables (DOM, fetch, UI).
- *  - Reemplazo de .then() por async/await para mayor legibilidad.
- *  - Validaciones defensivas de elementos del DOM.
- *  - Consolidación de listeners duplicados y setInterval con early exit.
- *  - Exposición explícita en window de funciones que se usan desde HTML.
- *  - Correcciones menores (p. ej., endpoint sin "/" inicial en actualizarProductosEscaneados).
- *
- * Posibles mejoras (TODO):
- *  - Centralizar estado en un Store (Patrón Observer) para evitar múltiples fetches.
- *  - Reemplazar polling (setInterval) por Server‑Sent Events/WebSocket o señales de UI.
- *  - Manejo offline más robusto (Background Sync; colas de requests;
- *    cache de catálogo/stock en IndexedDB).
- *  - Migrar chips de bocas/orígenes a <button type="button"> con
- *    event delegation en lugar de onClick inline.
- *  - Tipado con JSDoc/TypeScript para prevenir errores de datos.
- *  - Unificar render de tablas (general vs grupos) con una sola función
- *    parametrizable.
- *  - Accesibilidad (focus management en modales; ARIA attributes).
+ * VERSIÓN OPTIMIZADA con:
+ * - Sistema de notificaciones Toast
+ * - Loading states en botones
+ * - Feedback visual al escanear
+ * - Polling reducido (2 segundos)
+ * - Código refactorizado y comentado
  */
 
 /********************
  * 1) Estado global *
  ********************/
-let productosEscaneados = [];                // Lista corriente de productos en sesión
-let modo = "";                               // "ingresar" | "retirar"
-let modalAbierta = false;                    // Controla si el escaneo está habilitado
-let faltantesSet = new Set();                // Productos sin stock suficiente (solo retiro)
-let tipoActualCrear = "";                    // Contexto para modal de creación (retirar|ingresar)
-let bocaSeleccionada = "";                   // Última boca/origen seleccionado
-let deferredPrompt = null;                   // PWA install prompt
+let productosEscaneados = [];
+let modo = "";
+let modalAbierta = false;
+let faltantesSet = new Set();
+let tipoActualCrear = "";
+let bocaSeleccionada = "";
+let deferredPrompt = null;
 
 /********************************
  * 2) Constantes y selectores   *
@@ -47,8 +31,8 @@ const SELECTORS = {
   contenedorRetirar: "#contenedor-input-retirar",
   stockTable: "#stockTable",
   vistaGrupos: "#vistaGrupos",
-  modalPrefix: "#modal-", // se concatena con tipo
-  modalContentPrefix: "#modal-content-", // idem
+  modalPrefix: "#modal-",
+  modalContentPrefix: "#modal-content-",
   modalConfirmacion: "#modal-confirmacion",
   mensajeConfirmacion: "#mensajeConfirmacion",
   modalDenegado: "#modal-denegado",
@@ -64,7 +48,6 @@ const SELECTORS = {
   mensajeError: "#mensaje-error",
 };
 
-// Endpoints (centralizados)
 const API = {
   reiniciarLista: "/api/reiniciar_lista_temporal/",
   obtenerTemporales: "/api/obtener_productos_temporales/",
@@ -73,7 +56,7 @@ const API = {
   confirmarRetiro: "/api/confirmar_retiro/",
   obtenerStock: "/api/obtener_stock/",
   stockDetallado: "/api/stock_detallado/",
-  obtenerCodigos: "/api/obtener_codigos", // corregido (agregar "/" si falta en backend)
+  obtenerCodigos: "/api/obtener_codigos/",
   obtenerBocas: "/api/obtener_bocas_salida/",
   obtenerOrigenes: "/api/obtener_origenes/",
   crearBoca: "/api/crear_boca_salida/",
@@ -112,8 +95,8 @@ function setDisabled(el, disabled) {
 
 async function getJSON(url) {
   const res = await fetch(url);
-  // defensivo: intentar JSON, y si falla, retornar objeto con error
-  try { return await res.json(); } catch { return { error: true, status: res.status }; }
+  try { return await res.json(); } 
+  catch { return { error: true, status: res.status }; }
 }
 
 async function postJSON(url, bodyObj) {
@@ -122,11 +105,264 @@ async function postJSON(url, bodyObj) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(bodyObj ?? {}),
   });
-  try { return await res.json(); } catch { return { error: true, status: res.status }; }
+  try { return await res.json(); } 
+  catch { return { error: true, status: res.status }; }
 }
 
 /********************************
- * 4) Service Worker / PWA      *
+ * 4) Sistema Toast             *
+ ********************************/
+const ToastSystem = {
+  container: null,
+  
+  init() {
+    this.container = document.getElementById('toast-container');
+    if (!this.container) {
+      console.warn('Toast container no encontrado. Creando...');
+      this.container = document.createElement('div');
+      this.container.id = 'toast-container';
+      this.container.className = 'toast-container';
+      document.body.appendChild(this.container);
+    }
+  },
+  
+  show(message, type = 'success', duration = 3000, title = null) {
+    if (!this.container) this.init();
+    
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    const icon = this.getIcon(type);
+    const toastTitle = title || this.getDefaultTitle(type);
+    
+    toast.innerHTML = `
+      <div class="toast-icon">${icon}</div>
+      <div class="toast-content">
+        <div class="toast-title">${toastTitle}</div>
+        <div class="toast-message">${message}</div>
+      </div>
+      <button class="toast-close" aria-label="Cerrar">×</button>
+    `;
+    
+    const closeBtn = toast.querySelector('.toast-close');
+    closeBtn.addEventListener('click', () => this.remove(toast));
+    
+    this.container.appendChild(toast);
+    
+    if (duration > 0) {
+      setTimeout(() => this.remove(toast), duration);
+    }
+    
+    return toast;
+  },
+  
+  remove(toast) {
+    if (!toast || !toast.parentElement) return;
+    
+    toast.classList.add('removing');
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.remove();
+      }
+    }, 300);
+  },
+  
+  getIcon(type) {
+    const icons = {
+      success: '✓',
+      error: '✕',
+      warning: '⚠',
+      info: 'ℹ'
+    };
+    return icons[type] || icons.info;
+  },
+  
+  getDefaultTitle(type) {
+    const titles = {
+      success: 'Éxito',
+      error: 'Error',
+      warning: 'Advertencia',
+      info: 'Información'
+    };
+    return titles[type] || 'Notificación';
+  },
+  
+  success(message, title = null, duration = 3000) {
+    return this.show(message, 'success', duration, title);
+  },
+  
+  error(message, title = null, duration = 4000) {
+    return this.show(message, 'error', duration, title);
+  },
+  
+  warning(message, title = null, duration = 3500) {
+    return this.show(message, 'warning', duration, title);
+  },
+  
+  info(message, title = null, duration = 3000) {
+    return this.show(message, 'info', duration, title);
+  }
+};
+
+window.Toast = ToastSystem;
+
+/********************************
+ * 4.5) Sistema ConfirmDialog   *
+ ********************************/
+const ConfirmDialog = {
+  modal: null,
+  titleEl: null,
+  messageEl: null,
+  acceptBtn: null,
+  cancelBtn: null,
+  dialogEl: null,
+  
+  init() {
+    this.modal = document.getElementById('confirm-dialog');
+    this.titleEl = document.getElementById('confirm-title');
+    this.messageEl = document.getElementById('confirm-message');
+    this.acceptBtn = document.getElementById('confirm-accept');
+    this.cancelBtn = document.getElementById('confirm-cancel');
+    this.dialogEl = this.modal?.querySelector('.confirm-dialog');
+    
+    if (!this.modal) {
+      console.warn('Confirm dialog no encontrado. Creando...');
+      this.createModal();
+    }
+  },
+  
+  createModal() {
+    const modal = document.createElement('div');
+    modal.id = 'confirm-dialog';
+    modal.className = 'modal';
+    modal.style.display = 'none';
+    modal.innerHTML = `
+      <div class="modal-content confirm-dialog">
+        <div class="confirm-icon">⚠️</div>
+        <h3 id="confirm-title" class="confirm-title">Confirmar acción</h3>
+        <p id="confirm-message" class="confirm-message">¿Estás seguro?</p>
+        <div class="confirm-buttons">
+          <button id="confirm-cancel" class="btn-secondary">Cancelar</button>
+          <button id="confirm-accept" class="btn-primary">Aceptar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    
+    this.modal = modal;
+    this.titleEl = document.getElementById('confirm-title');
+    this.messageEl = document.getElementById('confirm-message');
+    this.acceptBtn = document.getElementById('confirm-accept');
+    this.cancelBtn = document.getElementById('confirm-cancel');
+    this.dialogEl = modal.querySelector('.confirm-dialog');
+  },
+  
+  show(options = {}) {
+    if (!this.modal) this.init();
+    
+    const {
+      title = 'Confirmar acción',
+      message = '¿Estás seguro?',
+      icon = '⚠️',
+      acceptText = 'Aceptar',
+      cancelText = 'Cancelar',
+      type = 'warning',
+    } = options;
+    
+    return new Promise((resolve) => {
+      this.titleEl.textContent = title;
+      this.messageEl.textContent = message;
+      this.acceptBtn.textContent = acceptText;
+      this.cancelBtn.textContent = cancelText;
+      
+      const iconEl = this.dialogEl.querySelector('.confirm-icon');
+      if (iconEl) iconEl.textContent = icon;
+      
+      this.dialogEl.className = `modal-content confirm-dialog ${type}`;
+      
+      this.modal.style.display = 'flex';
+      
+      const handleAccept = () => {
+        this.hide();
+        resolve(true);
+      };
+      
+      const handleCancel = () => {
+        this.hide();
+        resolve(false);
+      };
+      
+      const newAcceptBtn = this.acceptBtn.cloneNode(true);
+      const newCancelBtn = this.cancelBtn.cloneNode(true);
+      this.acceptBtn.replaceWith(newAcceptBtn);
+      this.cancelBtn.replaceWith(newCancelBtn);
+      this.acceptBtn = newAcceptBtn;
+      this.cancelBtn = newCancelBtn;
+      
+      this.acceptBtn.addEventListener('click', handleAccept);
+      this.cancelBtn.addEventListener('click', handleCancel);
+      
+      const handleEsc = (e) => {
+        if (e.key === 'Escape') {
+          handleCancel();
+          document.removeEventListener('keydown', handleEsc);
+        }
+      };
+      document.addEventListener('keydown', handleEsc);
+      
+      this.modal.addEventListener('click', (e) => {
+        if (e.target === this.modal) {
+          handleCancel();
+        }
+      }, { once: true });
+      
+      setTimeout(() => this.acceptBtn.focus(), 100);
+    });
+  },
+  
+  hide() {
+    if (!this.modal) return;
+    this.modal.style.display = 'none';
+  },
+  
+  async danger(message, title = 'Advertencia') {
+    return this.show({
+      title,
+      message,
+      icon: '⚠️',
+      type: 'danger',
+      acceptText: 'Eliminar',
+      cancelText: 'Cancelar'
+    });
+  },
+  
+  async warning(message, title = 'Confirmar') {
+    return this.show({
+      title,
+      message,
+      icon: '⚠️',
+      type: 'warning',
+      acceptText: 'Continuar',
+      cancelText: 'Cancelar'
+    });
+  },
+  
+  async info(message, title = 'Información') {
+    return this.show({
+      title,
+      message,
+      icon: 'ℹ️',
+      type: 'info',
+      acceptText: 'Aceptar',
+      cancelText: 'Cancelar'
+    });
+  }
+};
+
+window.ConfirmDialog = ConfirmDialog;
+
+/********************************
+ * 5) Service Worker / PWA      *
  ********************************/
 (function setupPWA() {
   if ("serviceWorker" in navigator) {
@@ -157,7 +393,7 @@ async function postJSON(url, bodyObj) {
 })();
 
 /********************************
- * 5) Escaneo y modales         *
+ * 6) Escaneo y modales         *
  ********************************/
 const codigoScanner = ensureEl(SELECTORS.codigoScanner);
 if (codigoScanner) {
@@ -176,10 +412,8 @@ function desactivarInputEscaneo() {
   codigoScanner.blur();
 }
 
-// Entrada por Enter cuando la modal está abierta
 if (codigoScanner) {
   codigoScanner.addEventListener("keydown", async (event) => {
-    // Nota: Hay dos listeners iguales en el código original; consolidado en uno.
     if (!modalAbierta) {
       console.warn("⛔ Escaneo bloqueado porque la modal está cerrada.");
       return;
@@ -193,13 +427,14 @@ if (codigoScanner) {
         codigoScanner.value = "";
       } else {
         console.warn("⚠️ Código inválido:", codigo);
+        Toast.warning("Código de barras inválido");
       }
     }
   });
 }
 
 async function abrirModal(tipo) {
-  modo = tipo; // "ingresar" | "retirar"
+  modo = tipo;
   modalAbierta = true;
   console.log(`📢 Modal abierta: ${tipo}`);
 
@@ -214,7 +449,6 @@ async function abrirModal(tipo) {
     contenedorRetirar?.appendChild(codigoScanner);
   }
 
-  // Cargar chips (bocas/orígenes) con preferencia por "Portofino"
   const inputContainer = byId(`contenedor-boca-${tipo}`);
   const endpoint = tipo === "retirar" ? API.obtenerBocas : API.obtenerOrigenes;
   try {
@@ -234,7 +468,6 @@ async function abrirModal(tipo) {
             ${listaOrdenada
               .map((nombre, i) => {
                 const clase = i === 0 ? "boca-btn seleccionada" : "boca-btn";
-                // Nota: usamos onclick inline por compatibilidad con plantilla existente
                 return `<button class="${clase}" data-nombre="${nombre}" onclick="seleccionarBoca('${nombre.replace(/'/g, "\\'")}', '${tipo}')">📍 ${nombre}</button>`;
               })
               .join("")}
@@ -245,9 +478,9 @@ async function abrirModal(tipo) {
     }
   } catch (e) {
     console.error("Error cargando bocas/orígenes:", e);
+    Toast.error("Error al cargar opciones");
   }
 
-  // Reiniciar lista temporal en backend + limpiar UI
   try {
     await postJSON(API.reiniciarLista);
     productosEscaneados = [];
@@ -256,7 +489,6 @@ async function abrirModal(tipo) {
     console.error("Error al reiniciar la lista:", e);
   }
 
-  // Mostrar modal y activar escaneo
   const modal = byId(`modal-${tipo}`);
   if (!modal) {
     console.error(`⚠️ No se encontró la modal: modal-${tipo}`);
@@ -318,10 +550,10 @@ function cerrarModalConfirmacion() {
 }
 
 /*******************************************
- * 6) Productos escaneados / listas / UI   *
+ * 7) Productos escaneados / listas / UI   *
  *******************************************/
 async function obtenerProductosEscaneados() {
-  if (!modalAbierta) return; // Evitar fetch cuando la modal está cerrada
+  if (!modalAbierta) return;
   try {
     const data = await getJSON(API.obtenerTemporales);
     productosEscaneados = Array.isArray(data?.productos) ? data.productos : [];
@@ -354,7 +586,7 @@ function actualizarListaEscaneados(modalTipo, lista) {
 
     const btn = document.createElement("button");
     btn.classList.add("btnEliminar");
-    btn.textContent = "❌";
+    btn.textContent = "✕";
     btn.style.cursor = "pointer";
     btn.addEventListener("click", () => eliminarProductoEscaneado(producto.plu, modalTipo));
 
@@ -371,33 +603,31 @@ async function eliminarProductoEscaneado(plu, modalTipo) {
   try {
     const data = await postJSON(API.eliminarTemporal, { plu });
     if (data?.success) {
-      console.log("🗑 Producto eliminado de la sesión:", plu);
+      console.log("🗑️ Producto eliminado de la sesión:", plu);
+      Toast.info("Producto eliminado");
       await obtenerProductosEscaneados();
     } else {
       console.error("❌ Error al eliminar producto:", data?.error);
+      Toast.error("No se pudo eliminar el producto");
     }
   } catch (e) {
     console.error("⚠️ Error eliminando producto:", e);
+    Toast.error("Error al eliminar producto");
   }
 }
 
 async function actualizarTotales() {
   try {
-    const data = await getJSON(API.obtenerStock); // mismo que usa actualizarTablas()
+    const data = await getJSON(API.obtenerStock);
     if (Array.isArray(data?.stock)) {
       const totalBaldes = data.stock.reduce((acc, it) => acc + Number(it.cantidad || 0), 0);
       const elBaldes = document.getElementById('totalBaldes');
       if (elBaldes) elBaldes.textContent = String(totalBaldes);
     }
-
-    // Si tenés /api/totales/ o devolvés total_kilos en obtener_stock, actualizá también:
-    // const tot = await getJSON('/api/totales/');
-    // if (tot?.total_kilos != null) document.getElementById('totalKilos').textContent = tot.total_kilos;
   } catch (e) {
     console.error('No se pudieron actualizar los totales', e);
   }
 }
-
 
 async function actualizarTablas() {
   console.log("🔄 Actualizando tabla general de stock...");
@@ -437,11 +667,17 @@ async function actualizarTablas() {
   }
 }
 
+// Actualizar actualizarTablasGrupos() con skeletons
 async function actualizarTablasGrupos() {
+  const container = document.getElementById('vistaGrupos');
+  if (!container) return;
+  
+  // ✅ NUEVO: Mostrar skeletons
+  SkeletonLoader.show(container, 'grupo', 8);
+  
   try {
-    const json = await getJSON(API.stockDetallado); // tu endpoint /api/stock_detallado/
-
-    // Normalización defensiva: intentamos encontrar el array de items
+    const json = await getJSON(API.stockDetallado);
+    
     let items = [];
     if (Array.isArray(json)) {
       items = json;
@@ -449,43 +685,34 @@ async function actualizarTablasGrupos() {
       items = json.data;
     } else if (Array.isArray(json?.stock)) {
       items = json.stock;
-    } else if (Array.isArray(json?.items)) {
-      items = json.items;
-    } else if (json?.grupos && typeof json.grupos === "object") {
-      // Si el backend ya envía por grupos, renderizamos directo y retornamos
-      renderizarGruposDesdeObjeto(json.grupos);
-      return;
-    } else {
-      console.warn("⚠️ /api/stock_detallado/ no devolvió un array reconocible. Respuesta:", json);
-      items = [];
     }
-
-    // Asegurar que cada item tenga los campos esperados (nombre, grupo, cantidad, etc.)
-    // Ajustá los nombres a lo que te entregue tu API.
+    
     const seguros = items.map(it => ({
       nombre: it.nombre ?? it.producto ?? "",
-      grupo:  (it.grupo ?? "").toLowerCase(),
+      grupo: (it.grupo ?? "").toLowerCase(),
       cantidad: Number(it.cantidad ?? it.cant ?? 0),
-      // otros campos si los usás...
     }));
-
-    // Agrupar por grupo
+    
     const porGrupo = seguros.reduce((acc, it) => {
       const g = it.grupo || "otros";
       if (!acc[g]) acc[g] = [];
       acc[g].push(it);
       return acc;
     }, {});
-
-    renderizarGruposDesdeObjeto(porGrupo);
+    
+    // ✅ NUEVO: Ocultar skeletons y mostrar contenido
+    SkeletonLoader.hide(container, () => {
+      renderizarGruposDesdeObjeto(porGrupo);
+    });
+    
   } catch (err) {
-    console.error("❌ actualizarTablasGrupos() falló:", err);
+    console.error("❌ Error:", err);
+    SkeletonLoader.hide(container);
+    Toast.error("Error al cargar el stock");
   }
 }
 
-// Render que llena cada <tbody id="*-body"> según el objeto { grupo: [items...] }
 function renderizarGruposDesdeObjeto(porGrupo) {
-  // Mapa de ids de tbody por clave de grupo (ajustá las claves si tu backend usa otras)
   const mapIds = {
     jarabe: "jarabe-body",
     chocolates: "chocolates-body",
@@ -494,32 +721,32 @@ function renderizarGruposDesdeObjeto(porGrupo) {
     neutra: "neutra-body",
     zambayon: "zambayon-body",
     oleosa: "oleosa-body",
-    otros: "otros-body" // por si querés agregar un contenedor “otros”
+    tortas: "tortas-body",
+    barras: "barras-body",
+    gastronomicos: "gastronomicos-body",
+    otros: "otros-body"
   };
 
-  // Limpiar todos los tbody conocidos
   Object.values(mapIds).forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = "";
   });
 
-  // Volcar filas
   Object.entries(porGrupo).forEach(([grupo, lista]) => {
     const tbodyId = mapIds[grupo] || mapIds.otros;
     const tbody = document.getElementById(tbodyId);
     if (!tbody) return;
 
     const rows = (Array.isArray(lista) ? lista : []).map(it => {
-      const nombre = (it.nombre ?? "").toString();
+      const nombre = escapeHtml(it.nombre ?? "");
       const cantidad = Number(it.cantidad ?? 0);
-      return `<tr><td>${escapeHtml(nombre)}</td><td>${cantidad}</td></tr>`;
+      return `<tr><td>${nombre}</td><td>${cantidad}</td></tr>`;
     }).join("");
 
     tbody.innerHTML = rows;
   });
 }
 
-// Utilidad mínima para escapar HTML en nombres
 function escapeHtml(s) {
   return String(s)
     .replace(/&/g, "&amp;")
@@ -527,47 +754,42 @@ function escapeHtml(s) {
     .replace(/>/g, "&gt;");
 }
 
-
 /*******************************************
- * 7) Comunicación con backend (acciones)  *
+ * 8) Comunicación con backend (acciones)  *
  *******************************************/
 async function procesarCodigoEscaneado(codigo) {
   try {
     const data = await postJSON(API.procesarCodigo, { codigo });
     if (data?.error) {
       console.error("❌ Error procesando código:", data.error);
+      Toast.error(data.error);
     } else {
-      console.log("✔ Código procesado con éxito:", data);
-      await actualizarProductosEscaneados();
-      await validarStockParaRetiro();
+      console.log("✅ Código procesado con éxito:", data);
+      Toast.success('Producto escaneado', null, 1500);
+      
+      // Vibración en móvil
+      navigator.vibrate?.(50);
+      
+      await obtenerProductosEscaneados();
+      if (modo === "retirar") {
+        await validarStockParaRetiro();
+      }
     }
   } catch (e) {
     console.error("⚠️ Error en la petición de procesar código:", e);
-  }
-}
-
-async function actualizarProductosEscaneados() {
-  try {
-    const data = await getJSON(API.obtenerCodigos);
-    if (!Array.isArray(data?.productos)) {
-      console.error("❌ API obtener_codigos sin array 'productos'.");
-      return;
-    }
-    productosEscaneados = data.productos;
-  } catch (e) {
-    console.error("Error al obtener productos escaneados:", e);
+    Toast.error("Error al procesar el código");
   }
 }
 
 async function confirmarAgregarProductos() {
   console.log("📢 Intentando confirmar productos. Lista actual:", productosEscaneados);
   if (!productosEscaneados || productosEscaneados.length === 0) {
-    mostrarModalDenegado("No hay productos escaneados para agregar.");
+    Toast.warning("No hay productos escaneados para agregar");
     return;
   }
   const boca = byId("input-boca-ingresar")?.value?.trim();
   if (!boca) {
-    mostrarModalDenegado("Por favor, seleccioná un origen.");
+    Toast.warning("Por favor, seleccioná un origen");
     return;
   }
   const payload = {
@@ -575,7 +797,6 @@ async function confirmarAgregarProductos() {
     productos: productosEscaneados.map(p => ({
       plu: p.plu,
       peso: p.peso,
-      // 👇 clave nueva que enviamos al backend
       codigo_barras: p.codigo_barras
     }))
   };
@@ -587,7 +808,6 @@ async function confirmarAgregarProductos() {
     });
 
     if (res.status === 409) {
-
       const data409 = await res.json();
 
       if (data409?.se_puede_forzar) {
@@ -602,7 +822,6 @@ async function confirmarAgregarProductos() {
           Fecha ingreso: <b>${fecha}</b>
         `;
 
-
         mostrarModalDuplicado(texto, () => {
           confirmarAgregarProductosConForzar();
         });
@@ -610,22 +829,23 @@ async function confirmarAgregarProductos() {
         return;
       }
 
-      mostrarModalDenegado(data409?.mensaje || "Conflicto detectado");
+      Toast.error(data409?.mensaje || "Conflicto detectado");
       return;
     }
 
-
     const data = await res.json();
 
-    // ✅ Caso éxito
-    console.log("✅ Productos agregados correctamente.");
-    mostrarModalConfirmacion(data.message ?? "Productos agregados");
-    cerrarModal("ingresar");
-    productosEscaneados = [];
-    //location.reload();
+    if (data.success) {
+      console.log("✅ Productos agregados correctamente.");
+      Toast.success(`${data.productos.length} productos agregados correctamente`);
+      cerrarModal("ingresar");
+      productosEscaneados = [];
+      actualizarTotales();
+    }
 
   } catch (e) {
     console.error("⚠️ Error al agregar productos:", e);
+    Toast.error("No se pudo agregar los productos");
   }
 }
 
@@ -633,7 +853,7 @@ async function confirmarAgregarProductosConForzar() {
   const boca = byId("input-boca-ingresar")?.value?.trim();
   const payload = {
     origen: boca,
-    force: true, // 👈 clave importante
+    force: true,
     productos: productosEscaneados.map(p => ({
       plu: p.plu,
       peso: p.peso,
@@ -648,36 +868,32 @@ async function confirmarAgregarProductosConForzar() {
   });
 
   const data = await res.json();
-  mostrarModalConfirmacion(data.message ?? "Productos agregados");
+  Toast.success(data.message ?? "Productos agregados");
   cerrarModal("ingresar");
   productosEscaneados = [];
-  //location.reload();
+  actualizarTotales();
 }
-
 
 async function confirmarRetirarProductos() {
   const ok = await validarStockParaRetiro();
   const faltantes = Array.from(faltantesSet).join("\n");
   if (!ok) {
-    mostrarModalDenegado(
-      `No se puede continuar con el retiro porque hay productos sin stock:\n${faltantes}`
-    );
+    Toast.error(`No hay stock para: ${faltantes}`);
     return;
   }
   if (!productosEscaneados?.length) {
-    mostrarModalDenegado("No hay productos escaneados para retirar.");
+    Toast.warning("No hay productos escaneados para retirar");
     return;
   }
   const boca = byId("input-boca-retirar")?.value?.trim();
   if (!boca) {
-    mostrarModalDenegado("Por favor, seleccioná una boca de salida.");
+    Toast.warning("Por favor, seleccioná una boca de salida");
     return;
   }
   const payload = {
     destino: boca,
     productos: productosEscaneados.map(p => ({
       plu: p.plu,
-      // para retiro basta con el código; si querés mandar peso también no molesta
       codigo_barras: p.codigo_barras
     }))
   };
@@ -685,23 +901,22 @@ async function confirmarRetirarProductos() {
     const data = await postJSON(API.confirmarRetiro, payload);
     if (data?.error) {
       console.error("❌ Error al retirar productos:", data.error);
-      mostrarModalDenegado(data.error ?? "No se pudo retirar el producto");
+      Toast.error(data.error ?? "No se pudo retirar el producto");
       return;
     }
     console.log("✅ Productos retirados correctamente.");
-    mostrarModalConfirmacion(data.message ?? "Productos retirados");
+    Toast.success(`${data.productos.length} productos retirados correctamente`);
     cerrarModal("retirar");
     productosEscaneados = [];
-    //await Promise.all([actualizarTablas(), actualizarTablasGrupos()]);
-    //location.reload()
     actualizarTotales();
   } catch (e) {
     console.error("❌ Error al retirar productos:", e);
+    Toast.error("Error al retirar productos");
   }
 }
 
 /*******************************************
- * 8) Validación de stock (retiro)         *
+ * 9) Validación de stock (retiro)         *
  *******************************************/
 async function validarStockParaRetiro() {
   try {
@@ -723,7 +938,7 @@ async function validarStockParaRetiro() {
         const cantDisponible = pStock.cantidad;
         const cantRetirar = listaEscaneados.filter((p) => p.nombre === prod.nombre).length;
         if (cantDisponible < cantRetirar) {
-          faltantesSet.add(`${prod.nombre} ❗`);
+          faltantesSet.add(`${prod.nombre} ◀`);
           hayStockInsuficiente = true;
           const fila = document.querySelector(`.producto-fila[data-nombre="${prod.nombre}"]`);
           fila?.classList.add("sin-stock");
@@ -753,7 +968,7 @@ async function validarStockParaRetiro() {
 }
 
 /*******************************************
- * 9) UI: modales de feedback              *
+ * 10) UI: modales de feedback             *
  *******************************************/
 function mostrarModalConfirmacion(mensaje) {
   const modal = ensureEl(SELECTORS.modalConfirmacion);
@@ -785,53 +1000,53 @@ function mostrarModalDuplicado(mensaje, onConfirm) {
   texto.innerHTML = mensaje;
   modal.style.display = "block";
 
-  // Limpia listeners anteriores
   btnAceptar.replaceWith(btnAceptar.cloneNode(true));
   btnCancelar.replaceWith(btnCancelar.cloneNode(true));
 
-  // Re-selecciona tras clonarlos
   const newAceptar = byId("btnForzarDuplicado");
   const newCancelar = byId("btnCancelarDuplicado");
 
-  // Confirmar = ejecutar callback
   newAceptar.addEventListener("click", () => {
     modal.style.display = "none";
     if (typeof onConfirm === "function") onConfirm();
   });
 
-  // Cancelar = cerrar modal sin hacer nada
   newCancelar.addEventListener("click", () => {
     modal.style.display = "none";
   });
 }
 
-
 /*******************************************
- *          CRUD PRODUCTOS                 *
+ * 11) CRUD PRODUCTOS                       *
  *******************************************/
 async function abrirAdminProductos() {
   const modal = document.getElementById("modal-admin-productos");
-  modal.style.display = "block";
+  if (modal) modal.style.display = "block";
 
-  const data = await getJSON("/api/productos/");
-  const tbody = document.querySelector("#tabla-productos tbody");
-  tbody.innerHTML = "";
+  try {
+    const data = await getJSON("/api/productos/");
+    const tbody = document.querySelector("#tabla-productos tbody");
+    if (!tbody) return;
+    
+    tbody.innerHTML = "";
 
-  (data.productos || []).forEach(p => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${p.plu}</td>
-      <td>${p.nombre}</td>
-      <td>${p.stock_minimo}</td>
-      <td>
-        <button onclick="editarProducto('${p.plu}', '${p.nombre.replace(/'/g, "\\'")}', '${p.stock_minimo}')" class="btn-edit">✏️</button>
-        <button onclick="eliminarProducto('${p.plu}')" class="btn-delete">🗑</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
+    (data.productos || []).forEach(p => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${p.plu}</td>
+        <td>${p.nombre}</td>
+        <td>${p.stock_minimo}</td>
+        <td>
+          <button onclick="editarProducto('${p.plu}', '${p.nombre.replace(/'/g, "\\'")}', '${p.stock_minimo}')" class="btn-edit">✏️</button>
+          <button onclick="eliminarProducto('${p.plu}')" class="btn-delete">🗑️</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    Toast.error("Error al cargar productos");
+  }
 }
-
 
 async function abrirModalCrearProducto() {
   const nombre = prompt("Nombre del producto:");
@@ -840,33 +1055,45 @@ async function abrirModalCrearProducto() {
   const plu = prompt("PLU (3 dígitos):");
   const minimo = prompt("Stock mínimo:");
 
-  const data = await postJSON("/api/crear_producto/", {
-    nombre, plu, stock_minimo: minimo
-  });
+  try {
+    const data = await postJSON("/api/crear_producto/", {
+      nombre, plu, stock_minimo: minimo
+    });
 
-  alert(data.message || data.error);
-  abrirAdminProductos();
+    if (data.success) {
+      Toast.success("Producto creado correctamente");
+      abrirAdminProductos();
+    } else {
+      Toast.error(data.error || "Error al crear producto");
+    }
+  } catch (e) {
+    Toast.error("Error al crear producto");
+  }
 }
 
 async function eliminarProducto(plu) {
   if (!confirm("¿Eliminar el producto permanentemente?")) return;
 
-  const data = await postJSON("/api/eliminar_producto/", { plu });  // 👈 mandamos 'plu'
+  try {
+    const data = await postJSON("/api/eliminar_producto/", { plu });
 
-  alert(data.message || data.error);
-  if (data.success) {
-    abrirAdminProductos();  // recargar lista solo si fue bien
+    if (data.success) {
+      Toast.success("Producto eliminado");
+      abrirAdminProductos();
+    } else {
+      Toast.error(data.error || "No se pudo eliminar");
+    }
+  } catch (e) {
+    Toast.error("Error al eliminar producto");
   }
 }
 
 async function editarProducto(plu, nombreActual, minimoActual) {
-  // Nuevo nombre
   const nuevoNombre = prompt("Nuevo nombre del producto:", nombreActual);
-  if (nuevoNombre === null) return; // usuario canceló
+  if (nuevoNombre === null) return;
 
-  // Nuevo stock mínimo
   const nuevoMinimoStr = prompt("Nuevo stock mínimo:", minimoActual ?? "");
-  if (nuevoMinimoStr === null) return; // usuario canceló
+  if (nuevoMinimoStr === null) return;
 
   const payload = {
     plu,
@@ -874,15 +1101,19 @@ async function editarProducto(plu, nombreActual, minimoActual) {
     stock_minimo: nuevoMinimoStr.trim()
   };
 
-  const data = await postJSON("/api/actualizar_producto/", payload);
-  alert(data.message || data.error);
-
-  if (data.success) {
-    abrirAdminProductos(); // recargar lista
+  try {
+    const data = await postJSON("/api/actualizar_producto/", payload);
+    
+    if (data.success) {
+      Toast.success("Producto actualizado");
+      abrirAdminProductos();
+    } else {
+      Toast.error(data.error || "Error al actualizar");
+    }
+  } catch (e) {
+    Toast.error("Error al actualizar producto");
   }
 }
-
-
 
 function cerrarModalAdminProductos() {
   const modal = byId("modal-admin-productos");
@@ -892,10 +1123,10 @@ function cerrarModalAdminProductos() {
       modal.style.display = "none";
       modal.classList.remove("fade-out", "zoom-out");
   }, 300);
-  
 }
+
 /*******************************************
- * 10) Vista: grupos / general             *
+ * 12) Vista: grupos / general             *
  *******************************************/
 const GRUPOS = {
   jarabe: ["LIMON", "FRUTILLA AL AGUA", "DURAZNO"],
@@ -992,7 +1223,7 @@ function mostrarVistaGrupos() {
     oleosa: byId("oleosa-body"),
     tortas: byId("tortas-body"),
     barras: byId("barras-body"),
-    gastronomicos: byId("gastronomicos-body"), // 👈 NUEVO
+    gastronomicos: byId("gastronomicos-body"),
   };
   Object.values(gruposBody).forEach((el) => el && (el.innerHTML = ""));
 
@@ -1001,11 +1232,9 @@ function mostrarVistaGrupos() {
     const cantidad = row.cells[1].textContent.trim();
 
     let grupoAsignado = "otros";
-   // 👇 1) PRIORIDAD: productos gastronómicos
     if (nombre.includes("GASTRO")) {
       grupoAsignado = "gastronomicos";
     } else {
-      // 👇 2) Grupos normales
       for (const [grupo, productos] of Object.entries(GRUPOS)) {
         if (productos.includes(nombre)) {
           grupoAsignado = grupo;
@@ -1042,7 +1271,7 @@ function mostrarVistaGeneral() {
 }
 
 /*******************************************
- * 11) Menú lateral / overlay              *
+ * 13) Menú lateral / overlay              *
  *******************************************/
 function openMenu() {
   ensureEl(SELECTORS.sidebar)?.classList.add("open");
@@ -1055,28 +1284,32 @@ function closeMenu() {
 }
 
 /*******************************************
- * 12) Bootstrapping de eventos            *
+ * 14) Bootstrapping de eventos            *
  *******************************************/
 document.addEventListener("DOMContentLoaded", () => {
   console.log("📢 DOM completamente cargado.");
+  
+  // Inicializar Toast
+  ToastSystem.init();
+  
+  // Inicializar ConfirmDialog
+  ConfirmDialog.init();
 
-  // Botones de cambio de vista
   ensureEl(SELECTORS.botonVistaGrupos)?.addEventListener("click", mostrarVistaGrupos);
   ensureEl(SELECTORS.botonVistaGeneral)?.addEventListener("click", mostrarVistaGeneral);
 
-  // Menú lateral
   ensureEl(SELECTORS.menuBtn)?.addEventListener("click", openMenu);
-  ensureEl(SELECTORS.closeBtn)?.addEventListener("click", closeMenu);
   ensureEl(SELECTORS.overlay)?.addEventListener("click", closeMenu);
 
-  // Polling suave: solo hace trabajo si la modal está abierta
-  setInterval(() => { if (modalAbierta) obtenerProductosEscaneados(); }, 500);
+  // ⚡ OPTIMIZACIÓN: Polling reducido a 2 segundos
+  setInterval(() => { 
+    if (modalAbierta) obtenerProductosEscaneados(); 
+  }, 2000);
 });
 
 /*******************************************
- * 13) Exponer funciones globales          *
+ * 15) Exponer funciones globales          *
  *******************************************/
-// Algunas funciones son invocadas desde atributos onclick en HTML existente.
 Object.assign(window, {
   abrirModal,
   cerrarModal,
@@ -1091,11 +1324,10 @@ Object.assign(window, {
   abrirAdminProductos,
   abrirModalCrearProducto,
   eliminarProducto,
-  editarProducto,              // 👈 agregá esto
+  editarProducto,
+  cerrarModalAdminProductos,
 });
 
-
-// seleccionarBoca expuesta (usa dataset + input hidden)
 function seleccionarBoca(nombre, tipo) {
   $(`#bocas-container-${tipo}`)?.querySelectorAll(".boca-btn").forEach((btn) => btn.classList.remove("seleccionada"));
   const boton = document.querySelector(`#bocas-container-${tipo} .boca-btn[data-nombre="${CSS.escape(nombre)}"]`);
@@ -1107,7 +1339,7 @@ function seleccionarBoca(nombre, tipo) {
 window.seleccionarBoca = seleccionarBoca;
 
 /*******************************************
- * 14) Modales de creación / chips         *
+ * 16) Modales de creación / chips         *
  *******************************************/
 async function abrirModalCrearBoca(tipo) {
   tipoActualCrear = tipo;
@@ -1162,12 +1394,17 @@ async function confirmarCreacionBoca() {
     return;
   }
   const endpoint = tipoActualCrear === "retirar" ? API.crearBoca : API.crearOrigen;
-  const data = await postJSON(endpoint, { nombre });
-  if (data?.success) {
-    abrirModalCrearBoca(tipoActualCrear); // recargar chips
-  } else if (error) {
-    error.textContent = data?.error || "Error al crear.";
-    error.style.display = "block";
+  try {
+    const data = await postJSON(endpoint, { nombre });
+    if (data?.success) {
+      Toast.success(`${tipoActualCrear === "retirar" ? "Boca" : "Origen"} creado correctamente`);
+      abrirModalCrearBoca(tipoActualCrear);
+    } else if (error) {
+      error.textContent = data?.error || "Error al crear.";
+      error.style.display = "block";
+    }
+  } catch (e) {
+    Toast.error("Error al crear");
   }
 }
 window.confirmarCreacionBoca = confirmarCreacionBoca;
@@ -1175,30 +1412,885 @@ window.confirmarCreacionBoca = confirmarCreacionBoca;
 async function eliminarBocaDesdeModal(nombre) {
   if (!confirm(`¿Eliminar "${nombre}"?`)) return;
   const endpoint = tipoActualCrear === "retirar" ? API.eliminarBoca : API.eliminarOrigen;
-  const data = await postJSON(endpoint, { nombre });
-  if (data?.success) {
-    abrirModalCrearBoca(tipoActualCrear); // recargar tras eliminar
-  } else {
-    alert("❌ Error al eliminar: " + (data?.error || "Desconocido"));
+  try {
+    const data = await postJSON(endpoint, { nombre });
+    if (data?.success) {
+      Toast.success("Eliminado correctamente");
+      abrirModalCrearBoca(tipoActualCrear);
+    } else {
+      Toast.error(data?.error || "Error al eliminar");
+    }
+  } catch (e) {
+    Toast.error("Error al eliminar");
   }
 }
 window.eliminarBocaDesdeModal = eliminarBocaDesdeModal;
 
-
 async function imprimirStockTotal() {
-  if (!confirm("¿Imprimir el stock total en la impresora de tickets?")) return;
+  //if (!confirm("¿Imprimir el stock total en la impresora de tickets?")) return;
 
   try {
     const data = await postJSON(API.imprimirStockTotal, {});
     if (data.ok) {
-      alert(data.message || "Stock total enviado a la impresora.");
+      Toast.success("Stock total enviado a la impresora");
     } else {
-      alert("No se pudo imprimir el stock.\n" + (data.error || "Error desconocido"));
+      Toast.error(data.error || "No se pudo imprimir");
     }
   } catch (e) {
     console.error("Error al imprimir stock total:", e);
-    alert("Error al imprimir el stock total.");
+    Toast.error("Error al imprimir el stock total");
   }
 }
 window.imprimirStockTotal = imprimirStockTotal;
 
+/**
+ * Sistema de Skeleton Loaders
+ */
+const SkeletonLoader = {
+  /**
+   * Crea skeleton para card de grupo
+   */
+  createGrupoSkeleton() {
+    return `
+      <div class="skeleton-grupo">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton-table">
+          ${this.createTableRowSkeleton(5)}
+        </div>
+      </div>
+    `;
+  },
+  
+  /**
+   * Crea skeleton para fila de tabla
+   */
+  createTableRowSkeleton(count = 1) {
+    return Array(count).fill(0).map(() => `
+      <div class="skeleton-table-row">
+        <div class="skeleton skeleton-text medium"></div>
+        <div class="skeleton skeleton-text short"></div>
+      </div>
+    `).join('');
+  },
+  
+  /**
+   * Crea skeleton para item de movimiento
+   */
+  createMovItemSkeleton() {
+    return `
+      <div class="skeleton-mov-item">
+        <div class="skeleton-mov-content">
+          <div class="skeleton skeleton-text medium"></div>
+          <div class="skeleton skeleton-text short"></div>
+        </div>
+        <div class="skeleton-mov-actions">
+          <div class="skeleton skeleton-button"></div>
+          <div class="skeleton skeleton-button"></div>
+        </div>
+      </div>
+    `;
+  },
+  
+  /**
+   * Crea skeleton para producto escaneado
+   */
+  createProductoSkeleton() {
+    return `
+      <div class="skeleton-producto">
+        <div class="skeleton skeleton-text long"></div>
+      </div>
+    `;
+  },
+  
+  /**
+   * Muestra skeletons en un container
+   * @param {HTMLElement|string} container
+   * @param {string} type - 'grupo', 'movimiento', 'producto'
+   * @param {number} count - Cantidad de skeletons
+   */
+  show(container, type = 'grupo', count = 3) {
+    const el = typeof container === 'string' 
+      ? document.querySelector(container) 
+      : container;
+      
+    if (!el) return;
+    
+    const skeletons = {
+      grupo: this.createGrupoSkeleton,
+      movimiento: this.createMovItemSkeleton,
+      producto: this.createProductoSkeleton,
+      table: () => this.createTableRowSkeleton(5)
+    };
+    
+    const createFn = skeletons[type] || skeletons.grupo;
+    
+    el.innerHTML = Array(count).fill(0)
+      .map(() => createFn.call(this))
+      .join('');
+    
+    el.classList.add('skeletons-active');
+  },
+  
+  /**
+   * Oculta skeletons con animación
+   * @param {HTMLElement|string} container
+   * @param {Function} callback - Se ejecuta después de la animación
+   */
+  hide(container, callback) {
+    const el = typeof container === 'string' 
+      ? document.querySelector(container) 
+      : container;
+      
+    if (!el) return;
+    
+    // Agregar clase de fade out
+    el.querySelectorAll('.skeleton-grupo, .skeleton-mov-item, .skeleton-producto')
+      .forEach(skeleton => skeleton.classList.add('skeleton-fadeout'));
+    
+    // Esperar animación y ejecutar callback
+    setTimeout(() => {
+      el.classList.remove('skeletons-active');
+      if (callback) callback();
+    }, 300);
+  },
+  
+  /**
+   * Reemplaza skeletons con contenido real
+   * @param {HTMLElement|string} container
+   * @param {string} content - HTML del contenido real
+   */
+  replace(container, content) {
+    this.hide(container, () => {
+      const el = typeof container === 'string' 
+        ? document.querySelector(container) 
+        : container;
+      if (el) el.innerHTML = content;
+    });
+  }
+};
+
+// Exponer globalmente
+window.SkeletonLoader = SkeletonLoader;
+
+// dashboard.js - Lógica del Dashboard (VERSIÓN CORREGIDA)
+
+/**
+ * VARIABLES GLOBALES
+ */
+let dashboardData = null;
+let chartMovimientos = null;
+let chartDistribucion = null;
+let chartActividad = null;
+let autoRefreshInterval = null;
+let isAutoRefresh = false;
+
+/**
+ * CONFIGURACIÓN
+ */
+const CONFIG = {
+    API_URL: '/api/dashboard/metricas/',
+    REFRESH_INTERVAL: 60000, // 60 segundos
+    CHART_COLORS: {
+        ingreso: 'rgba(40, 167, 69, 0.8)',
+        ingresoLight: 'rgba(40, 167, 69, 0.2)',
+        retiro: 'rgba(220, 53, 69, 0.8)',
+        retiroLight: 'rgba(220, 53, 69, 0.2)',
+        primary: 'rgba(0, 86, 179, 0.8)',
+        primaryLight: 'rgba(0, 86, 179, 0.2)',
+    }
+};
+
+/**
+ * HELPER: Convertir a número seguro
+ */
+function toNumber(value, defaultValue = 0) {
+    const num = parseFloat(value);
+    return isNaN(num) ? defaultValue : num;
+}
+
+
+/**
+ * CARGA DE DATOS DESDE LA API (RENOMBRADA)
+ */
+async function cargarDashboard() {
+    mostrarLoading(true);
+    
+    try {
+        const response = await fetch(CONFIG.API_URL);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        dashboardData = await response.json();
+        console.log('✅ Datos cargados:', dashboardData);
+        
+        // Actualizar todos los componentes
+        actualizarResumenGeneral();
+        actualizarMovimientosHoy();
+        actualizarGraficos();
+        actualizarTopProductos();
+        actualizarAlertas();
+        actualizarUltimosMovimientos();
+        actualizarProductosSinMovimiento();
+        actualizarOrigenesDestinos();
+        
+        // Mostrar/ocultar resumen del mes según selección
+        const selector = document.getElementById('periodo-selector');
+        const resumen30 = document.getElementById('resumen-30dias');
+        
+        if (selector && resumen30) {
+            if (selector.value === '30dias') {
+                resumen30.style.display = 'block';
+                if (dashboardData.resumen_30_dias) {
+                    actualizarResumen30Dias(dashboardData.resumen_30_dias);
+                }
+            } else {
+                resumen30.style.display = 'none';
+            }
+        }
+        
+        // Actualizar timestamp
+        const now = new Date();
+        const lastUpdateEl = document.getElementById('lastUpdate');
+        if (lastUpdateEl) {
+            lastUpdateEl.textContent = now.toLocaleTimeString('es-AR', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Error cargando datos:', error);
+        mostrarError('Error al cargar los datos del dashboard');
+    } finally {
+        mostrarLoading(false);
+    }
+}
+
+// Alias para compatibilidad
+const cargarDatos = cargarDashboard;
+
+/**
+ * ACTUALIZAR RESUMEN GENERAL (KPIs)
+ */
+function actualizarResumenGeneral() {
+    const { resumen_general } = dashboardData;
+    
+    animarNumero('totalBaldes', resumen_general.total_baldes);
+    animarNumero('totalKilos', resumen_general.total_kilos);
+    animarNumero('productosEnStock', resumen_general.productos_en_stock);
+    
+    // Formatear valor del inventario
+    const valorFormateado = resumen_general.valor_inventario.toLocaleString('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+        minimumFractionDigits: 0
+    });
+    document.getElementById('valorInventario').textContent = valorFormateado;
+}
+
+/**
+ * ACTUALIZAR MOVIMIENTOS DE HOY
+ */
+function actualizarMovimientosHoy() {
+    const { movimientos_hoy } = dashboardData;
+    
+    document.getElementById('ingresosHoy').textContent = movimientos_hoy.ingresos;
+    document.getElementById('kgIngresadosHoy').textContent = toNumber(movimientos_hoy.kg_ingresados).toFixed(2);
+    
+    document.getElementById('retirosHoy').textContent = movimientos_hoy.retiros;
+    document.getElementById('kgRetiradosHoy').textContent = toNumber(movimientos_hoy.kg_retirados).toFixed(2);
+    
+    actualizarTendencia('trendIngresos', movimientos_hoy.cambio_ingresos);
+    actualizarTendencia('trendRetiros', movimientos_hoy.cambio_retiros);
+}
+
+/**
+ * ACTUALIZAR TENDENCIA
+ */
+function actualizarTendencia(elementId, cambio) {
+    const elemento = document.getElementById(elementId);
+    if (!elemento) return;
+    
+    let icono, clase, texto;
+    
+    if (cambio > 0) {
+        icono = '📈';
+        clase = 'trend-positive';
+        texto = `+${cambio}% vs ayer`;
+    } else if (cambio < 0) {
+        icono = '📉';
+        clase = 'trend-negative';
+        texto = `${cambio}% vs ayer`;
+    } else {
+        icono = '➡️';
+        clase = 'trend-neutral';
+        texto = 'Sin cambios vs ayer';
+    }
+    
+    elemento.className = `today-trend ${clase}`;
+    elemento.innerHTML = `
+        <span class="trend-icon">${icono}</span>
+        <span class="trend-text">${texto}</span>
+    `;
+}
+
+/**
+ * ACTUALIZAR GRÁFICOS
+ */
+function actualizarGraficos() {
+    crearGraficoMovimientos();
+    crearGraficoDistribucion();
+    crearGraficoActividad();
+}
+
+/**
+
+/**
+ * ACTUALIZAR GRÁFICOS
+ */
+function actualizarGraficos() {
+    crearGraficoMovimientos();
+    crearGraficoDistribucion();
+    crearGraficoActividad();
+}
+
+/**
+ * GRÁFICO DE MOVIMIENTOS (con selector de período)
+ */
+function crearGraficoMovimientos() {
+    const ctx = document.getElementById('chartMovimientos');
+    if (!ctx) return;
+    
+    // Verificar qué período está seleccionado
+    const periodoSelector = document.getElementById('periodo-selector');
+    const periodo = periodoSelector ? periodoSelector.value : '7dias';
+    
+    let labels, dataIngresos, dataRetiros, tooltipData;
+    
+    if (periodo === '30dias' && dashboardData.movimientos_30_dias) {
+        // Últimos 30 días
+        labels = dashboardData.movimientos_30_dias.map(m => m.fecha);
+        dataIngresos = dashboardData.movimientos_30_dias.map(m => m.ingresos);
+        dataRetiros = dashboardData.movimientos_30_dias.map(m => m.retiros);
+        tooltipData = dashboardData.movimientos_30_dias;
+    } else {
+        // Últimos 7 días
+        labels = dashboardData.movimientos_7_dias.map(m => m.fecha);
+        dataIngresos = dashboardData.movimientos_7_dias.map(m => m.ingresos);
+        dataRetiros = dashboardData.movimientos_7_dias.map(m => m.retiros);
+        tooltipData = dashboardData.movimientos_7_dias;
+    }
+    
+    // Destruir gráfico anterior si existe
+    if (chartMovimientos) {
+        chartMovimientos.destroy();
+    }
+    
+    chartMovimientos = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Ingresos',
+                    data: dataIngresos,
+                    borderColor: CONFIG.CHART_COLORS.ingreso,
+                    backgroundColor: CONFIG.CHART_COLORS.ingresoLight,
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 2
+                },
+                {
+                    label: 'Retiros',
+                    data: dataRetiros,
+                    borderColor: CONFIG.CHART_COLORS.retiro,
+                    backgroundColor: CONFIG.CHART_COLORS.retiroLight,
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                title: {
+                    display: true,
+                    text: periodo === '30dias' 
+                        ? 'Movimientos de los Últimos 30 Días' 
+                        : 'Movimientos Últimos 7 Días'
+                },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(context) {
+                            const index = context.dataIndex;
+                            const kg = context.dataset.label === 'Ingresos' 
+                                ? tooltipData[index].kg_ingresados
+                                : tooltipData[index].kg_retirados;
+                            return `${toNumber(kg).toFixed(2)} kg`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1,
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * GRÁFICO DE DISTRIBUCIÓN
+ */
+function crearGraficoDistribucion() {
+    const ctx = document.getElementById('chartDistribucion');
+    if (!ctx) return;
+    
+    const { distribucion_grupos } = dashboardData;
+    
+    if (chartDistribucion) {
+        chartDistribucion.destroy();
+    }
+    
+    const labels = Object.keys(distribucion_grupos).map(k => 
+        k.charAt(0).toUpperCase() + k.slice(1)
+    );
+    const data = Object.values(distribucion_grupos);
+    
+    const colores = [
+        'rgba(255, 99, 132, 0.8)',
+        'rgba(54, 162, 235, 0.8)',
+        'rgba(255, 206, 86, 0.8)',
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(153, 102, 255, 0.8)',
+        'rgba(255, 159, 64, 0.8)',
+        'rgba(199, 199, 199, 0.8)',
+        'rgba(83, 102, 255, 0.8)',
+        'rgba(255, 99, 255, 0.8)'
+    ];
+    
+    chartDistribucion = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colores,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            return data.labels.map((label, i) => {
+                                const value = data.datasets[0].data[i];
+                                return {
+                                    text: `${label}: ${value}`,
+                                    fillStyle: data.datasets[0].backgroundColor[i],
+                                    hidden: false,
+                                    index: i
+                                };
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * GRÁFICO DE ACTIVIDAD POR HORA
+ */
+function crearGraficoActividad() {
+    const ctx = document.getElementById('chartActividad');
+    if (!ctx) return;
+    
+    const { actividad_horas } = dashboardData;
+    
+    if (chartActividad) {
+        chartActividad.destroy();
+    }
+    
+    chartActividad = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: actividad_horas.map(h => h.hora),
+            datasets: [{
+                label: 'Movimientos',
+                data: actividad_horas.map(h => h.movimientos),
+                backgroundColor: CONFIG.CHART_COLORS.primary,
+                borderColor: CONFIG.CHART_COLORS.primary,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+/**
+ * ACTUALIZAR TOP PRODUCTOS
+ */
+function actualizarTopProductos() {
+    const tbody = document.querySelector('#tableTopProductos tbody');
+    if (!tbody) return;
+    
+    const { top_productos } = dashboardData;
+    
+    if (!top_productos || top_productos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="no-data">No hay datos disponibles</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = top_productos.map((producto, index) => {
+        const totalKg = toNumber(producto.total_kg);
+        return `
+            <tr>
+                <td><strong>${index + 1}</strong></td>
+                <td>${producto.producto__nombre || 'Sin nombre'}</td>
+                <td>${producto.total_movimientos || 0}</td>
+                <td>${totalKg.toFixed(2)} kg</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+/**
+ * ACTUALIZAR ALERTAS
+ */
+function actualizarAlertas() {
+    const container = document.getElementById('alertasContainer');
+    const badge = document.getElementById('alertCount');
+    
+    if (!container || !badge) return;
+    
+    const { productos_bajo_stock } = dashboardData;
+    
+    badge.textContent = productos_bajo_stock ? productos_bajo_stock.length : 0;
+    
+    if (!productos_bajo_stock || productos_bajo_stock.length === 0) {
+        container.innerHTML = '<p class="no-data">Todo en orden 👍</p>';
+        return;
+    }
+    
+    container.innerHTML = productos_bajo_stock.map(p => {
+        const esCritica = p.porcentaje_stock < 50;
+        return `
+            <div class="alerta-item ${esCritica ? 'critica' : ''}">
+                <div class="alerta-content">
+                    <div class="alerta-producto">${p.nombre}</div>
+                    <div class="alerta-detalle">
+                        Stock: ${p.stock_actual} / ${p.stock_minimo} 
+                        (${p.porcentaje_stock}%)
+                    </div>
+                </div>
+                <span class="alerta-badge-small">-${p.deficit}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * ACTUALIZAR ÚLTIMOS MOVIMIENTOS
+ */
+function actualizarUltimosMovimientos() {
+    const container = document.getElementById('ultimosMovimientos');
+    if (!container) return;
+    
+    const { ultimos_movimientos } = dashboardData;
+    
+    if (!ultimos_movimientos || ultimos_movimientos.length === 0) {
+        container.innerHTML = '<p class="no-data">No hay movimientos recientes</p>';
+        return;
+    }
+    
+    container.innerHTML = ultimos_movimientos.map(m => {
+        const totalPeso = toNumber(m.total_peso);
+        return `
+            <div class="movement-item ${m.tipo}">
+                <div class="movement-info">
+                    <div class="movement-tipo">
+                        ${m.tipo === 'ingreso' ? '📥 Ingreso' : '📤 Retiro'}
+                        ${m.origen ? `desde ${m.origen}` : ''}
+                        ${m.destino ? `hacia ${m.destino}` : ''}
+                    </div>
+                    <div class="movement-detalle">
+                        Grupo #${m.grupo_id}
+                    </div>
+                    <div class="movement-fecha">${m.fecha}</div>
+                </div>
+                <div class="movement-stats">
+                    <div class="movement-peso">${totalPeso.toFixed(2)} kg</div>
+                    <div class="movement-items">${m.cantidad_items} items</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * ACTUALIZAR PRODUCTOS SIN MOVIMIENTO
+ */
+function actualizarProductosSinMovimiento() {
+    const container = document.getElementById('productosSinMovimiento');
+    if (!container) return;
+    
+    const { productos_sin_movimiento } = dashboardData;
+    
+    if (!productos_sin_movimiento || productos_sin_movimiento.length === 0) {
+        container.innerHTML = '<p class="no-data">Todos los productos tienen movimiento 👍</p>';
+        return;
+    }
+    
+    container.innerHTML = productos_sin_movimiento.map(p => `
+        <div class="product-badge">
+            <div class="product-name">${p.nombre}</div>
+            <div class="product-stock">Stock: ${p.stock_actual}</div>
+        </div>
+    `).join('');
+}
+
+/**
+ * ACTUALIZAR ORÍGENES Y DESTINOS
+ */
+function actualizarOrigenesDestinos() {
+    // Orígenes
+    const containerOrigenes = document.getElementById('topOrigenes');
+    if (containerOrigenes) {
+        const { top_origenes } = dashboardData;
+        
+        if (!top_origenes || top_origenes.length === 0) {
+            containerOrigenes.innerHTML = '<p class="no-data">No hay datos</p>';
+        } else {
+            containerOrigenes.innerHTML = top_origenes.map(o => {
+                const kgTotal = toNumber(o.kg_total);
+                return `
+                    <div class="list-item">
+                        <span class="list-item-name">${o.origen}</span>
+                        <div class="list-item-stats">
+                            <span>${o.cantidad} mov.</span>
+                            <span>${kgTotal.toFixed(2)} kg</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+    
+    // Destinos
+    const containerDestinos = document.getElementById('topDestinos');
+    if (containerDestinos) {
+        const { top_destinos } = dashboardData;
+        
+        if (!top_destinos || top_destinos.length === 0) {
+            containerDestinos.innerHTML = '<p class="no-data">No hay datos</p>';
+        } else {
+            containerDestinos.innerHTML = top_destinos.map(d => {
+                const kgTotal = toNumber(d.kg_total);
+                return `
+                    <div class="list-item">
+                        <span class="list-item-name">${d.boca_salida}</span>
+                        <div class="list-item-stats">
+                            <span>${d.cantidad} mov.</span>
+                            <span>${kgTotal.toFixed(2)} kg</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+
+/**
+ * ACTUALIZAR RESUMEN DEL MES
+ */
+function actualizarResumen30Dias(resumen) {
+    const contenedor = document.getElementById('resumen-30dias');
+    if (!contenedor || !resumen) return;
+    
+    contenedor.style.display = 'block';
+    contenedor.innerHTML = `
+        <div class="resumen-mes-grid">
+            <div class="resumen-item">
+                <span class="resumen-label">📅 Días transcurridos:</span>
+                <span class="resumen-value">${resumen.total_dias}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📥 Total Ingresos:</span>
+                <span class="resumen-value text-success">${resumen.total_ingresos}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📤 Total Retiros:</span>
+                <span class="resumen-value text-danger">${resumen.total_retiros}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📊 Promedio/día (Ingresos):</span>
+                <span class="resumen-value">${resumen.promedio_ingresos_dia}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📊 Promedio/día (Retiros):</span>
+                <span class="resumen-value">${resumen.promedio_retiros_dia}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">⚖️ Total kg Ingresados:</span>
+                <span class="resumen-value">${toNumber(resumen.total_kg_ingresados).toFixed(2)} kg</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">⚖️ Total kg Retirados:</span>
+                <span class="resumen-value">${toNumber(resumen.total_kg_retirados).toFixed(2)} kg</span>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * UTILIDADES
+ */
+function animarNumero(elementId, valorFinal) {
+    const elemento = document.getElementById(elementId);
+    if (!elemento) return;
+    
+    const valorInicial = parseFloat(elemento.textContent) || 0;
+    const duracion = 1000;
+    const incremento = (valorFinal - valorInicial) / (duracion / 16);
+    
+    let valorActual = valorInicial;
+    
+    const intervalo = setInterval(() => {
+        valorActual += incremento;
+        
+        if ((incremento > 0 && valorActual >= valorFinal) || 
+            (incremento < 0 && valorActual <= valorFinal)) {
+            valorActual = valorFinal;
+            clearInterval(intervalo);
+        }
+        
+        if (elementId === 'totalKilos') {
+            elemento.textContent = valorActual.toFixed(2);
+        } else {
+            elemento.textContent = Math.round(valorActual);
+        }
+    }, 16);
+}
+
+function mostrarLoading(mostrar) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        if (mostrar) {
+            overlay.classList.add('active');
+        } else {
+            overlay.classList.remove('active');
+        }
+    }
+}
+
+function mostrarError(mensaje) {
+    console.error(mensaje);
+    alert(mensaje);
+}
+
+/**
+ * FUNCIONES PÚBLICAS
+ */
+function actualizarDashboard() {
+    console.log('🔄 Actualizando dashboard...');
+    cargarDatos();
+}
+
+/**
+ * FUNCIONES PÚBLICAS
+ */
+function actualizarDashboard() {
+    console.log('🔄 Actualizando dashboard...');
+    cargarDashboard();
+}
+
+function toggleAutoRefresh() {
+    isAutoRefresh = !isAutoRefresh;
+    const btn = document.getElementById('autoRefreshBtn');
+    
+    if (!btn) return;
+    
+    if (isAutoRefresh) {
+        btn.classList.add('active');
+        btn.title = 'Desactivar auto-actualización';
+        autoRefreshInterval = setInterval(cargarDashboard, CONFIG.REFRESH_INTERVAL);
+        console.log('✅ Auto-refresh activado');
+        if (window.Toast) {
+            window.Toast.info('Auto-actualización activada');
+        }
+    } else {
+        btn.classList.remove('active');
+        btn.title = 'Activar auto-actualización';
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+        console.log('❌ Auto-refresh desactivado');
+        if (window.Toast) {
+            window.Toast.info('Auto-actualización desactivada');
+        }
+    }
+}
+
+/**
+ * INICIALIZACIÓN DEL DASHBOARD
+ */
+function inicializarDashboard() {
+    console.log('🚀 Inicializando dashboard...');
+    
+    // Event listener para el selector de período
+    const selector = document.getElementById('periodo-selector');
+    if (selector) {
+        selector.addEventListener('change', function() {
+            console.log('📊 Cambiando período a:', this.value);
+            cargarDashboard();
+        });
+    }
+    
+    // Carga inicial
+    cargarDashboard();
+}
+
+// Exportar funciones globales
+window.inicializarDashboard = inicializarDashboard;
+window.actualizarDashboard = actualizarDashboard;
+window.cargarDashboard = cargarDashboard;
+window.toggleAutoRefresh = toggleAutoRefresh;

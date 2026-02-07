@@ -433,6 +433,10 @@
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\app_inventario\\migrations\\0013_alter_stockbalde_codigo_barras.py',
    'PYMODULE'),
+  ('app_inventario.migrations.0014_alter_bocasalida_options_and_more',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\app_inventario\\migrations\\0014_alter_bocasalida_options_and_more.py',
+   'PYMODULE'),
   ('app_inventario.models',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\app_inventario\\models.py',
