@@ -1,4 +1,4 @@
-# models.py - OPTIMIZADO
+# models.py - OPTIMIZADO CON ÍNDICES COMPLETOS
 from django.db import models
 
 class ProductoFijo(models.Model):
@@ -19,20 +19,25 @@ class ProductoFijo(models.Model):
 class StockBalde(models.Model):
     producto = models.ForeignKey(ProductoFijo, on_delete=models.CASCADE)
     peso = models.DecimalField(max_digits=5, decimal_places=3)
-    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)  # ⚡ ÍNDICE AGREGADO
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
     
     # Trazabilidad
     codigo_barras = models.CharField(max_length=13, db_index=True, null=True, blank=True)
-    is_activo = models.BooleanField(default=True, db_index=True)  # ⚡ ÍNDICE AGREGADO
+    is_activo = models.BooleanField(default=True, db_index=True)
     fecha_retiro = models.DateTimeField(null=True, blank=True)
     
     class Meta:
         db_table = 'app_inventario_stockbalde'
         ordering = ['-timestamp']
         indexes = [
-            # ⚡ ÍNDICE COMPUESTO para búsquedas comunes
+            # ✅ ÍNDICES EXISTENTES
             models.Index(fields=['is_activo', 'producto'], name='idx_activo_producto'),
             models.Index(fields=['codigo_barras', 'is_activo'], name='idx_codigo_activo'),
+            
+            # ⭐ NUEVOS ÍNDICES OPTIMIZADOS
+            models.Index(fields=['producto', 'is_activo'], name='idx_producto_activo'),
+            models.Index(fields=['is_activo', '-timestamp'], name='idx_activo_ts'),
+            models.Index(fields=['codigo_barras', '-timestamp'], name='idx_stock_codigo_ts'),
         ]
         verbose_name = 'Stock Balde'
         verbose_name_plural = 'Stock Baldes'
@@ -42,7 +47,7 @@ class StockBalde(models.Model):
 
 
 class BocaSalida(models.Model):
-    nombre = models.CharField(max_length=100, unique=True, db_index=True)  # ⚡ ÍNDICE
+    nombre = models.CharField(max_length=100, unique=True, db_index=True)
     
     class Meta:
         db_table = 'app_inventario_bocasalida'
@@ -55,7 +60,7 @@ class BocaSalida(models.Model):
 
 
 class OrigenIngreso(models.Model):
-    nombre = models.CharField(max_length=100, unique=True, db_index=True)  # ⚡ ÍNDICE
+    nombre = models.CharField(max_length=100, unique=True, db_index=True)
     
     class Meta:
         db_table = 'app_inventario_origeningreso'
@@ -73,11 +78,11 @@ class RegistroMovimiento(models.Model):
         ("salida", "Retiro")
     ]
     
-    grupo_id = models.IntegerField(db_index=True)  # ⚡ ÍNDICE AGREGADO
+    grupo_id = models.IntegerField(db_index=True)
     producto = models.ForeignKey(ProductoFijo, on_delete=models.CASCADE)
     peso = models.DecimalField(max_digits=5, decimal_places=3)
-    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, db_index=True)  # ⚡ ÍNDICE
-    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)  # ⚡ ÍNDICE AGREGADO
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, db_index=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
     boca_salida = models.CharField(max_length=100, blank=True, null=True)
     
     # Relación origen-destino
@@ -91,10 +96,29 @@ class RegistroMovimiento(models.Model):
         db_table = 'app_inventario_registromovimiento'
         ordering = ['-timestamp', '-id']
         indexes = [
-            # ⚡ ÍNDICES COMPUESTOS para queries comunes
+            # ✅ ÍNDICES EXISTENTES
             models.Index(fields=['-timestamp', '-id'], name='idx_timestamp_id'),
             models.Index(fields=['grupo_id', '-timestamp'], name='idx_grupo_timestamp'),
             models.Index(fields=['tipo', '-timestamp'], name='idx_tipo_timestamp'),
+            
+            # ⭐ NUEVOS ÍNDICES OPTIMIZADOS
+            # Para búsquedas por producto
+            models.Index(fields=['producto', '-timestamp'], name='idx_producto_ts'),
+            
+            # Para búsquedas por código de barras
+            models.Index(fields=['codigo_barras', '-timestamp'], name='idx_mov_codigo_ts'),
+            
+            # Para filtros combinados (dashboard y reportes)
+            models.Index(fields=['tipo', 'producto', '-timestamp'], name='idx_tipo_prod_ts'),
+            
+            # Para filtros por destino (reportes de salidas)
+            models.Index(fields=['destino', 'tipo'], name='idx_destino_tipo'),
+            
+            # Para queries de rango de fechas con tipo
+            models.Index(fields=['timestamp', 'tipo'], name='idx_ts_tipo'),
+            
+            # Para búsquedas de grupos específicos por tipo
+            models.Index(fields=['grupo_id', 'tipo'], name='idx_grupo_tipo'),
         ]
         verbose_name = 'Registro de Movimiento'
         verbose_name_plural = 'Registros de Movimientos'
@@ -115,11 +139,24 @@ class GrupoMovimiento(models.Model):
     destino = models.ForeignKey('BocaSalida', on_delete=models.SET_NULL, blank=True, null=True)
     total_peso = models.DecimalField(max_digits=7, decimal_places=2)
     cantidad_items = models.IntegerField(default=0)
-    fecha = models.DateTimeField(auto_now_add=True, db_index=True)  # ⚡ ÍNDICE AGREGADO
+    fecha = models.DateTimeField(auto_now_add=True, db_index=True)
     
     class Meta:
         db_table = 'app_inventario_grupomovimiento'
         ordering = ['-fecha']
+        indexes = [
+            # ⭐ NUEVOS ÍNDICES OPTIMIZADOS
+            # Para filtros de historial por fecha y tipo
+            models.Index(fields=['-fecha', 'tipo'], name='idx_fecha_tipo'),
+            models.Index(fields=['tipo', '-fecha'], name='idx_tipo_fecha'),
+            
+            # Para reportes por destino
+            models.Index(fields=['destino', '-fecha'], name='idx_destino_fecha'),
+            models.Index(fields=['destino', 'tipo'], name='idx_destino_tipo_grp'),
+            
+            # Para búsqueda de grupos en rango de fechas
+            models.Index(fields=['fecha', 'tipo'], name='idx_fecha_tipo_grp'),
+        ]
         verbose_name = 'Grupo de Movimiento'
         verbose_name_plural = 'Grupos de Movimientos'
     
