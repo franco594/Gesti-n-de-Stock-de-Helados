@@ -570,6 +570,19 @@ function actualizarListaEscaneados(modalTipo, lista) {
     console.error("⚠️ No se encontró la lista del modal:", modalTipo);
     return;
   }
+
+  // Actualizar contador de baldes
+  const cantidad = Array.isArray(lista) ? lista.length : 0;
+  console.log(cantidad);
+  const contadorId = modalTipo === "retirar" ? "contadorRetiro" : "contadorIngreso";
+  console.log(contadorId);
+  const contadorEl = document.getElementById(contadorId);
+  console.log(contadorEl);
+  if (contadorEl) {
+    contadorEl.textContent = `${cantidad}`;
+  }
+
+
   listaEl.innerHTML = "";
   if (!Array.isArray(lista) || lista.length === 0) {
     listaEl.innerHTML = `
