@@ -27,7 +27,7 @@
         <button class="menu-btn" id="menu-btn" onclick="openMenu()">☰</button>
         <div id="app-version-badge" style="position:fixed; top:10px; right:12px; z-index:9999;
         padding:6px 10px; border-radius:12px; font-size:.85rem; backdrop-filter: blur(6px);
-        background: rgba(0, 0, 0, 0.375); color:#fff;">v1.8.0</div>
+        background: rgba(0, 0, 0, 0.375); color:#fff;">v1.8.1</div>
         <div id="app-version-badge" style="position:fixed; display:inline-flex; top:10px; right:100px; z-index:9999;
         padding:6px 10px; border-radius:12px; font-size:.85rem;
         color:#fff;">
@@ -252,7 +252,8 @@
 
     <div id="modal-ingresar" class="modal">
         <div class="modal-content" id="modal-content-ingresar">
-            <h2>Productos Escaneados</h2>
+            <h2>Productos Escaneados: <span id="contadorIngreso" style="background: #4CAF50; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.8em; max-width: 20px;">0</span></h2>
+            
             <ul id="listaEscaneadosIngreso"></ul>
             <div class="modal-buttons">
                 <button id="ingresar" onclick="confirmarAgregarProductos()">Agregar</button>
@@ -266,7 +267,7 @@
     
     <div id="modal-retirar" class="modal">
         <div class="modal-content" id="modal-content-retirar">
-            <h2>Productos Escaneados</h2>
+            <h2>Productos Escaneados: <span id="contadorRetiro" style="background: #c63636; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.8em; max-width: 20px;">0</span></h2>
             <ul id="listaEscaneadosRetiro"></ul>
             <div class="modal-buttons">
                 <button id="retirar" onclick="confirmarRetirarProductos()">Retirar</button>
