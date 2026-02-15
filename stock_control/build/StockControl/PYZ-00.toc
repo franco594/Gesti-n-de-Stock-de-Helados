@@ -437,6 +437,10 @@
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\app_inventario\\migrations\\0014_alter_bocasalida_options_and_more.py',
    'PYMODULE'),
+  ('app_inventario.migrations.0015_optimizar_indices_bd',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\app_inventario\\migrations\\0015_optimizar_indices_bd.py',
+   'PYMODULE'),
   ('app_inventario.models',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\app_inventario\\models.py',

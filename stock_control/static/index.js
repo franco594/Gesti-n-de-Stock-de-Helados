@@ -616,17 +616,44 @@ async function eliminarProductoEscaneado(plu, modalTipo) {
   }
 }
 
-async function actualizarTotales() {
+async function actualizarTablaStock() {
   try {
     const data = await getJSON(API.obtenerStock);
-    if (Array.isArray(data?.stock)) {
-      const totalBaldes = data.stock.reduce((acc, it) => acc + Number(it.cantidad || 0), 0);
-      const elBaldes = document.getElementById('totalBaldes');
-      if (elBaldes) elBaldes.textContent = String(totalBaldes);
+    if (!Array.isArray(data?.stock)) return;
+
+    // Actualizar tabla
+    const tablaStock = ensureEl(SELECTORS.stockTable);
+    if (tablaStock) {
+      const encabezado = `<thead><tr><th>Producto</th><th>Cantidad de Baldes</th></tr></thead>`;
+      let body = "<tbody>";
+      if (data.stock.length === 0) {
+        body += `<tr><td colspan="2" style="text-align:center;font-style:italic;color:gray;">No hay productos en stock.</td></tr>`;
+      } else {
+        for (const item of data.stock) {
+          const rowClass = item.cantidad < item.stock_minimo ? "resaltar-bajo-stock" : "";
+          body += `<tr class="${rowClass}"><td>${item.nombre}</td><td>${item.cantidad}</td></tr>`;
+        }
+      }
+      body += "</tbody>";
+      tablaStock.innerHTML = encabezado + body;
     }
+
+    // Actualizar totales
+    const totalBaldes = data.stock.reduce((acc, it) => acc + Number(it.cantidad || 0), 0);
+    const totalKilos  = data.stock.reduce((acc, it) => acc + Number(it.kg_total  || 0), 0);
+    const elBaldes = document.getElementById("totalBaldes");
+    const elKilos  = document.getElementById("totalKilos");
+    if (elBaldes) elBaldes.textContent = String(totalBaldes);
+    if (elKilos)  elKilos.textContent  = totalKilos.toFixed(2);
+
   } catch (e) {
-    console.error('No se pudieron actualizar los totales', e);
+    console.error("❌ Error al actualizar tabla de stock:", e);
   }
+}
+
+// actualizarTotales ahora delega en actualizarTablaStock (que actualiza tabla + totales juntos)
+async function actualizarTotales() {
+  await actualizarTablaStock();
 }
 
 async function actualizarTablas() {
@@ -841,6 +868,9 @@ async function confirmarAgregarProductos() {
       cerrarModal("ingresar");
       productosEscaneados = [];
       actualizarTotales();
+      actualizarTablaStock();
+      //actualizarTablasGrupos();
+      location.reload();
     }
 
   } catch (e) {
@@ -871,7 +901,9 @@ async function confirmarAgregarProductosConForzar() {
   Toast.success(data.message ?? "Productos agregados");
   cerrarModal("ingresar");
   productosEscaneados = [];
-  actualizarTotales();
+  actualizarTablaStock(); // actualiza tabla + totales juntos
+  //actualizarTablasGrupos();
+  location.reload();
 }
 
 async function confirmarRetirarProductos() {
@@ -909,6 +941,9 @@ async function confirmarRetirarProductos() {
     cerrarModal("retirar");
     productosEscaneados = [];
     actualizarTotales();
+    //actualizarTablasGrupos();
+    actualizarTablaStock();
+    location.reload();
   } catch (e) {
     console.error("❌ Error al retirar productos:", e);
     Toast.error("Error al retirar productos");

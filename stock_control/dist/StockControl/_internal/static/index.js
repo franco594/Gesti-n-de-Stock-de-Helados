@@ -616,17 +616,44 @@ async function eliminarProductoEscaneado(plu, modalTipo) {
   }
 }
 
-async function actualizarTotales() {
+async function actualizarTablaStock() {
   try {
     const data = await getJSON(API.obtenerStock);
-    if (Array.isArray(data?.stock)) {
-      const totalBaldes = data.stock.reduce((acc, it) => acc + Number(it.cantidad || 0), 0);
-      const elBaldes = document.getElementById('totalBaldes');
-      if (elBaldes) elBaldes.textContent = String(totalBaldes);
+    if (!Array.isArray(data?.stock)) return;
+
+    // Actualizar tabla
+    const tablaStock = ensureEl(SELECTORS.stockTable);
+    if (tablaStock) {
+      const encabezado = `<thead><tr><th>Producto</th><th>Cantidad de Baldes</th></tr></thead>`;
+      let body = "<tbody>";
+      if (data.stock.length === 0) {
+        body += `<tr><td colspan="2" style="text-align:center;font-style:italic;color:gray;">No hay productos en stock.</td></tr>`;
+      } else {
+        for (const item of data.stock) {
+          const rowClass = item.cantidad < item.stock_minimo ? "resaltar-bajo-stock" : "";
+          body += `<tr class="${rowClass}"><td>${item.nombre}</td><td>${item.cantidad}</td></tr>`;
+        }
+      }
+      body += "</tbody>";
+      tablaStock.innerHTML = encabezado + body;
     }
+
+    // Actualizar totales
+    const totalBaldes = data.stock.reduce((acc, it) => acc + Number(it.cantidad || 0), 0);
+    const totalKilos  = data.stock.reduce((acc, it) => acc + Number(it.kg_total  || 0), 0);
+    const elBaldes = document.getElementById("totalBaldes");
+    const elKilos  = document.getElementById("totalKilos");
+    if (elBaldes) elBaldes.textContent = String(totalBaldes);
+    if (elKilos)  elKilos.textContent  = totalKilos.toFixed(2);
+
   } catch (e) {
-    console.error('No se pudieron actualizar los totales', e);
+    console.error("❌ Error al actualizar tabla de stock:", e);
   }
+}
+
+// actualizarTotales ahora delega en actualizarTablaStock (que actualiza tabla + totales juntos)
+async function actualizarTotales() {
+  await actualizarTablaStock();
 }
 
 async function actualizarTablas() {
@@ -841,6 +868,9 @@ async function confirmarAgregarProductos() {
       cerrarModal("ingresar");
       productosEscaneados = [];
       actualizarTotales();
+      actualizarTablaStock();
+      //actualizarTablasGrupos();
+      location.reload();
     }
 
   } catch (e) {
@@ -871,7 +901,9 @@ async function confirmarAgregarProductosConForzar() {
   Toast.success(data.message ?? "Productos agregados");
   cerrarModal("ingresar");
   productosEscaneados = [];
-  actualizarTotales();
+  actualizarTablaStock(); // actualiza tabla + totales juntos
+  //actualizarTablasGrupos();
+  location.reload();
 }
 
 async function confirmarRetirarProductos() {
@@ -909,6 +941,9 @@ async function confirmarRetirarProductos() {
     cerrarModal("retirar");
     productosEscaneados = [];
     actualizarTotales();
+    //actualizarTablasGrupos();
+    actualizarTablaStock();
+    location.reload();
   } catch (e) {
     console.error("❌ Error al retirar productos:", e);
     Toast.error("Error al retirar productos");
@@ -1764,27 +1799,35 @@ function crearGraficoMovimientos() {
     const ctx = document.getElementById('chartMovimientos');
     if (!ctx) return;
     
-    // Verificar qué período está seleccionado
     const periodoSelector = document.getElementById('periodo-selector');
     const periodo = periodoSelector ? periodoSelector.value : '7dias';
     
-    let labels, dataIngresos, dataRetiros, tooltipData;
+    let labels, dataIngresos, dataRetiros, tooltipData, titulo;
     
-    if (periodo === '30dias' && dashboardData.movimientos_30_dias) {
+    if (periodo === 'custom' && dashboardData.movimientos_custom) {
+        // Datos personalizados
+        labels = dashboardData.movimientos_custom.map(m => m.fecha);
+        dataIngresos = dashboardData.movimientos_custom.map(m => m.ingresos);
+        dataRetiros = dashboardData.movimientos_custom.map(m => m.retiros);
+        tooltipData = dashboardData.movimientos_custom;
+        titulo = 'Movimientos - Período Personalizado';
+    } else if (periodo === '30dias' && dashboardData.movimientos_30_dias) {
         // Últimos 30 días
         labels = dashboardData.movimientos_30_dias.map(m => m.fecha);
         dataIngresos = dashboardData.movimientos_30_dias.map(m => m.ingresos);
         dataRetiros = dashboardData.movimientos_30_dias.map(m => m.retiros);
         tooltipData = dashboardData.movimientos_30_dias;
+        titulo = 'Movimientos de los Últimos 30 Días';
     } else {
-        // Últimos 7 días
+        // Últimos 7 días (por defecto)
         labels = dashboardData.movimientos_7_dias.map(m => m.fecha);
         dataIngresos = dashboardData.movimientos_7_dias.map(m => m.ingresos);
         dataRetiros = dashboardData.movimientos_7_dias.map(m => m.retiros);
         tooltipData = dashboardData.movimientos_7_dias;
+        titulo = 'Movimientos Últimos 7 Días';
     }
     
-    // Destruir gráfico anterior si existe
+    // Destruir gráfico anterior
     if (chartMovimientos) {
         chartMovimientos.destroy();
     }
@@ -1824,9 +1867,7 @@ function crearGraficoMovimientos() {
                 },
                 title: {
                     display: true,
-                    text: periodo === '30dias' 
-                        ? 'Movimientos de los Últimos 30 Días' 
-                        : 'Movimientos Últimos 7 Días'
+                    text: titulo
                 },
                 tooltip: {
                     callbacks: {
@@ -1852,6 +1893,9 @@ function crearGraficoMovimientos() {
         }
     });
 }
+
+// Exportar funciones
+window.aplicarPeriodoCustom = aplicarPeriodoCustom;
 
 /**
  * GRÁFICO DE DISTRIBUCIÓN
@@ -2280,15 +2324,444 @@ function inicializarDashboard() {
     const selector = document.getElementById('periodo-selector');
     if (selector) {
         selector.addEventListener('change', function() {
-            console.log('📊 Cambiando período a:', this.value);
-            cargarDashboard();
+            const valor = this.value;
+            console.log('📊 Período seleccionado:', valor);
+            
+            if (valor === 'custom') {
+                // Mostrar campos de fecha
+                mostrarFechasCustom();
+            } else {
+                // Ocultar campos y cargar período predefinido
+                ocultarFechasCustom();
+                cargarDashboard();
+            }
         });
     }
+    
+    // Establecer fechas por defecto
+    establecerFechasPorDefecto();
     
     // Carga inicial
     cargarDashboard();
 }
 
+function mostrarFechasCustom() {
+    const customDates = document.getElementById('custom-dates');
+    if (customDates) {
+        customDates.style.display = 'block';
+    }
+}
+
+function ocultarFechasCustom() {
+    const customDates = document.getElementById('custom-dates');
+    if (customDates) {
+        customDates.style.display = 'none';
+    }
+}
+
+function establecerFechasPorDefecto() {
+    const fechaHasta = document.getElementById('fecha-hasta');
+    const fechaDesde = document.getElementById('fecha-desde');
+    
+    if (fechaHasta && fechaDesde) {
+        // Fecha actual
+        const hoy = new Date();
+        fechaHasta.value = hoy.toISOString().split('T')[0];
+        
+        // 30 días atrás
+        const hace30 = new Date();
+        hace30.setDate(hace30.getDate() - 30);
+        fechaDesde.value = hace30.toISOString().split('T')[0];
+    }
+}
+
+function aplicarPeriodoCustom() {
+    const fechaDesde = document.getElementById('fecha-desde')?.value;
+    const fechaHasta = document.getElementById('fecha-hasta')?.value;
+    
+    if (!fechaDesde || !fechaHasta) {
+        alert('Por favor seleccioná ambas fechas');
+        return;
+    }
+    
+    // Validar que desde sea menor que hasta
+    if (new Date(fechaDesde) > new Date(fechaHasta)) {
+        alert('La fecha "Desde" debe ser anterior a la fecha "Hasta"');
+        return;
+    }
+    
+    console.log('📅 Aplicando período custom:', fechaDesde, 'a', fechaHasta);
+    
+    // Cargar datos con fechas personalizadas
+    cargarDashboardCustom(fechaDesde, fechaHasta);
+}
+
+async function cargarDashboardCustom(desde, hasta) {
+    mostrarLoading(true);
+    
+    try {
+        // Construir URL con parámetros de fecha
+        const url = `${CONFIG.API_URL}?desde=${desde}&hasta=${hasta}`;
+        
+        console.log('🌐 Cargando datos custom:', url);
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        dashboardData = await response.json();
+        console.log('✅ Datos custom cargados:', dashboardData);
+        
+        // Actualizar solo el gráfico de movimientos
+        actualizarGraficoMovimientos();
+        
+        // Actualizar resumen si existe
+        const selector = document.getElementById('periodo-selector');
+        const resumen30 = document.getElementById('resumen-30dias');
+        
+        if (resumen30 && dashboardData.resumen_custom) {
+            resumen30.style.display = 'block';
+            actualizarResumenCustom(dashboardData.resumen_custom, desde, hasta);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error cargando datos custom:', error);
+        alert('Error al cargar los datos del período seleccionado');
+    } finally {
+        mostrarLoading(false);
+    }
+}
+
+function actualizarResumenCustom(resumen, desde, hasta) {
+    const contenedor = document.getElementById('resumen-30dias');
+    if (!contenedor || !resumen) return;
+    
+    // Calcular días
+    const fechaDesde = new Date(desde);
+    const fechaHasta = new Date(hasta);
+    const diffTime = Math.abs(fechaHasta - fechaDesde);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    
+    contenedor.style.display = 'block';
+    contenedor.innerHTML = `
+        <div class="resumen-mes-grid">
+            <div class="resumen-item">
+                <span class="resumen-label">📅 Período:</span>
+                <span class="resumen-value">${diffDays} días</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📆 Desde:</span>
+                <span class="resumen-value">${formatearFecha(desde)}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📆 Hasta:</span>
+                <span class="resumen-value">${formatearFecha(hasta)}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📥 Total Ingresos:</span>
+                <span class="resumen-value text-success">${resumen.total_ingresos || 0}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📤 Total Retiros:</span>
+                <span class="resumen-value text-danger">${resumen.total_retiros || 0}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">⚖️ Total kg Ingresados:</span>
+                <span class="resumen-value">${toNumber(resumen.total_kg_ingresados).toFixed(2)} kg</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">⚖️ Total kg Retirados:</span>
+                <span class="resumen-value">${toNumber(resumen.total_kg_retirados).toFixed(2)} kg</span>
+            </div>
+        </div>
+    `;
+}
+
+function formatearFecha(fechaStr) {
+    const fecha = new Date(fechaStr);
+    return fecha.toLocaleDateString('es-AR', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric' 
+    });
+}
+
+
+/**
+ * ACTUALIZAR GRÁFICO DE MOVIMIENTOS
+ * Soporta: 7 días, 30 días, y período personalizado
+ */
+function actualizarGraficoMovimientos() {
+    const ctx = document.getElementById('chartMovimientos');
+    if (!ctx) {
+        console.warn('⚠️ Canvas chartMovimientos no encontrado');
+        return;
+    }
+    
+    // Obtener período seleccionado
+    const periodoSelector = document.getElementById('periodo-selector');
+    const periodo = periodoSelector ? periodoSelector.value : '7dias';
+    
+    console.log('📊 Actualizando gráfico con período:', periodo);
+    
+    let labels, dataIngresos, dataRetiros, tooltipData, titulo;
+    
+    // Determinar qué datos usar según el período
+    if (periodo === 'custom' && dashboardData.movimientos_custom) {
+        // Datos personalizados
+        labels = dashboardData.movimientos_custom.map(m => m.fecha);
+        dataIngresos = dashboardData.movimientos_custom.map(m => m.ingresos);
+        dataRetiros = dashboardData.movimientos_custom.map(m => m.retiros);
+        tooltipData = dashboardData.movimientos_custom;
+        titulo = 'Movimientos - Período Personalizado';
+        
+        console.log('   Usando datos custom:', dashboardData.movimientos_custom.length, 'días');
+        
+    } else if (periodo === '30dias' && dashboardData.movimientos_30_dias) {
+        // Últimos 30 días
+        labels = dashboardData.movimientos_30_dias.map(m => m.fecha);
+        dataIngresos = dashboardData.movimientos_30_dias.map(m => m.ingresos);
+        dataRetiros = dashboardData.movimientos_30_dias.map(m => m.retiros);
+        tooltipData = dashboardData.movimientos_30_dias;
+        titulo = 'Movimientos de los Últimos 30 Días';
+        
+        console.log('   Usando datos 30 días');
+        
+    } else {
+        // Últimos 7 días (por defecto)
+        labels = dashboardData.movimientos_7_dias.map(m => m.fecha);
+        dataIngresos = dashboardData.movimientos_7_dias.map(m => m.ingresos);
+        dataRetiros = dashboardData.movimientos_7_dias.map(m => m.retiros);
+        tooltipData = dashboardData.movimientos_7_dias;
+        titulo = 'Movimientos Últimos 7 Días';
+        
+        console.log('   Usando datos 7 días');
+    }
+    
+    // Destruir gráfico anterior si existe
+    if (chartMovimientos) {
+        chartMovimientos.destroy();
+    }
+    
+    // Crear nuevo gráfico
+    chartMovimientos = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Ingresos',
+                    data: dataIngresos,
+                    borderColor: CONFIG.CHART_COLORS.ingreso,
+                    backgroundColor: CONFIG.CHART_COLORS.ingresoLight,
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 2
+                },
+                {
+                    label: 'Retiros',
+                    data: dataRetiros,
+                    borderColor: CONFIG.CHART_COLORS.retiro,
+                    backgroundColor: CONFIG.CHART_COLORS.retiroLight,
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                title: {
+                    display: true,
+                    text: titulo
+                },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(context) {
+                            const index = context.dataIndex;
+                            const kg = context.dataset.label === 'Ingresos' 
+                                ? tooltipData[index].kg_ingresados
+                                : tooltipData[index].kg_retirados;
+                            return `${toNumber(kg).toFixed(2)} kg`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1,
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+    
+    console.log('✅ Gráfico actualizado exitosamente');
+    
+    // Actualizar resumen según el período
+    actualizarResumenSegunPeriodo(periodo);
+}
+
+/**
+ * ACTUALIZAR RESUMEN SEGÚN EL PERÍODO
+ */
+function actualizarResumenSegunPeriodo(periodo) {
+    const resumenDiv = document.getElementById('resumen-30dias');
+    if (!resumenDiv) return;
+    
+    if (periodo === 'custom' && dashboardData.resumen_custom) {
+        // Mostrar resumen custom
+        resumenDiv.style.display = 'block';
+        
+        const fechaDesde = document.getElementById('fecha-desde')?.value;
+        const fechaHasta = document.getElementById('fecha-hasta')?.value;
+        
+        actualizarResumenCustom(dashboardData.resumen_custom, fechaDesde, fechaHasta);
+        
+    } else if (periodo === '30dias' && dashboardData.resumen_30_dias) {
+        // Mostrar resumen 30 días
+        resumenDiv.style.display = 'block';
+        actualizarResumen30Dias(dashboardData.resumen_30_dias);
+        
+    } else {
+        // Ocultar resumen para 7 días
+        resumenDiv.style.display = 'none';
+    }
+}
+
+/**
+ * ACTUALIZAR RESUMEN DE 30 DÍAS
+ */
+function actualizarResumen30Dias(resumen) {
+    const contenedor = document.getElementById('resumen-30dias');
+    if (!contenedor || !resumen) return;
+    
+    contenedor.style.display = 'block';
+    contenedor.innerHTML = `
+        <div class="resumen-mes-grid">
+            <div class="resumen-item">
+                <span class="resumen-label">📅 Período:</span>
+                <span class="resumen-value">30 días</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📥 Total Ingresos:</span>
+                <span class="resumen-value text-success">${resumen.total_ingresos || 0}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📤 Total Retiros:</span>
+                <span class="resumen-value text-danger">${resumen.total_retiros || 0}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📊 Promedio/día (Ingresos):</span>
+                <span class="resumen-value">${resumen.promedio_ingresos_dia || 0}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📊 Promedio/día (Retiros):</span>
+                <span class="resumen-value">${resumen.promedio_retiros_dia || 0}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">⚖️ Total kg Ingresados:</span>
+                <span class="resumen-value">${toNumber(resumen.total_kg_ingresados).toFixed(2)} kg</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">⚖️ Total kg Retirados:</span>
+                <span class="resumen-value">${toNumber(resumen.total_kg_retirados).toFixed(2)} kg</span>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * ACTUALIZAR RESUMEN PERSONALIZADO
+ */
+function actualizarResumenCustom(resumen, desde, hasta) {
+    const contenedor = document.getElementById('resumen-30dias');
+    if (!contenedor || !resumen) return;
+    
+    // Calcular días del período
+    const fechaDesde = new Date(desde + 'T00:00:00');
+    const fechaHasta = new Date(hasta + 'T00:00:00');
+    const diffTime = Math.abs(fechaHasta - fechaDesde);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    
+    // Calcular promedios
+    const promedioIngresos = diffDays > 0 ? (resumen.total_ingresos / diffDays).toFixed(1) : 0;
+    const promedioRetiros = diffDays > 0 ? (resumen.total_retiros / diffDays).toFixed(1) : 0;
+    
+    contenedor.style.display = 'block';
+    contenedor.innerHTML = `
+        <div class="resumen-mes-grid">
+            <div class="resumen-item">
+                <span class="resumen-label">📅 Período:</span>
+                <span class="resumen-value">${diffDays} día${diffDays !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📆 Desde:</span>
+                <span class="resumen-value">${formatearFecha(desde)}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📆 Hasta:</span>
+                <span class="resumen-value">${formatearFecha(hasta)}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📥 Total Ingresos:</span>
+                <span class="resumen-value text-success">${resumen.total_ingresos || 0}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📤 Total Retiros:</span>
+                <span class="resumen-value text-danger">${resumen.total_retiros || 0}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📊 Promedio/día (Ingresos):</span>
+                <span class="resumen-value">${promedioIngresos}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">📊 Promedio/día (Retiros):</span>
+                <span class="resumen-value">${promedioRetiros}</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">⚖️ Total kg Ingresados:</span>
+                <span class="resumen-value">${toNumber(resumen.total_kg_ingresados).toFixed(2)} kg</span>
+            </div>
+            <div class="resumen-item">
+                <span class="resumen-label">⚖️ Total kg Retirados:</span>
+                <span class="resumen-value">${toNumber(resumen.total_kg_retirados).toFixed(2)} kg</span>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * FORMATEAR FECHA (DD/MM/YYYY)
+ */
+function formatearFecha(fechaStr) {
+    if (!fechaStr) return '';
+    const fecha = new Date(fechaStr + 'T00:00:00');
+    return fecha.toLocaleDateString('es-AR', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric' 
+    });
+}
+
+/**
+ * HELPER: Convertir a número seguro
+ */
+function toNumber(value, defaultValue = 0) {
+    const num = parseFloat(value);
+    return isNaN(num) ? defaultValue : num;
+}
 // Exportar funciones globales
 window.inicializarDashboard = inicializarDashboard;
 window.actualizarDashboard = actualizarDashboard;
