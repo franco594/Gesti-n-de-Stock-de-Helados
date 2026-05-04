@@ -20,8 +20,16 @@ def enviar_reporte_stock(fecha: Optional[date] = None):
 
     # Ventana del día [00:00, 24:00) de 'fecha' en TZ actual
     tz = timezone.get_current_timezone()
-    inicio_dia = timezone.make_aware(timezone.datetime.combine(fecha, dt_time.min), tz)
-    fin_dia    = inicio_dia + timedelta(days=1)
+    #inicio_dia = timezone.make_aware(timezone.datetime.combine(fecha, dt_time.min), tz)
+    #fin_dia    = inicio_dia + timedelta(days=1)
+
+    # día lógico: de 04:00 a 04:00 del día siguiente
+    inicio_dia = timezone.make_aware(
+        timezone.datetime.combine(fecha, dt_time(hour=4, minute=0)),
+        tz
+    )
+
+    fin_dia = inicio_dia + timedelta(days=1)
 
     # Movimientos del día
     movimientos_del_dia = RegistroMovimiento.objects.filter(timestamp__range=(inicio_dia, fin_dia))

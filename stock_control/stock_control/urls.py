@@ -1,7 +1,7 @@
 from django.urls import path
 from app_inventario.views import (
     # Home / stock
-    index, cargar_productos_excel, importar_productos,
+    api_actualizar_producto, api_crear_producto, api_dashboard_metricas, api_eliminar_producto, api_listar_productos, dashboard, exportar_productos_excel, imprimir_stock_total, index, cargar_productos_excel, importar_productos,
     obtener_stock, api_stock_detallado, stock_detallado,
     actualizar_stock_minimo,
 
@@ -27,17 +27,26 @@ from app_inventario.views import (
     descargar_backup, importar_backup, reiniciar_stock,
 
     reimprimir_ticket,
+
+    
 )
 
 urlpatterns = [
     # Home / stock
     path('', index, name="index"),
     path('api/importar_productos/', importar_productos, name="importar_productos"),
+     # 🔹 Productos (admin)
+    path("api/productos/", api_listar_productos, name="api_listar_productos"),
+    path("api/crear_producto/", api_crear_producto, name="api_crear_producto"),
+    path("api/actualizar_producto/", api_actualizar_producto, name="api_actualizar_producto"),  # 👈 NUEVA
+    path("api/eliminar_producto/", api_eliminar_producto, name="api_eliminar_producto"),
     path('api/obtener_stock/', obtener_stock, name='obtener_stock'),
     path('api/stock_detallado/', api_stock_detallado, name="api_stock_detallado"),
     path('stock/detallado/', stock_detallado, name="stock_detallado"),
     path('cargar_excel/', cargar_productos_excel, name="cargar_excel"),
+    path("exportar_productos_excel/", exportar_productos_excel, name="exportar_productos_excel"),
     path("api/actualizar_stock_minimo/", actualizar_stock_minimo, name="actualizar_stock_minimo"),
+    path('api/print_stock_total/', imprimir_stock_total, name="imprimir_stock_total"),
 
     # Historial / movimientos agrupados
     path('historial/', historial, name="historial"),
@@ -74,8 +83,13 @@ urlpatterns = [
     path('api/eliminar_boca_salida/', eliminar_boca_salida, name="eliminar_boca_salida"),
     path('api/eliminar_origen/', eliminar_origen, name="eliminar_origen"),
 
+
     # Backups / mantenimiento
     path('descargar_backup/', descargar_backup, name='descargar_backup'),
     path('importar_backup/', importar_backup, name='importar_backup'),
     path('reiniciar_stock/', reiniciar_stock, name="reiniciar_stock"),
+
+    # Dashboard
+    path('dashboard/', dashboard, name='dashboard'),
+    path('api/dashboard/metricas/', api_dashboard_metricas, name='api_dashboard_metricas'),
 ]

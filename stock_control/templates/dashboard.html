@@ -1,0 +1,296 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280, initial-scale=1.0">
+    <title>Dashboard - Gestión de Stock</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h3>📊 Dashboard</h3>
+                    <p class="subtitle">Gestión de Stock en Tiempo Real</p>
+                </div>
+                <div class="header-right">
+                    <button class="btn-icon" onclick="actualizarDashboard()" title="Actualizar">
+                        🔄
+                    </button>
+                    <button class="btn-icon" onclick="toggleAutoRefresh()" id="autoRefreshBtn" title="Auto-actualizar">
+                        ⏱️
+                    </button>
+                    <a href="{% url 'historial_movimientos' %}" class="btn-icon" id="btn-icon" title="Movimientos" style="margin-top: 10px;">
+                        📋
+                    </a>
+                    <a href="{% url 'index' %}" class="btn-secondary">← Volver</a>
+                </div>
+            </div>
+            <div class="last-update">
+                Última actualización: <span id="lastUpdate">-</span>
+            </div>
+        </header>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <p>Cargando datos...</p>
+        </div>
+
+        <!-- Resumen General (KPIs principales) -->
+        <section class="kpis-section">
+            <div class="kpi-card kpi-primary">
+                <div class="kpi-icon">📦</div>
+                <div class="kpi-content">
+                    <h3>Baldes en Stock</h3>
+                    <div class="kpi-value" id="totalBaldes">-</div>
+                    <p class="kpi-label">unidades</p>
+                </div>
+            </div>
+
+            <div class="kpi-card kpi-success">
+                <div class="kpi-icon">⚖️</div>
+                <div class="kpi-content">
+                    <h3>Kilos Totales</h3>
+                    <div class="kpi-value" id="totalKilos">-</div>
+                    <p class="kpi-label">kg</p>
+                </div>
+            </div>
+
+            <div class="kpi-card kpi-warning">
+                <div class="kpi-icon">📊</div>
+                <div class="kpi-content">
+                    <h3>Productos</h3>
+                    <div class="kpi-value" id="productosEnStock">-</div>
+                    <p class="kpi-label">variedades</p>
+                </div>
+            </div>
+
+            <div class="kpi-card kpi-info">
+                <div class="kpi-icon"></div>
+                <div class="kpi-content">
+                    <h3>Valor Estimado</h3>
+                    <div class="kpi-value" id="valorInventario">-</div>
+                    <p class="kpi-label">pesos</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Movimientos de Hoy -->
+        <section class="today-section">
+            <h2 class="section-title">📅 Actividad de Hoy</h2>
+            <div class="today-cards">
+                <div class="today-card card-ingreso">
+                    <div class="today-header">
+                        <span class="today-icon">📥</span>
+                        <h3>Ingresos</h3>
+                    </div>
+                    <div class="today-stats">
+                        <div class="stat-main">
+                            <span class="stat-number" id="ingresosHoy">0</span>
+                            <span class="stat-label">movimientos</span>
+                        </div>
+                        <div class="stat-secondary">
+                            <span class="stat-number" id="kgIngresadosHoy">0</span>
+                            <span class="stat-label">kg</span>
+                        </div>
+                    </div>
+                    <div class="today-trend" id="trendIngresos">
+                        <span class="trend-icon">📈</span>
+                        <span class="trend-text">vs ayer</span>
+                    </div>
+                </div>
+
+                <div class="today-card card-retiro">
+                    <div class="today-header">
+                        <span class="today-icon">📤</span>
+                        <h3>Retiros</h3>
+                    </div>
+                    <div class="today-stats">
+                        <div class="stat-main">
+                            <span class="stat-number" id="retirosHoy">0</span>
+                            <span class="stat-label">movimientos</span>
+                        </div>
+                        <div class="stat-secondary">
+                            <span class="stat-number" id="kgRetiradosHoy">0</span>
+                            <span class="stat-label">kg</span>
+                        </div>
+                    </div>
+                    <div class="today-trend" id="trendRetiros">
+                        <span class="trend-icon">📈</span>
+                        <span class="trend-text">vs ayer</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gráficos -->
+        <section class="chart-section">
+            <div class="card-header">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                    <h3>📈 Gráfico de Movimientos</h3>
+                    
+                    <div class="period-controls">
+                        <!-- Selector de período rápido -->
+                        <div class="period-selector">
+                            <label for="periodo-selector" style="margin-right: 10px; font-weight: 600;">
+                                Ver:
+                            </label>
+                            <select id="periodo-selector" class="select-period">
+                                <option value="7dias">Últimos 7 días</option>
+                                <option value="30dias">Últimos 30 días</option>
+                                <option value="custom">📅 Personalizado</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Fechas personalizadas (ocultas por defecto) -->
+                        <div id="custom-dates" class="custom-dates" style="display: none;">
+                            <div class="date-inputs">
+                                <div class="date-input-group">
+                                    <label for="fecha-desde">Desde:</label>
+                                    <input 
+                                        type="date" 
+                                        id="fecha-desde" 
+                                        class="date-input"
+                                    >
+                                </div>
+                                <div class="date-input-group">
+                                    <label for="fecha-hasta">Hasta:</label>
+                                    <input 
+                                        type="date" 
+                                        id="fecha-hasta" 
+                                        class="date-input"
+                                    >
+                                </div>
+                                <button 
+                                    onclick="aplicarPeriodoCustom()" 
+                                    class="btn-apply"
+                                >
+                                    ✓ Aplicar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="chartMovimientos"></canvas>
+            </div>
+            
+            <div id="resumen-30dias" style="display: none;"></div>
+        </section>
+
+        <!-- Top Productos y Alertas -->
+        <section class="data-section">
+            <div class="data-card">
+                <div class="card-header">
+                    <h3>🔥 Productos Más Movidos</h3>
+                    <span class="card-subtitle">Últimos 30 días</span>
+                </div>
+                <div class="table-container">
+                    <table class="data-table" id="tableTopProductos">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Producto</th>
+                                <th>Movimientos</th>
+                                <th>Total kg</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" class="loading-cell">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="data-card alert-card">
+                <div class="card-header">
+                    <h3>⚠️ Alertas de Stock</h3>
+                    <span class="alert-badge" id="alertCount">0</span>
+                </div>
+                <div id="alertasContainer" class="alertas-container">
+                    <p class="no-data">Todo en orden 👍</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Actividad por Hora -->
+        <section class="activity-section">
+            <div class="chart-container full-width">
+                <div class="chart-header">
+                    <h3>⏰ Actividad por Hora - Hoy</h3>
+                </div>
+                <canvas id="chartActividad"></canvas>
+            </div>
+        </section>
+
+        <!-- Últimos Movimientos -->
+        <section class="movements-section">
+            <div class="card-header">
+                <h3>📋 Últimos Movimientos</h3>
+                <a href="{% url 'historial_movimientos' %}" class="btn-link">Ver todos →</a>
+            </div>
+            <div class="movements-list" id="ultimosMovimientos">
+                <p class="loading-cell">Cargando...</p>
+            </div>
+        </section>
+
+        <!-- Productos Sin Movimiento -->
+        <section class="warning-section">
+            <div class="data-card">
+                <div class="card-header">
+                    <h3>💤 Productos Sin Movimiento</h3>
+                    <span class="card-subtitle">Últimos 30 días</span>
+                </div>
+                <div id="productosSinMovimiento" class="products-grid">
+                    <p class="loading-cell">Cargando...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Orígenes y Destinos -->
+        <section class="origins-destinations">
+            <div class="data-card">
+                <div class="card-header">
+                    <h3>📍 Top Orígenes</h3>
+                    <span class="card-subtitle">Últimos 30 días</span>
+                </div>
+                <div id="topOrigenes" class="list-simple">
+                    <p class="loading-cell">Cargando...</p>
+                </div>
+            </div>
+
+            <div class="data-card">
+                <div class="card-header">
+                    <h3>🎯 Top Destinos</h3>
+                    <span class="card-subtitle">Últimos 30 días</span>
+                </div>
+                <div id="topDestinos" class="list-simple">
+                    <p class="loading-cell">Cargando...</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{% static 'index.js' %}"></script>
+    <script>
+        // Inicializar dashboard al cargar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            inicializarDashboard();
+        });
+    </script>
+</body>
+</html>

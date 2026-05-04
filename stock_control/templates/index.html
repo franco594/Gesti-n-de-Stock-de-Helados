@@ -20,16 +20,37 @@
         }
         window.CSRF_TOKEN = getCookie('csrftoken');
     </script>
+    
 </head>
 <body class="page-transition">
     <header>
         <button class="menu-btn" id="menu-btn" onclick="openMenu()">☰</button>
-    
+        <div id="app-version-badge" style="position:fixed; top:10px; right:12px; z-index:9999;
+        padding:6px 10px; border-radius:12px; font-size:.85rem; backdrop-filter: blur(6px);
+        background: rgba(0, 0, 0, 0.375); color:#fff;">v1.8.1</div>
+        <div id="app-version-badge" style="position:fixed; display:inline-flex; top:10px; right:100px; z-index:9999;
+        padding:6px 10px; border-radius:12px; font-size:.85rem;
+        color:#fff;">
+        <a href="{% url 'historial_movimientos' %}" class="btn-icon"  title="Movimientos" style="background-color: #0505A6;">
+            📋
+        </a>
+        <a href="{% url 'dashboard' %}" class="btn-icon" title="Dashboard" style="background-color: #0505A6; margin-left: 10px;">
+            📊
+        </a>
+        </div>
+        
         <div class="sidebar" id="sidebar">
+            <a href="{% url 'dashboard' %}">
+                <button id="configButton">Dashboard</button>
+            </a>
             <a href="{% url 'historial_movimientos' %}"><button id="historial-btn">Movimientos</button></a>
             <button id="configButton"  onclick="abrirModalStock()">Stock</button>
             <button id="configButton"  onclick="abrirModalCrearBoca('ingresar')">Origen</button>
             <button id="configButton"  onclick="abrirModalCrearBoca('retirar')">Salidas</button>
+            <button id="configButton"  onclick="abrirAdminProductos()">Administrar PLU</button>
+            <a href="{% url 'exportar_productos_excel' %}">
+                <button id="configButton">Exportar productos</button>
+            </a>
             <input type="file" id="archivoExcel" name="archivo" accept=".xlsx" style="display: none;">
             <button type="button" id="botonCargarExcel">Productos</button>
             <a href="{% url 'descargar_backup' %}"><button id="configButton">Exportar BD</button></a>
@@ -64,6 +85,9 @@
     <div class="totales" style="text-align: center;">
             <p><strong>Baldes en stock:</strong> <span id="totalBaldes">{{ total_baldes }}</span></p>
             <p><strong>Kilos totales:</strong> <span id="totalKilos">{{ total_kilos }}</span> kg</p>
+            <button id="configButton" type="button" onclick="imprimirStockTotal()">
+                Imprimir stock
+            </button>
         </div>
     
 </div>
@@ -109,7 +133,14 @@
     </div>
 
     <!-- Contenedor de la Vista de Grupos (Inicialmente Oculto) -->
+     <!-- ============================================
+     HTML - Estructura inicial con skeletons
+     ============================================ -->
+
+   
+    
     <div id="vistaGrupos" class="grupos-container" style="display: flex;">
+        
         <div class="grupo" id="jarabe">
             <h3>JARABE</h3>
             <table>
@@ -187,13 +218,42 @@
                 <tbody id="oleosa-body"></tbody>
             </table>
         </div>
+        <div class="grupo" id="tortas">
+            <h3>TORTAS</h3>
+            <table>
+                <thead>
+                    <tr>
+                       
+                    </tr>
+                </thead>
+                <tbody id="tortas-body"></tbody>
+            </table>
+        </div>
+        <div class="grupo" id="barras">
+            <h3>BARRAS</h3>
+            <table>
+                <thead>
+                    <tr>
+                       
+                    </tr>
+                </thead>
+                <tbody id="barras-body"></tbody>
+            </table>
+        </div>
+        <div class="grupo" id="gastronomicos">
+            <h3>GASTRONÓMICOS</h3>
+            <table>
+                <tbody id="gastronomicos-body"></tbody>
+            </table>
+            </div>
     </div>
 
     <input type="text" id="codigoScanner" autofocus style="visibility: hidden;" placeholder="Ingrese un código" autocomplete="off">
 
     <div id="modal-ingresar" class="modal">
         <div class="modal-content" id="modal-content-ingresar">
-            <h2>Productos Escaneados</h2>
+            <h2>Productos Escaneados: <span id="contadorIngreso" style="background: #4CAF50; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.8em; max-width: 20px;">0</span></h2>
+            
             <ul id="listaEscaneadosIngreso"></ul>
             <div class="modal-buttons">
                 <button id="ingresar" onclick="confirmarAgregarProductos()">Agregar</button>
@@ -207,7 +267,7 @@
     
     <div id="modal-retirar" class="modal">
         <div class="modal-content" id="modal-content-retirar">
-            <h2>Productos Escaneados</h2>
+            <h2>Productos Escaneados: <span id="contadorRetiro" style="background: #c63636; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.8em; max-width: 20px;">0</span></h2>
             <ul id="listaEscaneadosRetiro"></ul>
             <div class="modal-buttons">
                 <button id="retirar" onclick="confirmarRetirarProductos()">Retirar</button>
@@ -234,6 +294,18 @@
             <button class="boton-denegado" onclick="cerrarModalDenegado()" style="align-self: center;">Aceptar</button>
         </div>
     </div>
+
+    <div id="modal-duplicado" class="modal" style="display:none;">
+        <div class="modal-content">
+            <p id="mensajeDuplicado" style="white-space:pre-line;"></p>
+
+            <div style="margin-top:1rem; display:flex; gap:12px; justify-content:center; text-align: center;">
+            <button id="btnCancelarDuplicado" class="btn-secundario">Cancelar</button>
+            <button id="btnForzarDuplicado" class="btn-principal">Forzar ingreso</button>
+            </div>
+        </div>
+    </div>
+
     
     <div id="modal-historial" class="modal">
         <div class="modal-content">
@@ -242,10 +314,35 @@
             <ul id="listaHistorial"></ul>
         </div>
     </div>
+
+    <div id="modal-admin-productos" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="cerrarModalAdminProductos()">&times;</span>
+            <h2>Administrar Productos</h2>
+
+            <button onclick="abrirModalCrearProducto()" class="btn-normal">➕ Crear producto</button>
+
+            <table id="tabla-productos" class="tabla-admin">
+            <thead>
+                <tr>
+                <th>PLU</th>
+                <th>Nombre</th>
+                <th>Stock mínimo</th>
+                <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            </table>
+
+            <button class="btn-cerrar" onclick="cerrarModalAdminProductos()">Cerrar</button>
+        </div>
+    </div>
+
     
     <!-- Modal de edición de stock mínimo -->
     <div id="modalStockMinimo" class="modal">
         <div class="modal-content">
+            <span class="close" onclick="cerrarModalStockMinimo()">&times;</span>
             <h2>Modificar Stock Mínimo</h2>
             <div class="modal-body">
                 <table>
@@ -274,10 +371,13 @@
         </div>
     </div>
 
+    </div>
+
     {% compress js %}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
     {% endcompress %}
     {% compress js %}
+    <script src="{% static 'cache_system.js' %}"></script>
     <script src="{% static 'index.js' %}"></script>
     {% endcompress %}
     <script>
@@ -325,6 +425,8 @@
     const m = document.getElementById("modalStockMinimo");
     if (m) m.style.display = "flex";
     }
+    
+    
 
     function cerrarModalStockMinimo() {
     const m = document.getElementById("modalStockMinimo");
@@ -354,7 +456,7 @@
     });
 
     if (productos.length === 0) {
-        alert("No hay cambios para guardar.");
+        Toast.info("No hay cambios para guardar.");
         return;
     }
 
@@ -392,7 +494,7 @@
         cerrarModalStockMinimo();
     } catch (err) {
         console.error("Error:", err);
-        alert("Error al actualizar stock mínimo: " + err.message);
+        Toast.info("Error al actualizar stock mínimo: " + err.message);
     }
     }
 </script>
@@ -413,7 +515,7 @@
                 body: formData
             })
             .then(response => response.json())
-            .then(data => alert(data.message || data.error))
+            .then(data => Toast.info(data.message || data.error))
             .catch(error => console.error("Error al subir el archivo:", error));
         }
     });
@@ -432,7 +534,7 @@
                 })
                 .then(res => res.json())
                 .then(data => {
-                    alert(data.message || data.error);
+                    Toast.info(data.message || data.error);
                     if (data.success) {
                         location.reload();
                     }
@@ -448,7 +550,7 @@
                 })
                 .then(res => res.json())
                 .then(data => {
-                    alert(data.message || data.error);
+                    Toast.info(data.message || data.error);
                     if (data.success) {
                         location.reload();
                     }
@@ -474,7 +576,19 @@
             <div id="chipsExistentes" class="bocas-container"></div>
         </div>
     </div>
-
+    <!-- Container para las notificaciones -->
+    <div id="toast-container" class="toast-container"></div>
+    <div id="confirm-dialog" class="modal" style="display: none;">
+    <div class="modal-content confirm-dialog">
+        <div class="confirm-icon">⚠️</div>
+        <h3 id="confirm-title" class="confirm-title">Confirmar acción</h3>
+        <p id="confirm-message" class="confirm-message">¿Estás seguro?</p>
+        <div class="confirm-buttons">
+        <button id="confirm-cancel" class="btn-secondary">Cancelar</button>
+        <button id="confirm-accept" class="btn-primary">Aceptar</button>
+        </div>
+    </div>
+</div>
     
 </body>
 </html>

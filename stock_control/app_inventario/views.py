@@ -1,4 +1,5 @@
 # views.py (consolidado y corregido)
+import io
 import time
 from django.utils import timezone
 import os
@@ -6,6 +7,13 @@ import json
 import sqlite3
 import logging
 import pandas as pd
+
+from io import BytesIO
+from django.http import HttpResponse
+from datetime import datetime, timedelta
+from django.utils.dateparse import parse_datetime
+from datetime import datetime, time
+
 
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
@@ -17,7 +25,12 @@ from django.shortcuts import render
 from django.utils.dateparse import parse_date
 from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import csrf_exempt
-from django.core.management import call_command 
+from django.core.management import call_command
+
+from app_inventario.services.printing import print_stock_total
+from datetime import datetime, time, timedelta
+from django.db.models import Sum, Count, Q, F, Avg  # ← F y Avg incluidos
+
 
 
 from .models import (
@@ -81,6 +94,138 @@ def agregar_productos(request):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
+# --- API CRUD PRODUCTOS
+
+@csrf_exempt
+def api_listar_productos(request):
+    if request.method != "GET":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+
+    productos = ProductoFijo.objects.all().order_by("nombre")
+
+    data = [
+        {
+            # si querés un identificador genérico, podés usar "pk"
+            "plu": p.plu,
+            "nombre": p.nombre,
+            "stock_minimo": p.stock_minimo,
+        }
+        for p in productos
+    ]
+
+    return JsonResponse({"productos": data})
+
+
+@csrf_exempt
+def api_crear_producto(request):
+    try:
+        data = json.loads(request.body or "{}")
+    except:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+
+    nombre = (data.get("nombre") or "").strip()
+    plu = (data.get("plu") or "").strip().zfill(3)
+    minimo = int(data.get("stock_minimo") or 0)
+
+    if not nombre:
+        return JsonResponse({"error": "El nombre es obligatorio"}, status=400)
+
+    if ProductoFijo.objects.filter(plu=plu).exists():
+        return JsonResponse({"error": f"Ya existe un producto con PLU {plu}"}, status=400)
+
+    ProductoFijo.objects.create(nombre=nombre, plu=plu, stock_minimo=minimo)
+
+    return JsonResponse({"success": True, "message": "Producto creado correctamente"})
+
+
+@csrf_exempt
+def api_eliminar_producto(request):
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "error": "JSON inválido"}, status=400)
+
+    plu = (data.get("plu") or "").strip()
+    if not plu:
+        return JsonResponse({"success": False, "error": "Falta 'plu' del producto"}, status=400)
+
+    try:
+        p = ProductoFijo.objects.get(plu=plu)
+    except ProductoFijo.DoesNotExist:
+        return JsonResponse({"success": False, "error": f"Producto con PLU {plu} no encontrado"}, status=404)
+
+    # (Opcional) Evitar borrar si tiene stock/movimientos asociados
+    tiene_stock = StockBalde.objects.filter(producto=p).exists()
+    tiene_movs = RegistroMovimiento.objects.filter(producto=p).exists()
+    if tiene_stock or tiene_movs:
+        return JsonResponse({
+            "success": False,
+            "error": "No se puede eliminar el producto porque tiene stock o movimientos asociados."
+        }, status=400)
+
+    p.delete()
+    return JsonResponse({"success": True, "message": f"Producto {p.nombre} (PLU {plu}) eliminado correctamente."})
+
+
+@csrf_exempt
+def api_actualizar_producto(request):
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "error": "Método no permitido"},
+            status=405
+        )
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"success": False, "error": "JSON inválido"},
+            status=400
+        )
+
+    plu = (data.get("plu") or "").strip()
+    nombre = (data.get("nombre") or "").strip()
+    stock_minimo = data.get("stock_minimo")
+
+    if not plu:
+        return JsonResponse(
+            {"success": False, "error": "Falta PLU del producto"},
+            status=400
+        )
+
+    try:
+        p = ProductoFijo.objects.get(plu=plu)
+    except ProductoFijo.DoesNotExist:
+        return JsonResponse(
+            {"success": False, "error": f"No existe producto con PLU {plu}"},
+            status=404
+        )
+
+    # Actualizar nombre (si vino)
+    if nombre:
+        p.nombre = nombre
+
+    # Actualizar stock_minimo (si vino)
+    if stock_minimo not in (None, ""):
+        try:
+            p.stock_minimo = int(stock_minimo)
+        except ValueError:
+            return JsonResponse(
+                {"success": False, "error": "stock_minimo debe ser numérico"},
+                status=400
+            )
+
+    p.save()
+
+    return JsonResponse(
+        {"success": True, "message": "Producto actualizado correctamente"},
+        status=200
+    )
+
+# ---  FIN API CRUD PRODUCTOS
 
 def actualizar_stock_minimo(request):
     try:
@@ -143,7 +288,7 @@ def _print_group_if_enabled(grupo_id: int):
     except Exception:
         logger.exception("Error al imprimir ticket del grupo #%s (desde view)", grupo_id)
 
-
+@csrf_exempt
 def reimprimir_ticket(request, grupo_id: int):
     """
     Reimprime el comprobante del movimiento agrupado (grupo_id).
@@ -164,7 +309,21 @@ def reimprimir_ticket(request, grupo_id: int):
         logger.exception("Error reimprimiendo grupo #%s", grupo_id)
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
+@csrf_exempt
+def imprimir_stock_total(request):
+    """
+    Endpoint para imprimir el stock total en la impresora de tickets.
+    """
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "Método no permitido"}, status=405)
 
+    try:
+        print_stock_total()
+        return JsonResponse({"ok": True, "message": "Impresión de stock enviada a la impresora."})
+    except Exception as e:
+        # si querés loggear:
+        # logger.exception("Error imprimiendo stock total")
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
 # =========================================================
 # Vistas principales
 # =========================================================
@@ -236,6 +395,46 @@ def importar_productos(request):
     return JsonResponse(resultado)
 
 
+def exportar_productos_excel(request):
+    """
+    Exporta un Excel con las columnas:
+    - Nombre
+    - PLU
+
+    Lo podés usar como plantilla: agregás nuevas filas y luego
+    lo volvés a subir por /cargar_excel/ para alta masiva.
+    """
+    productos = ProductoFijo.objects.all().order_by("plu")
+
+    filas = [
+        {"Nombre": p.nombre, "PLU": p.plu}
+        for p in productos
+    ]
+
+    # Si no hay productos aún, devolvemos solo el header
+    if filas:
+        df = pd.DataFrame(filas)
+    else:
+        df = pd.DataFrame(columns=["Nombre", "PLU"])
+
+    # Escribir a un buffer en memoria
+    buffer = BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Productos")
+
+    buffer.seek(0)
+
+    filename = f"productos_{dt.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+    response = HttpResponse(
+        buffer,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+
 @cache_page(5)
 def obtener_stock(request):
     try:
@@ -278,29 +477,151 @@ def historial(request):
     return render(request, "historial_movimientos.html", {"movimientos": movimientos})
 
 
+# importa tus modelos:
+# from .models import RegistroMovimiento, GrupoMovimiento, StockBalde, ProductoFijo
+
+# views.py (agrega/asegúrate de tener estos imports arriba del archivo)
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+from django.db.models import Q, Sum, OuterRef, Subquery
+from django.core.paginator import Paginator
+
+
+from django.utils.timezone import make_aware
+
+import datetime as dt
+from django.utils.timezone import make_aware
+
+
+
+def _fmt_dt(dt: datetime | None) -> str:
+    if not dt:
+        return ""
+    return dt.strftime("%d/%m/%Y %H:%M")
+
+def _build_periodo_label(dt_desde, dt_hasta) -> str:
+    if dt_desde and dt_hasta:
+        return f"{_fmt_dt(dt_desde)} — {_fmt_dt(dt_hasta)}"
+    if dt_desde:
+        return f"desde {_fmt_dt(dt_desde)}"
+    if dt_hasta:
+        return f"hasta {_fmt_dt(dt_hasta)}"
+    return "sin filtro (todos)"
+
+
+def _parse_dt_local(s: str | None, is_end: bool = False):
+    """
+    Acepta valores de <input type="date"> (YYYY-MM-DD)
+    o <input type="datetime-local"> (YYYY-MM-DDTHH:MM).
+    Devuelve datetime naive. Si sólo viene fecha:
+      - is_end=False -> 00:00:00
+      - is_end=True  -> 23:59:59.999999
+    """
+    if not s:
+        return None
+    s = s.strip()
+    # Primero intentamos datetime local
+    dt = parse_datetime(s)
+    if dt:
+        return dt
+    # Luego solo fecha
+    d = parse_date(s)
+    if d:
+        if is_end:
+            return datetime.combine(d, datetime.time(23, 59, 59, 999999))
+        return datetime.combine(d, datetime.time(0, 0, 0))
+    return None
+
+
 def historial_movimientos(request):
     """
-    Lista de movimientos agrupados por grupo_id mostrando SOLO el último
-    movimiento de cada grupo, con filtros por fecha, local y tipo.
+    Historial + modo activos.
+    Incluye:
+      - Resumen de RETIROS por PLU (orden ?orden=kg_desc|kg_asc, export ?export=xlsx)
+      - Resumen de INGRESOS por PLU (orden ?orden_ing=kg_desc|kg_asc, export ?export=ing_xlsx)
+    Acepta 'desde' y 'hasta' con fecha u hora (datetime-local).
     """
-    base_qs = RegistroMovimiento.objects.all()
+    # -------- Flags y filtros ----------
+    solo_activos = request.GET.get("solo_activos") in {"1", "true", "True"}
 
-    # Filtros
-    desde_str = request.GET.get("desde")
-    hasta_str = request.GET.get("hasta")
+    desde_str = (request.GET.get("desde") or "").strip()
+    hasta_str = (request.GET.get("hasta") or "").strip()
     local = (request.GET.get("local") or "").strip()
     tipo = (request.GET.get("tipo") or "").strip().lower()
-    gusto = (request.GET.get("gusto") or "").strip()     # nombre del gusto a buscar
-    codigo = (request.GET.get("codigo") or "").strip()   # EAN-13 exacto o substring
+    gusto = (request.GET.get("gusto") or "").strip()
+    codigo = (request.GET.get("codigo") or "").strip()
 
-    if desde_str:
-        d = parse_date(desde_str)
-        if d:
-            base_qs = base_qs.filter(timestamp__date__gte=d)
-    if hasta_str:
-        h = parse_date(hasta_str)
-        if h:
-            base_qs = base_qs.filter(timestamp__date__lte=h)
+    plus_str = (request.GET.get("plus") or "").strip()
+    plus_list = [p.strip() for p in plus_str.replace(";", ",").split(",") if p.strip()]
+
+    # Ordenes y export
+    orden = (request.GET.get("orden") or "kg_desc").lower()           # retiros
+    orden_ing = (request.GET.get("orden_ing") or "kg_desc").lower()   # ingresos
+    export = (request.GET.get("export") or "").lower()                # 'xlsx' | 'ing_xlsx'
+
+    # Fechas / horas
+    dt_desde = _parse_dt_local(desde_str, is_end=False)
+    dt_hasta = _parse_dt_local(hasta_str, is_end=True)
+
+    # ============================================================
+    # MODO "SOLO ACTIVOS"
+    # ============================================================
+    if solo_activos:
+        qs = (
+            StockBalde.objects
+            .filter(is_activo=True)
+            .select_related("producto")
+            .only("id", "codigo_barras", "peso", "producto__nombre", "producto__plu", "timestamp")
+        )
+        if dt_desde:
+            qs = qs.filter(timestamp__gte=dt_desde)
+        if dt_hasta:
+            qs = qs.filter(timestamp__lte=dt_hasta)
+        if gusto:
+            qs = qs.filter(producto__nombre__icontains=gusto)
+        if codigo:
+            qs = qs.filter(codigo_barras__icontains=codigo)
+
+        qs = qs.order_by("producto__nombre", "timestamp", "id")
+        total_kg_global = qs.aggregate(s=Sum("peso"))["s"] or 0
+
+        page_number = request.GET.get("page", 1)
+        paginator = Paginator(qs, 20)
+        activos_page = paginator.get_page(page_number)
+
+        return render(
+            request,
+            "historial_movimientos.html",
+            {
+                "modo": "activos",
+                "movimientos": activos_page,
+                "filtros": {
+                    "desde": desde_str,
+                    "hasta": hasta_str,
+                    "local": local,
+                    "tipo": tipo,
+                    "gusto": gusto,
+                    "codigo": codigo,
+                    "plus": plus_str,
+                    "orden": orden,
+                    "orden_ing": orden_ing,
+                    "solo_activos": True,
+                },
+                "total_kg_global": total_kg_global,
+                "totales_plus": None,
+                "totales_plus_ing": None,
+            },
+        )
+
+    # ========================================
+    # MODO HISTORIAL (último de cada grupo_id)
+    # ========================================
+    base_qs = RegistroMovimiento.objects.all()
+
+    if dt_desde:
+        base_qs = base_qs.filter(timestamp__gte=dt_desde)
+    if dt_hasta:
+        base_qs = base_qs.filter(timestamp__lte=dt_hasta)
 
     if local:
         base_qs = base_qs.filter(
@@ -311,22 +632,16 @@ def historial_movimientos(request):
 
     if tipo:
         if tipo in ("retiro", "salida"):
-            # Incluir ambos para compatibilidad histórica
             base_qs = base_qs.filter(tipo__in=["retiro", "salida"])
         elif tipo == "ingreso":
             base_qs = base_qs.filter(tipo="ingreso")
-        else:
-            # cualquier otro valor ignora el filtro de tipo
-            pass
 
     if gusto:
         base_qs = base_qs.filter(producto__nombre__icontains=gusto)
     if codigo:
-        # si queremos exacto: codigo_barras=codigo
-        # si queremos "contiene": codigo_barras__icontains=codigo
         base_qs = base_qs.filter(codigo_barras__icontains=codigo)
 
-    # Último movimiento por grupo_id (respetando filtros)
+    # ------- grilla principal: último por grupo -------
     latest_in_group = (
         base_qs.filter(grupo_id=OuterRef("grupo_id"))
                .order_by("-timestamp", "-id")
@@ -337,64 +652,160 @@ def historial_movimientos(request):
                .annotate(latest_id=Subquery(latest_in_group))
                .values("latest_id")
     )
-
     movimientos_qs = (
         RegistroMovimiento.objects
         .filter(id__in=Subquery(latest_ids_subq))
         .select_related("producto", "destino")
         .order_by("-timestamp", "-id")
     )
-
-    # Total global (todos los resultados filtrados, sin paginar)
     total_kg_global = base_qs.aggregate(s=Sum("peso"))["s"] or 0
 
-    # Paginación
     page_number = request.GET.get("page", 1)
     paginator = Paginator(movimientos_qs, 20)
     movimientos_page = paginator.get_page(page_number)
 
-    # === NUEVO: total de kilos de los movimientos que se muestran en esta página ===
+    # ------------------------------------------------------------
+    # Resumen de RETIROS por PLU
+    # ------------------------------------------------------------
+    qs_retiros = base_qs.filter(tipo__in=["retiro", "salida"])
+    if plus_list:
+        qs_retiros = qs_retiros.filter(producto__plu__in=plus_list)
 
-
-    # ids de grupo visibles en la página actual
-    grupo_ids_visibles = [m.grupo_id for m in movimientos_page.object_list]
-
-    # primero intentamos sumar desde GrupoMovimiento (siempre que exista el header)
-    total_kg = (
-        GrupoMovimiento.objects
-        .filter(grupo_id__in=grupo_ids_visibles)
-        .aggregate(s=Sum("total_peso"))["s"] or 0
+    detalle_por_plu_qs = (
+        qs_retiros
+        .values("producto__plu", "producto__nombre")
+        .annotate(cant=Count("id"), kg=Sum("peso"))
     )
+    if orden == "kg_asc":
+        detalle_por_plu_qs = detalle_por_plu_qs.order_by("kg", "producto__nombre", "producto__plu")
+    else:
+        detalle_por_plu_qs = detalle_por_plu_qs.order_by("-kg", "producto__nombre", "producto__plu")
 
-    # fallback: si algún grupo no tiene header, sumamos su peso desde RegistroMovimiento
-    grupos_con_header = set(
-        GrupoMovimiento.objects
-        .filter(grupo_id__in=grupo_ids_visibles)
-        .values_list("grupo_id", flat=True)
+    detalle_por_plu = list(detalle_por_plu_qs)
+    totales_plus = None
+    if detalle_por_plu:
+        totales_plus = {
+        "detalle_retiros": detalle_por_plu,  # ← Nombre específico para retiros
+        "total_baldes_retirados": sum(r["cant"] for r in detalle_por_plu),
+        "total_kg_retirados": sum((r["kg"] or 0) for r in detalle_por_plu),
+        "orden": orden,
+    }
+
+    # ------------------------------------------------------------
+    # Resumen de INGRESOS por PLU
+    # ------------------------------------------------------------
+    qs_ingresos = base_qs.filter(tipo="ingreso")
+    if plus_list:
+        qs_ingresos = qs_ingresos.filter(producto__plu__in=plus_list)
+
+    detalle_por_plu_ing_qs = (
+        qs_ingresos
+        .values("producto__plu", "producto__nombre")
+        .annotate(cant=Count("id"), kg=Sum("peso"))
     )
-    faltantes = set(grupo_ids_visibles) - grupos_con_header
-    if faltantes:
-        total_faltantes = (
-            RegistroMovimiento.objects
-            .filter(grupo_id__in=faltantes)
-            .aggregate(s=Sum("peso"))["s"] or 0
+    if orden_ing == "kg_asc":
+        detalle_por_plu_ing_qs = detalle_por_plu_ing_qs.order_by("kg", "producto__nombre", "producto__plu")
+    else:
+        detalle_por_plu_ing_qs = detalle_por_plu_ing_qs.order_by("-kg", "producto__nombre", "producto__plu")
+
+    detalle_por_plu_ing = list(detalle_por_plu_ing_qs)
+    totales_plus_ing = None
+    if detalle_por_plu_ing:
+        # ✅ DESPUÉS (cambiar el nombre de la clave)
+        totales_plus_ing = {
+            "detalle_ingresos": detalle_por_plu_ing,  # ← Nombre específico para ingresos
+            "total_baldes_ingresados": sum(r["cant"] for r in detalle_por_plu_ing),
+            "total_kg_ingresados": sum((r["kg"] or 0) for r in detalle_por_plu_ing),
+            "orden_ing": orden_ing,
+        }
+
+    # ----------------------------------------
+    # Exportaciones (antes del render)
+    # ----------------------------------------
+    if export in {"xlsx", "ing_xlsx"}:
+        from openpyxl import Workbook
+        from openpyxl.utils import get_column_letter
+        import io
+
+        if export == "xlsx":
+            sheet_title = "Retiros por PLU"
+            rows = detalle_por_plu
+            fname = "resumen_retiros_por_plu.xlsx"
+        else:
+            sheet_title = "Ingresos por PLU"
+            rows = detalle_por_plu_ing
+            fname = "resumen_ingresos_por_plu.xlsx"
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = sheet_title
+
+        headers = ["PLU", "Producto", "Cant. baldes", "Kilos"]
+        ws.append(headers)
+
+        for r in rows:
+            ws.append([
+                r.get("producto__plu", ""),
+                r.get("producto__nombre", ""),
+                r.get("cant", 0),
+                float(r.get("kg") or 0),
+            ])
+
+        if rows:
+            ws.append([])
+            ws.append([
+                "", "TOTAL",
+                sum(x["cant"] for x in rows),
+                float(sum((x["kg"] or 0) for x in rows)),
+            ])
+
+        for col in ws.columns:
+            max_len = 0
+            col_letter = get_column_letter(col[0].column)
+            for cell in col:
+                try:
+                    max_len = max(max_len, len(str(cell.value)) if cell.value is not None else 0)
+                except Exception:
+                    pass
+            ws.column_dimensions[col_letter].width = min(max_len + 2, 50)
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        resp = HttpResponse(
+            buf.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
-        total_kg += total_faltantes
+        resp["Content-Disposition"] = f'attachment; filename="{fname}"'
+        return resp
 
+    # -------- Render HTML --------
     return render(
-    request,
-    "historial_movimientos.html",
-    {
-        "movimientos": movimientos_page,
-        "filtros": {
-            "desde": desde_str or "",
-            "hasta": hasta_str or "",
-            "local": local,
-            "tipo": tipo or "",
+        request,
+        "historial_movimientos.html",
+        {
+            "modo": "historial",
+            "movimientos": movimientos_page,
+            "filtros": {
+                "desde": desde_str,
+                "hasta": hasta_str,
+                "local": local,
+                "tipo": tipo,
+                "gusto": gusto,
+                "codigo": codigo,
+                "plus": plus_str,
+                "orden": orden,
+                "orden_ing": orden_ing,
+                "solo_activos": False,
+            },
+            "total_kg_global": total_kg_global,
+            "totales_plus": totales_plus,
+            "totales_plus_ing": totales_plus_ing,
         },
-        "total_kg_global": total_kg_global,   # 👈 NUEVO: total global filtrado
-    },
-)
+    )
+
+
+    
 
 
 def detalle_movimiento(request, grupo_id: int):
@@ -625,11 +1036,11 @@ def confirmar_agregado(request):
 def confirmar_codigos(request):
     """
     Confirma un INGRESO de baldes con trazabilidad por código de barras.
-    - Requiere para cada item: {plu, nombre?, peso, codigo_barras}
-    - Bloquea duplicados: si un codigo_barras ya existe, rechaza.
-    - Crea StockBalde (is_activo=True) y RegistroMovimiento (tipo='ingreso').
-    - Agrupa todo en un nuevo grupo_id y actualiza GrupoMovimiento.
-    - Limpia la lista temporal en sesión si existe.
+
+    Mejoras anti-duplicados:
+    - nuevo_grupo_id se calcula dentro de transaction y serializado
+    - opcional: client_txn_id (idempotencia) guardado en sesión
+    - chequeo de duplicado con select_for_update para evitar carreras
     """
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
@@ -642,20 +1053,45 @@ def confirmar_codigos(request):
 
     productos = data.get("productos", []) or request.session.get("productos_temporales", [])
     origen = (data.get("origen") or "").strip()
+    force = bool(data.get("force", False))
+
+    # ✅ Token opcional para hacer la operación idempotente (recomendado)
+    # En el front mandás un UUID por cada confirmación (una sola vez).
+    client_txn_id = (data.get("client_txn_id") or "").strip()
 
     if not productos:
         return JsonResponse({"error": "No hay productos para ingresar"}, status=400)
     if not origen:
         return JsonResponse({"error": "Debe indicar un origen"}, status=400)
 
-    # --- Nuevo grupo ---
-    ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
-    nuevo_grupo_id = ultimo_grupo + 1
+    # ---- Idempotencia por sesión (opcional) ----
+    # Evita que si el usuario confirma 2 veces, la segunda repita todo.
+    if client_txn_id:
+        processed = request.session.get("processed_txn_ids", [])
+        if client_txn_id in processed:
+            # Ya procesado: devolvemos OK sin volver a ingresar.
+            return JsonResponse({
+                "success": True,
+                "status": "ya_procesado",
+                "message": "Esta confirmación ya fue procesada.",
+            }, status=200)
 
     ingresados = []
 
     try:
         with transaction.atomic():
+            # ✅ Serializar la generación del grupo_id para evitar carreras
+            # Bloquea la fila más “alta” de grupo_id momentáneamente.
+            ultimo = (
+                RegistroMovimiento.objects
+                .select_for_update()
+                .order_by("-grupo_id")
+                .values_list("grupo_id", flat=True)
+                .first()
+            )
+            ultimo_grupo = ultimo or 0
+            nuevo_grupo_id = ultimo_grupo + 1
+
             for p in productos:
                 plu = (p or {}).get("plu")
                 peso = (p or {}).get("peso")
@@ -664,10 +1100,15 @@ def confirmar_codigos(request):
                 # Validaciones
                 if not plu:
                     return JsonResponse({"error": "Producto sin PLU"}, status=400)
-                if not peso:
+                if peso in (None, "", 0):
                     return JsonResponse({"error": f"Producto {plu} sin peso"}, status=400)
-                if not codigo_barras or len(str(codigo_barras)) != 13:
-                    return JsonResponse({"error": "Cada balde debe incluir 'codigo_barras' de 13 dígitos"}, status=400)
+
+                codigo_str = str(codigo_barras or "")
+                if len(codigo_str) != 13 or not codigo_str.isdigit():
+                    return JsonResponse(
+                        {"error": "Cada balde debe incluir 'codigo_barras' de 13 dígitos"},
+                        status=400
+                    )
 
                 # Producto
                 try:
@@ -675,46 +1116,77 @@ def confirmar_codigos(request):
                 except ProductoFijo.DoesNotExist:
                     return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
-                # Duplicado (anti-reingreso solo si hay uno ACTIVO)
-                if StockBalde.objects.filter(codigo_barras=codigo_barras, is_activo=True).exists():
+                # ✅ Anti-carrera: bloqueamos cualquier balde existente con ese código
+                # Si otro request está tratando el mismo código, uno va a esperar al otro.
+                duplicado_qs = (
+                    StockBalde.objects
+                    .select_for_update()
+                    .filter(codigo_barras=codigo_str, is_activo=True)
+                )
+
+                if duplicado_qs.exists() and not force:
+                    ultimo_dup = (
+                        duplicado_qs.order_by("-id")
+                        .values("producto__nombre", "peso", "fecha_retiro", "timestamp")
+                        .first()
+                    )
                     return JsonResponse(
-                        {"error": f"El balde {codigo_barras} ya fue ingresado previamente y sigue activo"},
-                        status=409  # Conflict
+                        {
+                            "status": "duplicado_detectado",
+                            "codigo_barras": codigo_str,
+                            "producto": ultimo_dup.get("producto__nombre") if ultimo_dup else None,
+                            "peso_anterior": ultimo_dup.get("peso") if ultimo_dup else None,
+                            "fecha_retiro": ultimo_dup.get("fecha_retiro") if ultimo_dup else None,
+                            "fecha_ingreso": ultimo_dup.get("timestamp").isoformat()
+                                if ultimo_dup and ultimo_dup.get("timestamp") else None,
+                            "mensaje": f"⚠️ Este balde con código <b>{codigo_str}</b> "
+                                       f"ya se encuentra <b>ACTIVO</b> en el stock.<br><br>",
+                            "se_puede_forzar": True
+                        },
+                        status=409
                     )
 
-                # Crear balde activo
-                StockBalde.objects.create(
+                # ✅ Crear balde activo
+                balde = StockBalde.objects.create(
                     producto=producto_obj,
                     peso=float(peso),
-                    codigo_barras=codigo_barras,
+                    codigo_barras=codigo_str,
                     is_activo=True,
                     fecha_retiro=None,
                 )
 
-                # Crear movimiento
+                # ✅ Registrar movimiento
                 RegistroMovimiento.objects.create(
                     grupo_id=nuevo_grupo_id,
                     producto=producto_obj,
                     peso=float(peso),
                     tipo="ingreso",
                     origen=origen,
-                    boca_salida=origen,  # compatibilidad
-                    codigo_barras=codigo_barras,
+                    boca_salida=origen,  # compatibilidad con layouts existentes
+                    codigo_barras=codigo_str,
                 )
 
                 ingresados.append(producto_obj.nombre)
 
-            # Totales del grupo
+            # ✅ Totales del grupo
             _actualizar_total_grupo(nuevo_grupo_id, tipo="ingreso", origen=origen)
 
-            # Limpiar sesión temporal
+            # ✅ Limpiar sesión temporal
             if "productos_temporales" in request.session:
                 request.session["productos_temporales"] = []
                 request.session.modified = True
 
+            # ✅ Marcar txn_id como procesado (idempotencia)
+            if client_txn_id:
+                processed = request.session.get("processed_txn_ids", [])
+                processed.append(client_txn_id)
+                # evito crecimiento infinito
+                request.session["processed_txn_ids"] = processed[-50:]
+                request.session.modified = True
+
     except Exception as e:
         return JsonResponse({"error": f"Error al confirmar ingreso: {e}"}, status=500)
-    
+
     msg = "Productos agregados correctamente:\n\n" + "\n".join(ingresados)
 
     return JsonResponse({
@@ -725,17 +1197,19 @@ def confirmar_codigos(request):
         "message": msg
     }, status=200)
 
+
 @csrf_exempt
 def confirmar_retiro(request):
     """
-    Confirma RETIRO de baldes. Soporta trazabilidad por código y stock legacy (sin código).
+    Confirma RETIRO de baldes.
 
-    Flags opcionales en el body:
-      - allow_fallback_legacy (bool, default True): si se envía un código y no existe ese balde,
-        permite caer a un balde legacy (sin código) del mismo PLU.
-      - legacy_ok (bool, default True): permite retirar sin enviar código (toma legacy preferentemente).
-      - legacy_only (bool, default False): si no se envía código, exige que el balde retirado sea legacy.
-        (implica legacy_ok=True)
+    Escenario actual:
+      - TODOS los baldes tienen código de barras.
+      - Para cada ítem se espera: {plu, codigo_barras}
+      - No hay baldes "legacy" sin código.
+      - Si el mismo (plu, codigo_barras) viene repetido en el payload,
+        sólo se procesa UNA vez (deduplicación en backend).
+      - Si no existe un balde ACTIVO con ese código, se informa como faltante.
     """
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
@@ -749,13 +1223,6 @@ def confirmar_retiro(request):
     productos = data.get("productos", [])
     destino_nombre = (data.get("destino") or "").strip()
 
-    # Flags de control (con defaults seguros)
-    allow_fallback_legacy = bool(data.get("allow_fallback_legacy", True))
-    legacy_ok = bool(data.get("legacy_ok", True))
-    legacy_only = bool(data.get("legacy_only", False))
-    if legacy_only:
-        legacy_ok = True  # "solo legacy" implica permitir legacy
-
     if not productos:
         return JsonResponse({"error": "No hay productos para retirar"}, status=400)
     if not destino_nombre:
@@ -766,16 +1233,31 @@ def confirmar_retiro(request):
     if not destino_obj:
         return JsonResponse({"error": f"Destino '{destino_nombre}' no existe"}, status=400)
 
-    # -------- Normalizar solicitudes [(plu, codigo|None)] --------
+    # -------- Normalizar solicitudes y EVITAR DUPLICADOS --------
+    # Generamos una lista de (plu, codigo) única
     solicitudes = []
+    vistos = set()   # set de (plu, codigo_barras)
+
     for p in productos:
-        plu = (p or {}).get("plu")
+        p = p or {}
+        plu = p.get("plu")
+        codigo = (p.get("codigo_barras") or p.get("codigo") or "").strip()
+
         if not plu:
             return JsonResponse({"error": "Producto sin PLU"}, status=400)
-        codigo = (p.get("codigo") or p.get("codigo_barras") or "").strip() or None
+        if not codigo:
+            return JsonResponse({"error": f"Producto {plu} sin código de barras"}, status=400)
+        if len(codigo) != 13 or not codigo.isdigit():
+            return JsonResponse({"error": f"Código inválido para PLU {plu}: debe ser EAN-13"}, status=400)
+
+        clave = (plu, codigo)
+        if clave in vistos:
+            # Ya tenemos este mismo balde en la lista, lo ignoramos
+            continue
+        vistos.add(clave)
         solicitudes.append((plu, codigo))
 
-    # -------- Selección de baldes respetando fallback a legacy --------
+    # -------- Selección de baldes (siempre con código) --------
     seleccionados = []  # [(producto_obj, balde), ...]
     faltantes = []
 
@@ -785,47 +1267,25 @@ def confirmar_retiro(request):
         except ProductoFijo.DoesNotExist:
             return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
-        base = (
+        # Buscamos SIEMPRE por código y sólo baldes activos
+        # Si hubiera más de uno con el mismo código, tomamos el MÁS VIEJO
+        balde = (
             StockBalde.objects
-            .filter(producto=producto_obj, is_activo=True)
-            .order_by("-timestamp", "-id")
+            .filter(producto=producto_obj, is_activo=True, codigo_barras=codigo)
+            .order_by("timestamp", "id")
+            .first()
         )
 
-        balde = None
-        if codigo:
-            # 1) Intento exacto por código
-            balde = base.filter(codigo_barras=codigo).first()
-
-            # 2) Si no hay ese código y se permite fallback, tomar legacy si lo hay
-            if not balde and allow_fallback_legacy:
-                balde_legacy = base.filter(Q(codigo_barras__isnull=True) | Q(codigo_barras="")).first()
-                if balde_legacy:
-                    balde = balde_legacy
-
-            # 3) (opcional) si tampoco hay legacy y no estamos en "solo legacy", tomar cualquiera activo
-            if not balde and allow_fallback_legacy and not legacy_only:
-                balde = base.first()
-        else:
-            # No se envió código
-            if not legacy_ok:
-                faltantes.append(f"{producto_obj.nombre} (requiere código)")
-            else:
-                # Preferir legacy primero
-                balde = base.filter(Q(codigo_barras__isnull=True) | Q(codigo_barras="")).first()
-                if not balde and not legacy_only:
-                    balde = base.first()
-
         if not balde:
-            # No se encontró balde elegible
-            if codigo:
-                faltantes.append(f"{producto_obj.nombre} ({codigo})")
-            else:
-                faltantes.append(producto_obj.nombre)
+            faltantes.append(f"{producto_obj.nombre} ({codigo})")
         else:
             seleccionados.append((producto_obj, balde))
 
     if faltantes:
-        return JsonResponse({"error": f"No hay stock disponible para: {', '.join(faltantes)}"}, status=400)
+        return JsonResponse(
+            {"error": f"No hay stock disponible para: {', '.join(faltantes)}"},
+            status=400
+        )
 
     # -------- Nuevo grupo_id --------
     ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
@@ -836,8 +1296,10 @@ def confirmar_retiro(request):
     try:
         with transaction.atomic():
             for producto_obj, balde in seleccionados:
-                # Soft-delete: marcar inactivo
+                # Marcar balde como inactivo
                 balde.is_activo = False
+                # (Opcional: si tenés campo fecha_retiro, podés setearlo acá)
+                # balde.fecha_retiro = timezone.now()
                 balde.save(update_fields=["is_activo"])
 
                 # Registrar movimiento
@@ -847,8 +1309,8 @@ def confirmar_retiro(request):
                     peso=balde.peso,
                     tipo="salida",
                     destino=destino_obj,
-                    boca_salida=destino_nombre,                 # compatibilidad texto
-                    codigo_barras=(balde.codigo_barras or ""),  # legacy: queda vacío
+                    boca_salida=destino_nombre,
+                    codigo_barras=(balde.codigo_barras or ""),
                 )
                 productos_retirados.append(producto_obj.nombre)
 
@@ -856,7 +1318,7 @@ def confirmar_retiro(request):
             _actualizar_total_grupo(
                 nuevo_grupo_id,
                 tipo="salida",
-                destino_nombre=destino_nombre
+                destino_nombre=destino_nombre,
             )
 
     except Exception as e:
@@ -869,9 +1331,9 @@ def confirmar_retiro(request):
             "grupo_id": nuevo_grupo_id,
             "destino": destino_nombre,
             "productos": productos_retirados,
-            "message": msg
+            "message": msg,
         },
-        status=200
+        status=200,
     )
 
 # =========================================================
@@ -1097,3 +1559,604 @@ def reiniciar_stock(request):
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)}, status=500)
     return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
+
+# views.py
+def dashboard(request):
+    hoy = timezone.now().date()
+    
+    # Movimientos del día
+    movimientos_hoy = RegistroMovimiento.objects.filter(
+        timestamp__date=hoy
+    ).aggregate(
+        ingresos=Count('id', filter=Q(tipo='ingreso')),
+        retiros=Count('id', filter=Q(tipo='salida'))
+    )
+    
+    # Top 5 productos más rotados (últimos 30 días)
+    hace_30_dias = timezone.now() - timedelta(days=30)
+    top_productos = (RegistroMovimiento.objects
+        .filter(timestamp__gte=hace_30_dias)
+        .values('producto__nombre')
+        .annotate(movimientos=Count('id'))
+        .order_by('-movimientos')[:5]
+    )
+    
+    # Productos bajo stock mínimo
+    productos_bajo_stock = ProductoFijo.objects.annotate(
+        stock_actual=Count('stockbalde', filter=Q(stockbalde__is_activo=True))
+    ).filter(stock_actual__lt=F('stock_minimo'))
+    
+    context = {
+        'movimientos_hoy': movimientos_hoy,
+        'top_productos': top_productos,
+        'productos_bajo_stock': productos_bajo_stock,
+    }
+    return render(request, 'dashboard.html', context)
+
+
+def api_dashboard_metricas(request):
+    """
+    API que devuelve todas las métricas para el dashboard
+    """
+    
+    try:
+        # Obtener parámetros de fecha (opcional)
+        fecha_desde_str = request.GET.get('desde')
+        fecha_hasta_str = request.GET.get('hasta')
+        hoy = timezone.now()
+        inicio_dia = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
+        hace_7_dias = hoy - timedelta(days=7)
+        hace_30_dias = hoy - timedelta(days=30)
+        inicio_mes = hoy.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        
+        # ============================================================
+        # 1. RESUMEN GENERAL
+        # ============================================================
+        
+        # Stock actual
+        total_baldes = StockBalde.objects.filter(is_activo=True).count()
+        total_kilos = StockBalde.objects.filter(is_activo=True).aggregate(
+            total=Sum('peso')
+        )['total'] or 0
+        
+        # Valor del inventario (ejemplo: cada kg vale $100)
+        valor_por_kg = 22500
+        valor_inventario = float(total_kilos) * valor_por_kg
+        
+        # Productos únicos en stock
+        productos_en_stock = StockBalde.objects.filter(
+            is_activo=True
+        ).values('producto').distinct().count()
+        
+        # ============================================================
+        # 2. MOVIMIENTOS DEL DÍA
+        # ============================================================
+        
+        movimientos_hoy = RegistroMovimiento.objects.filter(
+            timestamp__gte=inicio_dia
+        ).aggregate(
+            ingresos=Count('id', filter=Q(tipo='ingreso')),
+            retiros=Count('id', filter=Q(tipo='salida')),
+            kg_ingresados=Sum('peso', filter=Q(tipo='ingreso')),
+            kg_retirados=Sum('peso', filter=Q(tipo='salida'))
+        )
+        
+        # ============================================================
+        # 3. TENDENCIAS (Comparación con ayer y semana pasada)
+        # ============================================================
+        
+        # Ayer
+        inicio_ayer = inicio_dia - timedelta(days=1)
+        fin_ayer = inicio_dia
+        
+        movimientos_ayer = RegistroMovimiento.objects.filter(
+            timestamp__gte=inicio_ayer,
+            timestamp__lt=fin_ayer
+        ).aggregate(
+            ingresos=Count('id', filter=Q(tipo='ingreso')),
+            retiros=Count('id', filter=Q(tipo='salida'))
+        )
+        
+        # Calcular porcentajes de cambio
+        def calcular_cambio(actual, anterior):
+            if anterior == 0:
+                return 100 if actual > 0 else 0
+            return round(((actual - anterior) / anterior) * 100, 1)
+        
+        cambio_ingresos = calcular_cambio(
+            movimientos_hoy['ingresos'] or 0,
+            movimientos_ayer['ingresos'] or 0
+        )
+        
+        cambio_retiros = calcular_cambio(
+            movimientos_hoy['retiros'] or 0,
+            movimientos_ayer['retiros'] or 0
+        )
+        
+        # ============================================================
+        # 4. TOP PRODUCTOS MÁS MOVIDOS (Últimos 30 días)
+        # ============================================================
+        
+        top_productos = (
+            RegistroMovimiento.objects
+            .filter(timestamp__gte=hace_30_dias)
+            .values('producto__nombre', 'producto__plu')
+            .annotate(
+                total_movimientos=Count('id'),
+                total_kg=Sum('peso'),
+                ingresos=Count('id', filter=Q(tipo='ingreso')),
+                retiros=Count('id', filter=Q(tipo='salida'))
+            )
+            .order_by('-total_movimientos')[:10]
+        )
+        
+        # ============================================================
+        # 5. PRODUCTOS BAJO STOCK MÍNIMO
+        # ============================================================
+        
+        productos_bajo_stock = ProductoFijo.objects.annotate(
+            stock_actual=Count('stockbalde', filter=Q(stockbalde__is_activo=True))
+        ).filter(
+            stock_actual__lt=F('stock_minimo')
+        ).values(
+            'plu', 'nombre', 'stock_minimo', 'stock_actual'
+        ).order_by('stock_actual')
+        
+        # Calcular déficit
+        productos_bajo_stock_list = []
+        for p in productos_bajo_stock:
+            deficit = p['stock_minimo'] - p['stock_actual']
+            productos_bajo_stock_list.append({
+                **p,
+                'deficit': deficit,
+                'porcentaje_stock': round((p['stock_actual'] / p['stock_minimo'] * 100), 1) if p['stock_minimo'] > 0 else 0
+            })
+        
+        # ============================================================
+        # 6. PRODUCTOS SIN MOVIMIENTO (Últimos 30 días)
+        # ============================================================
+        
+        productos_con_movimiento = RegistroMovimiento.objects.filter(
+            timestamp__gte=hace_30_dias
+        ).values_list('producto_id', flat=True).distinct()
+        
+        productos_sin_movimiento = ProductoFijo.objects.exclude(
+            plu__in=productos_con_movimiento
+        ).annotate(
+            stock_actual=Count('stockbalde', filter=Q(stockbalde__is_activo=True))
+        ).filter(stock_actual__gt=0).values(
+            'plu', 'nombre', 'stock_actual'
+        )[:10]
+        
+        # ============================================================
+        # 7. GRÁFICO DE MOVIMIENTOS (Últimos 7 días)
+        # ============================================================
+        
+        movimientos_7_dias = []
+        for i in range(7):
+            dia = inicio_dia - timedelta(days=6-i)
+            dia_siguiente = dia + timedelta(days=1)
+            
+            movs = RegistroMovimiento.objects.filter(
+                timestamp__gte=dia,
+                timestamp__lt=dia_siguiente
+            ).aggregate(
+                ingresos=Count('id', filter=Q(tipo='ingreso')),
+                retiros=Count('id', filter=Q(tipo='salida')),
+                kg_ingresados=Sum('peso', filter=Q(tipo='ingreso')),
+                kg_retirados=Sum('peso', filter=Q(tipo='salida'))
+            )
+            
+            movimientos_7_dias.append({
+                'fecha': dia.strftime('%d/%m'),
+                'dia_completo': dia.strftime('%Y-%m-%d'),
+                'ingresos': movs['ingresos'] or 0,
+                'retiros': movs['retiros'] or 0,
+                'kg_ingresados': float(movs['kg_ingresados'] or 0),
+                'kg_retirados': float(movs['kg_retirados'] or 0)
+            })
+
+        # ============================================================
+        # 7B. GRÁFICO DE MOVIMIENTOS ÚLTIMOS 30 DÍAS
+        # ============================================================
+
+        movimientos_30_dias = []
+        for i in range(30):
+            dia = inicio_dia - timedelta(days=29-i)  # Empezar desde hace 29 días
+            dia_siguiente = dia + timedelta(days=1)
+            
+            movs = RegistroMovimiento.objects.filter(
+                timestamp__gte=dia,
+                timestamp__lt=dia_siguiente
+            ).aggregate(
+                ingresos=Count('id', filter=Q(tipo='ingreso')),
+                retiros=Count('id', filter=Q(tipo='salida')),
+                kg_ingresados=Sum('peso', filter=Q(tipo='ingreso')),
+                kg_retirados=Sum('peso', filter=Q(tipo='salida'))
+            )
+            
+            movimientos_30_dias.append({
+                'dia': i + 1,
+                'fecha': dia.strftime('%d/%m'),
+                'fecha_completa': dia.strftime('%Y-%m-%d'),
+                'ingresos': movs['ingresos'] or 0,
+                'retiros': movs['retiros'] or 0,
+                'kg_ingresados': float(movs['kg_ingresados'] or 0),
+                'kg_retirados': float(movs['kg_retirados'] or 0),
+                'es_hoy': dia.date() == hoy.date()
+            })
+
+        # Resumen de los últimos 30 días
+        resumen_30_dias = {
+            'total_dias': 30,
+            'total_ingresos': sum(m['ingresos'] for m in movimientos_30_dias),
+            'total_retiros': sum(m['retiros'] for m in movimientos_30_dias),
+            'total_kg_ingresados': sum(m['kg_ingresados'] for m in movimientos_30_dias),
+            'total_kg_retirados': sum(m['kg_retirados'] for m in movimientos_30_dias),
+            'promedio_ingresos_dia': round(sum(m['ingresos'] for m in movimientos_30_dias) / 30, 1),
+            'promedio_retiros_dia': round(sum(m['retiros'] for m in movimientos_30_dias) / 30, 1),
+            'periodo': 'Últimos 30 días'
+        }
+        
+
+        # ✅ NUEVO: Movimientos período custom
+        movimientos_custom = None
+        resumen_custom = None
+        
+        if fecha_desde_str and fecha_hasta_str:
+            try:
+                from datetime import datetime
+                
+                # Parsear fechas
+                fecha_desde = datetime.strptime(fecha_desde_str, '%Y-%m-%d')
+                fecha_hasta = datetime.strptime(fecha_hasta_str, '%Y-%m-%d')
+                
+                # Hacer aware (con timezone)
+                fecha_desde = timezone.make_aware(fecha_desde.replace(hour=0, minute=0, second=0))
+                fecha_hasta = timezone.make_aware(fecha_hasta.replace(hour=23, minute=59, second=59))
+                
+                # Calcular días
+                diff_days = (fecha_hasta.date() - fecha_desde.date()).days + 1
+                
+                # Generar datos día por día
+                movimientos_custom = []
+                for i in range(diff_days):
+                    dia = fecha_desde + timedelta(days=i)
+                    dia_siguiente = dia + timedelta(days=1)
+                    
+                    movs = RegistroMovimiento.objects.filter(
+                        timestamp__gte=dia,
+                        timestamp__lt=dia_siguiente
+                    ).aggregate(
+                        ingresos=Count('id', filter=Q(tipo='ingreso')),
+                        retiros=Count('id', filter=Q(tipo='salida')),
+                        kg_ingresados=Sum('peso', filter=Q(tipo='ingreso')),
+                        kg_retirados=Sum('peso', filter=Q(tipo='salida'))
+                    )
+                    
+                    movimientos_custom.append({
+                        'dia': i + 1,
+                        'fecha': dia.strftime('%d/%m'),
+                        'fecha_completa': dia.strftime('%Y-%m-%d'),
+                        'ingresos': movs['ingresos'] or 0,
+                        'retiros': movs['retiros'] or 0,
+                        'kg_ingresados': float(movs['kg_ingresados'] or 0),
+                        'kg_retirados': float(movs['kg_retirados'] or 0),
+                        'es_hoy': dia.date() == hoy.date()
+                    })
+                
+                # Resumen del período custom
+                resumen_custom = {
+                    'total_dias': diff_days,
+                    'total_ingresos': sum(m['ingresos'] for m in movimientos_custom),
+                    'total_retiros': sum(m['retiros'] for m in movimientos_custom),
+                    'total_kg_ingresados': sum(m['kg_ingresados'] for m in movimientos_custom),
+                    'total_kg_retirados': sum(m['kg_retirados'] for m in movimientos_custom),
+                    'periodo': f'{fecha_desde_str} a {fecha_hasta_str}'
+                }
+                
+            except Exception as e:
+                print(f"Error procesando fechas custom: {e}")
+
+        # ============================================================
+        # 8. DISTRIBUCIÓN POR GRUPO DE PRODUCTOS
+        # ============================================================
+        
+        grupos_productos = {
+            'jarabe': [
+                "LIMON", "FRUTILLA AL AGUA", "DURAZNO"
+            ],
+            'chocolates': [
+                "CHOCOLATE", "CHOCOLAE BLOCK", "CH. CABSHA", "CHOCO DUBAI",
+                "AMARGO", "CH. ALMENDRAS", "CH. PASAS RHUM", "CHOCOLAT PORTOFINO",
+                "CHOCOLATE INTENSO", "CHOCOLAT DEBILIDAD", "CHOC. BLANCO",
+                "ROCHER", "TOFFEE BLANCO"
+            ],
+            'dulces': [
+                "DCE LECHE", "DCE. LECHE NUEZ", "DCE. GRANIZADO", "SUPER DCE LECHE",
+                "DCE. VAUQUITA", "D. LECHE PORTOFINO", "DCE. LECHE COOKIES",
+                "BASE DULCE LECHE", "CHOCOTORTA"
+            ],
+            'blanca': [
+                "AMERICANA", "VAINILLA", "TRAMONTANA", "GRANIZADO",
+                "MENTA GRANIZADA", "CREMA FLAN", "FLAN MIXTO",
+                "FRUTOS DEL BOSQUE", "CREMA DEL CIELO", "PANNACOTA",
+                "MASCARPONE", "CHEESE CAKE", "CAPUCCINO", "OREO", "SNIKERS"
+            ],
+            'neutra': [
+                "CEREZA", "PISTACHO", "FRUTILLA CREMA", "BANANA SPLIT",
+                "MARACUYA", "ANANA AL CHANTILLY", "FRAMBUESA C/ CHOCO",
+                "KINOTOS AL WHISKY", "DURAZNOS AL OPORTO", "MANZANA VERDE",
+                "LEMON PIE", "LIMON C/MARACUYA", "FRAMBUESA C/CHOCO",
+                "HAVANETA LIMON"
+            ],
+            'zambayon': [
+                "SAMBAYON", "SAMBAYON PORTOFINO"
+            ],
+            'oleosa': [
+                "ALMENDRADO", "CREMA RUSA", "MARROC"
+            ],
+            'tortas': [
+                "TORTA ALMENDRADO", "TORTA CHOCOTORTA", "TORTA OREO",
+                "TORTA PANNACOTTA", "TORTA TRICOLOR"
+            ],
+            'barras': [
+                "BARRA ALMENDRADO", "BARRA CHOCOTORTA", "BARRA OREO",
+                "BARRA PANNACOTTA", "BARRA TRICOLOR"
+            ],
+            'gastronomico': [
+                "GASTRO"
+            ]
+        }
+
+        # Función para clasificar un producto
+        def clasificar_producto_exacto(nombre_producto):
+            """
+            Clasifica un producto buscando coincidencia exacta o parcial.
+            Primero busca coincidencia exacta, luego parcial.
+            """
+            nombre_upper = nombre_producto.upper().strip()
+            
+            # 1. Buscar coincidencia EXACTA
+            for grupo, nombres in grupos_productos.items():
+                for nombre_grupo in nombres:
+                    if nombre_upper == nombre_grupo.upper():
+                        return grupo
+            
+            # 2. Buscar coincidencia PARCIAL (contiene)
+            for grupo, nombres in grupos_productos.items():
+                for nombre_grupo in nombres:
+                    # Si el nombre del producto contiene el nombre del grupo
+                    if nombre_grupo.upper() in nombre_upper:
+                        return grupo
+                    # O si el nombre del grupo contiene el nombre del producto
+                    # (útil para nombres más largos en la base de datos)
+                    if nombre_upper in nombre_grupo.upper():
+                        return grupo
+            
+            return None
+
+        # Obtener todos los productos únicos con stock
+        productos_con_stock = (
+            StockBalde.objects
+            .filter(is_activo=True)
+            .values('producto__plu', 'producto__nombre')
+            .distinct()
+        )
+
+        # Inicializar contadores
+        distribucion_grupos = {grupo: 0 for grupo in grupos_productos.keys()}
+        productos_sin_clasificar = 0
+
+        # Clasificar cada producto y contar baldes
+        for p in productos_con_stock:
+            plu = p['producto__plu']
+            nombre = p['producto__nombre']
+            
+            # Contar cuántos baldes tiene este producto
+            cantidad = StockBalde.objects.filter(
+                is_activo=True,
+                producto__plu=plu
+            ).count()
+            
+            # Clasificar el producto
+            grupo = clasificar_producto_exacto(nombre)
+            
+            if grupo:
+                distribucion_grupos[grupo] += cantidad
+            else:
+                productos_sin_clasificar += cantidad
+
+        # Agregar "otros" solo si hay productos sin clasificar
+        if productos_sin_clasificar > 0:
+            distribucion_grupos['otros'] = productos_sin_clasificar
+
+        # Log para debugging (opcional)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"📊 Distribución de grupos: {distribucion_grupos}")
+        if productos_sin_clasificar > 0:
+            logger.warning(f"⚠️ {productos_sin_clasificar} baldes sin clasificar")
+
+
+                # ← AQUÍ FALTA TODO ESTE CÓDIGO ↓
+
+        def clasificar_producto_exacto(nombre_producto):
+            """
+            Clasifica un producto en UN SOLO grupo (sin duplicación).
+            Retorna el nombre del grupo o None.
+            """
+            nombre_upper = nombre_producto.upper().strip()
+            
+            # 1. Primero buscar coincidencia EXACTA
+            for grupo, nombres in grupos_productos.items():
+                for nombre_grupo in nombres:
+                    if nombre_upper == nombre_grupo.upper():
+                        return grupo
+            
+            # 2. Luego buscar coincidencia PARCIAL (contiene)
+            for grupo, nombres in grupos_productos.items():
+                for nombre_grupo in nombres:
+                    if nombre_grupo.upper() in nombre_upper:
+                        return grupo
+            
+            return None
+
+        # Clasificar cada balde en su grupo (sin duplicación)
+        distribucion_grupos = {grupo: 0 for grupo in grupos_productos.keys()}
+        distribucion_grupos['otros'] = 0
+
+        baldes_activos = StockBalde.objects.filter(
+            is_activo=True
+        ).select_related('producto')
+
+        for balde in baldes_activos:
+            grupo = clasificar_producto_exacto(balde.producto.nombre)
+            if grupo:
+                distribucion_grupos[grupo] += 1
+            else:
+                distribucion_grupos['otros'] += 1
+
+        # Verificación (opcional, para debugging en consola)
+        suma_grupos = sum(distribucion_grupos.values())
+        if total_baldes != suma_grupos:
+            print(f"⚠️ Discrepancia: {total_baldes} baldes vs {suma_grupos} en gráfico")
+
+        
+        # ============================================================
+        # 9. ACTIVIDAD POR HORA (Hoy)
+        # ============================================================
+        
+        actividad_horas = []
+        for hora in range(24):
+            inicio_hora = inicio_dia.replace(hour=hora)
+            fin_hora = inicio_hora + timedelta(hours=1)
+            
+            count = RegistroMovimiento.objects.filter(
+                timestamp__gte=inicio_hora,
+                timestamp__lt=fin_hora
+            ).count()
+            
+            actividad_horas.append({
+                'hora': f'{hora:02d}:00',
+                'movimientos': count
+            })
+        
+        # ============================================================
+        # 10. ORÍGENES Y DESTINOS MÁS USADOS
+        # ============================================================
+        
+        # Top orígenes (ingresos)
+        top_origenes = (
+            RegistroMovimiento.objects
+            .filter(tipo='ingreso', timestamp__gte=hace_30_dias)
+            .exclude(origen__isnull=True)
+            .exclude(origen='')
+            .values('origen')
+            .annotate(
+                cantidad=Count('id'),
+                kg_total=Sum('peso')
+            )
+            .order_by('-cantidad')[:5]
+        )
+        
+        # Top destinos (retiros)
+        top_destinos = (
+            RegistroMovimiento.objects
+            .filter(tipo='salida', timestamp__gte=hace_30_dias)
+            .exclude(boca_salida__isnull=True)
+            .exclude(boca_salida='')
+            .values('boca_salida')
+            .annotate(
+                cantidad=Count('id'),
+                kg_total=Sum('peso')
+            )
+            .order_by('-cantidad')[:5]
+        )
+        
+        # ============================================================
+        # 11. ESTADÍSTICAS DEL MES
+        # ============================================================
+        
+        stats_mes = RegistroMovimiento.objects.filter(
+            timestamp__gte=inicio_mes
+        ).aggregate(
+            total_ingresos=Count('id', filter=Q(tipo='ingreso')),
+            total_retiros=Count('id', filter=Q(tipo='salida')),
+            kg_ingresados=Sum('peso', filter=Q(tipo='ingreso')),
+            kg_retirados=Sum('peso', filter=Q(tipo='salida')),
+            peso_promedio=Avg('peso')
+        )
+        
+        # ============================================================
+        # 12. ÚLTIMOS MOVIMIENTOS AGRUPADOS
+        # ============================================================
+        
+        ultimos_movimientos = GrupoMovimiento.objects.all().order_by('-fecha')[:10]
+        ultimos_movimientos_list = []
+        
+        for grupo in ultimos_movimientos:
+            ultimos_movimientos_list.append({
+                'grupo_id': grupo.grupo_id,
+                'tipo': grupo.tipo,
+                'origen': grupo.origen or '',
+                'destino': grupo.destino.nombre if grupo.destino else '',
+                'total_peso': float(grupo.total_peso),
+                'cantidad_items': grupo.cantidad_items,
+                'fecha': grupo.fecha.strftime('%d/%m/%Y %H:%M')
+            })
+        
+        # ============================================================
+        # RESPUESTA JSON
+        # ============================================================
+        
+        response_data = {
+            'timestamp': timezone.now().isoformat(),
+            'resumen_general': {
+                'total_baldes': total_baldes,
+                'total_kilos': round(float(total_kilos), 2),
+                'valor_inventario': valor_inventario,
+                'productos_en_stock': productos_en_stock,
+            },
+            'movimientos_hoy': {
+                'ingresos': movimientos_hoy['ingresos'] or 0,
+                'retiros': movimientos_hoy['retiros'] or 0,
+                'kg_ingresados': round(float(movimientos_hoy['kg_ingresados'] or 0), 2),
+                'kg_retirados': round(float(movimientos_hoy['kg_retirados'] or 0), 2),
+                'cambio_ingresos': cambio_ingresos,
+                'cambio_retiros': cambio_retiros,
+            },
+            'top_productos': list(top_productos),
+            'productos_bajo_stock': productos_bajo_stock_list,
+            'productos_sin_movimiento': list(productos_sin_movimiento),
+            'movimientos_7_dias': movimientos_7_dias,
+            'movimientos_30_dias': movimientos_30_dias,  # ← NUEVO
+            'resumen_30_dias': resumen_30_dias,          # ← NUEVO
+            # ✅ Agregar datos custom
+            'movimientos_custom': movimientos_custom,
+            'resumen_custom': resumen_custom,
+            'distribucion_grupos': distribucion_grupos,
+            'actividad_horas': actividad_horas,
+            'top_origenes': list(top_origenes),
+            'top_destinos': list(top_destinos),
+            'estadisticas_mes': {
+                'total_ingresos': stats_mes['total_ingresos'] or 0,
+                'total_retiros': stats_mes['total_retiros'] or 0,
+                'kg_ingresados': round(float(stats_mes['kg_ingresados'] or 0), 2),
+                'kg_retirados': round(float(stats_mes['kg_retirados'] or 0), 2),
+                'peso_promedio': round(float(stats_mes['peso_promedio'] or 0), 2),
+            },
+            'ultimos_movimientos': ultimos_movimientos_list,
+        }
+        
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        import traceback
+        return JsonResponse({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
+    
+
