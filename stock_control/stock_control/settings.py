@@ -108,6 +108,10 @@ PRINT_QR = os.getenv("PRINT_QR", "false").lower() == "true"
 
 PRINT_FROM_VIEWS = True
 
+# Auto-updater
+GITHUB_REPO       = "franco594/Gesti-n-de-Stock-de-Helados"
+UPDATE_ASSET_NAME = "StockControl.exe"
+
 
 LEGACY_ALLOW_NO_CODE = True  # ← durante 1 semana. Luego ponelo en False
 
@@ -121,3 +125,27 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 TIME_ZONE = "America/Argentina/Buenos_Aires"
 USE_TZ = True
+
+# ────────────────────────────────────────────────────────────────────────────
+# CLOUD BACKUPS
+# ────────────────────────────────────────────────────────────────────────────
+
+CLOUD_BACKUP_PROVIDER = 'google_drive'  # 'google_drive', 'dropbox', 'onedrive'
+CLOUD_BACKUP_KEEP = 30                   # Mantener las últimas 30 copias
+CLOUD_BACKUP_DELETE_LOCAL = True         # Borrar archivo local después de subir
+CLOUD_BACKUP_AUTO_DAILY = True           # Backup automático diario
+CLOUD_BACKUP_AUTO_ON_MOVEMENT = False    # Backup cada ingreso/retiro (puede ser excesivo)
+
+# ─── Google Drive ───────────────────────────────────────────────────────────
+GOOGLE_DRIVE_CREDENTIALS_FILE = 'credentials.json'      # Del Google Cloud Console
+GOOGLE_DRIVE_TOKEN_FILE = 'token.json'                  # Se crea automáticamente
+GOOGLE_DRIVE_FOLDER_NAME = 'StockControl Backups'       # Carpeta en Google Drive
+
+# ─── Dropbox ────────────────────────────────────────────────────────────────
+DROPBOX_ACCESS_TOKEN = os.getenv('DROPBOX_TOKEN', '')   # Token de la app de Dropbox
+DROPBOX_FOLDER = '/StockControl Backups'                # Carpeta en Dropbox
+
+# ─── OneDrive ───────────────────────────────────────────────────────────────
+ONEDRIVE_CLIENT_ID = os.getenv('ONEDRIVE_CLIENT_ID', '')
+ONEDRIVE_CLIENT_SECRET = os.getenv('ONEDRIVE_CLIENT_SECRET', '')
+ONEDRIVE_FOLDER = 'StockControl Backups'

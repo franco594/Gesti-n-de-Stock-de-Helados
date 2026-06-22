@@ -4,11 +4,35 @@ from django.db.models import Sum, Count, Q
 from django.db.models.functions import Cast
 from django.db.models import IntegerField
 from decimal import Decimal
+import pytz
 
 from app_inventario.models import ProductoFijo
 
 
 LINE = "-" * 42
+
+# ─── Zona horaria local ────────────────────────────────────────────────────
+_TZ_LOCAL = pytz.timezone("America/Argentina/Buenos_Aires")
+
+
+def _ahora_local() -> datetime:
+    """Devuelve la hora actual en la zona horaria local (Argentina)."""
+    return datetime.now(_TZ_LOCAL)
+
+
+def _a_local(dt: datetime) -> datetime:
+    """
+    Convierte un datetime (con o sin tzinfo) a hora local Argentina.
+    - Si viene de la BD con USE_TZ=True → tiene tzinfo UTC → convierte correctamente.
+    - Si por alguna razón llega naive → lo asume UTC y convierte.
+    """
+    if dt is None:
+        return _ahora_local()
+    if dt.tzinfo is None:
+        # naive → asumir UTC
+        dt = pytz.utc.localize(dt)
+    return dt.astimezone(_TZ_LOCAL)
+# ──────────────────────────────────────────────────────────────────────────
 
 
 def _send_to_spooler(data: bytes, printer_name: str):
@@ -120,9 +144,10 @@ def print_grupo_movimiento(grupo_id: int, copias: int = 1):
         p.set(align="center", font="b", bold=True)
         p.textln(f"MOVIMIENTO #{g.grupo_id}")
 
-        fecha = g.fecha or datetime.now()
+        # ✅ FIX: convertir a hora local antes de formatear
+        fecha_local = _a_local(g.fecha)
         p.set(align="center", font="a")
-        p.textln(fecha.strftime("%d/%m/%Y %H:%M"))
+        p.textln(fecha_local.strftime("%d/%m/%Y %H:%M"))
         p.textln("Tipo: RETIRO")
         if g.destino:
             p.textln(f"Salida: {g.destino}")
@@ -177,7 +202,8 @@ def print_stock_total():
         .filter(cant__gt=0)
     )
 
-    heladeria = base.filter(plu_int__gte=1, plu_int__lte=99).order_by("nombre")
+    helados       = base.filter(plu_int__gte=1,   plu_int__lte=88).order_by("nombre")
+    barras_tortas = base.filter(plu_int__gte=89,  plu_int__lte=98).order_by("nombre")
     gastronomicos = base.filter(plu_int__gte=100, plu_int__lte=199).order_by("nombre")
 
     p = _dummy()
@@ -186,7 +212,7 @@ def print_stock_total():
     p.textln(getattr(settings, "NOMBRE_COMERCIO", "Gestión de Stock"))
     p.textln("STOCK TOTAL")
 
-    ahora = datetime.now()
+    ahora = _ahora_local()
     p.set(align="center", font="a")
     p.textln(ahora.strftime("%d/%m/%Y %H:%M"))
     p.textln(LINE)
@@ -196,41 +222,50 @@ def print_stock_total():
     p.set(align="left", font="a")
 
     total_baldes = 0
-    total_kilos = 0.0
+    total_kilos  = 0.0
 
     def imprimir_seccion(titulo, qs):
         nonlocal total_baldes, total_kilos
         p.set(align="center", font="b", bold=True)
         p.textln(titulo)
-        p.set(align="left")
+        p.set(align="left", font="a", bold=False)
         p.textln(LINE)
 
+        sec_baldes = 0
+        sec_kilos  = 0.0
         for prod in qs:
             cant = int(prod.cant or 0)
-            kg = float(prod.kg or 0)
-
+            kg   = float(prod.kg or 0)
+            sec_baldes   += cant
+            sec_kilos    += kg
             total_baldes += cant
-            total_kilos += kg
+            total_kilos  += kg
 
-            bajo = ""
-            if prod.stock_minimo is not None and cant < prod.stock_minimo:
-                bajo = " !"
-
+            bajo = " !" if (prod.stock_minimo is not None and cant < prod.stock_minimo) else ""
             p.textln(
                 f"{prod.nombre[:18].ljust(18)}"
                 f"{str(cant).rjust(4)}"
                 f"{f'{kg:.3f}'.rjust(8)}"
                 f"{bajo}"
             )
-        p.textln("")
 
-    imprimir_seccion("HELADERIA (PLU 1-99)", heladeria)
-    imprimir_seccion("GASTRONOMICOS (PLU 100-199)", gastronomicos)
+        p.set(align="left", font="b", bold=True)
+        p.textln(f"  Subtotal: {sec_baldes} baldes  {sec_kilos:.3f} kg")
+        p.set(align="left", font="a", bold=False)
+        p.textln("")
+        return sec_baldes, sec_kilos
+
+    sub_h_b,  sub_h_k  = imprimir_seccion("HELADOS (PLU 1-88)",         helados)
+    sub_bt_b, sub_bt_k = imprimir_seccion("BARRAS Y TORTAS (PLU 89-98)", barras_tortas)
+    sub_g_b,  sub_g_k  = imprimir_seccion("GASTRONOMICOS (PLU 100-199)", gastronomicos)
 
     p.textln(LINE)
     p.set(align="left", font="b", bold=True)
-    p.textln(f"Total baldes: {total_baldes}")
-    p.textln(f"Total kilos:  {total_kilos:.3f} kg")
+    p.textln(f"Helados:      {sub_h_b:>3}  {sub_h_k:.3f} kg")
+    p.textln(f"Barras/Tortas:{sub_bt_b:>3}  {sub_bt_k:.3f} kg")
+    p.textln(f"Gastronomicos:{sub_g_b:>3}  {sub_g_k:.3f} kg")
+    p.textln(LINE)
+    p.textln(f"TOTAL:        {total_baldes:>3}  {total_kilos:.3f} kg")
     p.textln(LINE)
 
     p.cut()

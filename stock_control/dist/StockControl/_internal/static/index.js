@@ -651,13 +651,25 @@ async function actualizarTablaStock() {
       tablaStock.innerHTML = encabezado + body;
     }
 
-    // Actualizar totales
+    // Actualizar totales generales
     const totalBaldes = data.stock.reduce((acc, it) => acc + Number(it.cantidad || 0), 0);
     const totalKilos  = data.stock.reduce((acc, it) => acc + Number(it.kg_total  || 0), 0);
     const elBaldes = document.getElementById("totalBaldes");
     const elKilos  = document.getElementById("totalKilos");
     if (elBaldes) elBaldes.textContent = String(totalBaldes);
     if (elKilos)  elKilos.textContent  = totalKilos.toFixed(2);
+
+    // Actualizar totales por categoría
+    if (data.categorias) {
+      const c = data.categorias;
+      const upd = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      upd("bHelado",      c.helado.baldes);
+      upd("kHelado",      c.helado.kilos.toFixed(2));
+      upd("bBarraTorta",  c.barra_torta.baldes);
+      upd("kBarraTorta",  c.barra_torta.kilos.toFixed(2));
+      upd("bGastronomico",c.gastronomico.baldes);
+      upd("kGastronomico",c.gastronomico.kilos.toFixed(2));
+    }
 
   } catch (e) {
     console.error("❌ Error al actualizar tabla de stock:", e);
@@ -1336,10 +1348,10 @@ function closeMenu() {
  *******************************************/
 document.addEventListener("DOMContentLoaded", () => {
   console.log("📢 DOM completamente cargado.");
-  
+
   // Inicializar Toast
   ToastSystem.init();
-  
+
   // Inicializar ConfirmDialog
   ConfirmDialog.init();
 
@@ -1350,10 +1362,75 @@ document.addEventListener("DOMContentLoaded", () => {
   ensureEl(SELECTORS.overlay)?.addEventListener("click", closeMenu);
 
   // ⚡ OPTIMIZACIÓN: Polling reducido a 2 segundos
-  setInterval(() => { 
-    if (modalAbierta) obtenerProductosEscaneados(); 
+  setInterval(() => {
+    if (modalAbierta) obtenerProductosEscaneados();
   }, 2000);
+
+  // Verificar actualizaciones disponibles (silencioso, no bloquea el inicio)
+  setTimeout(checkForUpdate, 3000);
 });
+
+/*******************************************
+ * Auto-updater                            *
+ *******************************************/
+async function checkForUpdate() {
+  try {
+    const res = await fetch("/api/check-update/");
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.update_available) {
+      _mostrarToastActualizacion(data.version, data.download_url, data.release_notes);
+    }
+  } catch (_) {
+    // sin conexión o servidor sin soporte — ignorar silenciosamente
+  }
+}
+
+function _mostrarToastActualizacion(version, downloadUrl, notes) {
+  if (document.getElementById("update-toast")) return;
+  const toast = document.createElement("div");
+  toast.id = "update-toast";
+  toast.style.cssText = [
+    "position:fixed", "bottom:24px", "left:50%", "transform:translateX(-50%)",
+    "background:#1a73e8", "color:#fff", "padding:14px 18px", "border-radius:12px",
+    "z-index:10000", "box-shadow:0 4px 20px rgba(0,0,0,.35)",
+    "display:flex", "align-items:center", "gap:12px", "font-size:.9rem",
+    "max-width:90vw",
+  ].join(";");
+  toast.innerHTML = `
+    <span>🆕 Nueva versión <strong>v${version}</strong> disponible</span>
+    <button id="btn-aplicar-update" style="background:#fff;color:#1a73e8;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:600;">Actualizar</button>
+    <button onclick="document.getElementById('update-toast').remove()" style="background:transparent;color:#fff;border:none;cursor:pointer;font-size:1.3rem;line-height:1;">×</button>
+  `;
+  document.body.appendChild(toast);
+  document.getElementById("btn-aplicar-update").addEventListener("click", () =>
+    _aplicarActualizacion(downloadUrl)
+  );
+}
+
+async function _aplicarActualizacion(downloadUrl) {
+  const btn = document.getElementById("btn-aplicar-update");
+  if (btn) { btn.disabled = true; btn.textContent = "Descargando…"; }
+  try {
+    const res = await fetch("/api/apply-update/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": window.CSRF_TOKEN },
+      body: JSON.stringify({ download_url: downloadUrl }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      Toast.success("✅ Actualización descargada. La app se cerrará y reabrirá automáticamente en unos segundos.");
+    } else {
+      Toast.error("❌ Error al actualizar: " + (data.error || "desconocido"));
+      if (btn) { btn.disabled = false; btn.textContent = "Reintentar"; }
+    }
+  } catch (e) {
+    Toast.error("❌ Error al actualizar: " + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = "Reintentar"; }
+  }
+}
+
+window.checkForUpdate = checkForUpdate;
 
 /*******************************************
  * 15) Exponer funciones globales          *
@@ -1648,6 +1725,36 @@ const CONFIG = {
     }
 };
 
+// Categoría activa para filtrar el dashboard
+let currentCategoria = 'helado';
+
+const CAT_LABELS = {
+    helado:       'Helados',
+    barra_torta:  'Barras y Tortas',
+    gastronomico: 'Gastronómicos',
+};
+
+function sincronizarEstadoCats() {
+    document.querySelectorAll('.cat-dash-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.cat === currentCategoria);
+    });
+    const label = document.getElementById('cat-filtro-label');
+    if (label) {
+        if (currentCategoria) {
+            label.textContent = `Filtrando por: ${CAT_LABELS[currentCategoria]}  ·  Clic en la card para quitar el filtro`;
+            label.style.display = 'block';
+        } else {
+            label.style.display = 'none';
+        }
+    }
+}
+
+function filtrarPorCategoria(cat) {
+    currentCategoria = (currentCategoria === cat) ? null : cat;
+    sincronizarEstadoCats();
+    cargarDashboard();
+}
+
 /**
  * HELPER: Convertir a número seguro
  */
@@ -1662,9 +1769,12 @@ function toNumber(value, defaultValue = 0) {
  */
 async function cargarDashboard() {
     mostrarLoading(true);
-    
+
     try {
-        const response = await fetch(CONFIG.API_URL);
+        const url = currentCategoria
+            ? `${CONFIG.API_URL}?categoria=${currentCategoria}`
+            : CONFIG.API_URL;
+        const response = await fetch(url);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1725,18 +1835,37 @@ const cargarDatos = cargarDashboard;
  */
 function actualizarResumenGeneral() {
     const { resumen_general } = dashboardData;
-    
-    animarNumero('totalBaldes', resumen_general.total_baldes);
-    animarNumero('totalKilos', resumen_general.total_kilos);
+    const c = resumen_general.categorias;
+
+    // Las 4 KPIs usan directamente los valores filtrados que devuelve el backend
+    animarNumero('totalBaldes',      resumen_general.total_baldes);
+    animarNumero('totalKilos',       resumen_general.total_kilos);
     animarNumero('productosEnStock', resumen_general.productos_en_stock);
-    
-    // Formatear valor del inventario
+
     const valorFormateado = resumen_general.valor_inventario.toLocaleString('es-AR', {
         style: 'currency',
         currency: 'ARS',
         minimumFractionDigits: 0
     });
     document.getElementById('valorInventario').textContent = valorFormateado;
+
+    // Actualizar etiquetas de las 4 cards con la categoría activa
+    const catLabel = CAT_LABELS[currentCategoria] || '';
+    const upd = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    upd('labelBaldes',   `Baldes ${catLabel}`);
+    upd('labelKilos',    `Kilos ${catLabel}`);
+    upd('labelProductos',`Productos ${catLabel}`);
+    upd('labelValor',    `Valor Est. ${catLabel}`);
+
+    // Tarjetas por categoría (siempre datos completos sin filtrar)
+    if (c) {
+        upd('catHeladoBaldes',    c.helado.baldes);
+        upd('catHeladoKilos',     c.helado.kilos.toFixed(2));
+        upd('catBarraTortaBaldes',c.barra_torta.baldes);
+        upd('catBarraTortaKilos', c.barra_torta.kilos.toFixed(2));
+        upd('catGastroBaldes',    c.gastronomico.baldes);
+        upd('catGastroKilos',     c.gastronomico.kilos.toFixed(2));
+    }
 }
 
 /**
@@ -2353,7 +2482,10 @@ function inicializarDashboard() {
     
     // Establecer fechas por defecto
     establecerFechasPorDefecto();
-    
+
+    // Marcar la card activa inicial
+    sincronizarEstadoCats();
+
     // Carga inicial
     cargarDashboard();
 }
@@ -2413,8 +2545,9 @@ async function cargarDashboardCustom(desde, hasta) {
     mostrarLoading(true);
     
     try {
-        // Construir URL con parámetros de fecha
-        const url = `${CONFIG.API_URL}?desde=${desde}&hasta=${hasta}`;
+        // Construir URL con parámetros de fecha y categoría activa
+        const catParam = currentCategoria ? `&categoria=${currentCategoria}` : '';
+        const url = `${CONFIG.API_URL}?desde=${desde}&hasta=${hasta}${catParam}`;
         
         console.log('🌐 Cargando datos custom:', url);
         

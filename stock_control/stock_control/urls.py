@@ -28,7 +28,8 @@ from app_inventario.views import (
 
     reimprimir_ticket,
 
-    
+    # Auto-updater
+    api_check_update, api_apply_update,
 )
 
 urlpatterns = [
@@ -92,4 +93,8 @@ urlpatterns = [
     # Dashboard
     path('dashboard/', dashboard, name='dashboard'),
     path('api/dashboard/metricas/', api_dashboard_metricas, name='api_dashboard_metricas'),
+
+    # Auto-updater
+    path('api/check-update/', api_check_update, name='api_check_update'),
+    path('api/apply-update/', api_apply_update, name='api_apply_update'),
 ]

@@ -29,7 +29,8 @@ from django.core.management import call_command
 
 from app_inventario.services.printing import print_stock_total
 from datetime import datetime, time, timedelta
-from django.db.models import Sum, Count, Q, F, Avg  # ← F y Avg incluidos
+from django.db.models import Sum, Count, Q, F, Avg, IntegerField
+from django.db.models.functions import Cast
 
 
 
@@ -328,18 +329,49 @@ def imprimir_stock_total(request):
 # Vistas principales
 # =========================================================
 
+def _categorizar_producto(plu):
+    """Clasifica un producto por rango de PLU en una de 3 categorías."""
+    try:
+        plu_int = int(plu)
+    except (ValueError, TypeError):
+        return 'helado'
+    if plu_int >= 100:
+        return 'gastronomico'
+    if 89 <= plu_int <= 98:
+        return 'barra_torta'
+    return 'helado'
+
+
 def index(request):
     stock_resumido = ProductoFijo.objects.annotate(
         cantidad=Count('stockbalde', filter=Q(stockbalde__is_activo=True))
     )
-    # 👇 NUEVO
     tot_balde = StockBalde.objects.filter(is_activo=True).count()
     tot_kilos = StockBalde.objects.filter(is_activo=True).aggregate(s=Sum('peso'))['s'] or 0
 
+    cats = {
+        'helado':       {'baldes': 0, 'kilos': 0.0},
+        'barra_torta':  {'baldes': 0, 'kilos': 0.0},
+        'gastronomico': {'baldes': 0, 'kilos': 0.0},
+    }
+    productos = ProductoFijo.objects.annotate(
+        cantidad=Count('stockbalde', filter=Q(stockbalde__is_activo=True)),
+        kg_total=Sum('stockbalde__peso', filter=Q(stockbalde__is_activo=True)),
+    ).values('plu', 'cantidad', 'kg_total')
+    for p in productos:
+        cat = _categorizar_producto(p['plu'])
+        cats[cat]['baldes'] += p['cantidad'] or 0
+        cats[cat]['kilos'] += float(p['kg_total'] or 0)
+    for cat in cats:
+        cats[cat]['kilos'] = round(cats[cat]['kilos'], 2)
+
+    from version import APP_VERSION
     return render(request, "index.html", {
         "stock_resumido": stock_resumido,
         "total_baldes": tot_balde,
         "total_kilos": round(float(tot_kilos), 2),
+        "cats": cats,
+        "APP_VERSION": APP_VERSION,
     })
 
 
@@ -439,9 +471,32 @@ def exportar_productos_excel(request):
 def obtener_stock(request):
     try:
         productos_stock = ProductoFijo.objects.annotate(
-            cantidad=Count("stockbalde")
-        ).values("nombre", "cantidad", "stock_minimo")
-        return JsonResponse({"stock": list(productos_stock)})
+            cantidad=Count("stockbalde", filter=Q(stockbalde__is_activo=True)),
+            kg_total=Sum("stockbalde__peso", filter=Q(stockbalde__is_activo=True)),
+        ).values("plu", "nombre", "cantidad", "stock_minimo", "kg_total")
+
+        stock_list = []
+        cats = {
+            'helado':       {'baldes': 0, 'kilos': 0.0},
+            'barra_torta':  {'baldes': 0, 'kilos': 0.0},
+            'gastronomico': {'baldes': 0, 'kilos': 0.0},
+        }
+        for p in productos_stock:
+            kg = round(float(p['kg_total'] or 0), 3)
+            stock_list.append({
+                'plu': p['plu'],
+                'nombre': p['nombre'],
+                'cantidad': p['cantidad'],
+                'stock_minimo': p['stock_minimo'],
+                'kg_total': kg,
+            })
+            cat = _categorizar_producto(p['plu'])
+            cats[cat]['baldes'] += p['cantidad'] or 0
+            cats[cat]['kilos'] += kg
+        for cat in cats:
+            cats[cat]['kilos'] = round(cats[cat]['kilos'], 2)
+
+        return JsonResponse({"stock": stock_list, "categorias": cats})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
@@ -1608,25 +1663,46 @@ def api_dashboard_metricas(request):
         hace_7_dias = hoy - timedelta(days=7)
         hace_30_dias = hoy - timedelta(days=30)
         inicio_mes = hoy.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        # Filtro por categoría
+        categoria = request.GET.get('categoria', None)
+        _CAT_RANGES = {'helado': (1, 88), 'barra_torta': (89, 98), 'gastronomico': (100, 199)}
+        if categoria not in _CAT_RANGES:
+            categoria = None
+
+        balde_plu_q = Q()
+        mov_plu_q   = Q()
+        prod_plu_q  = Q()
+        if categoria:
+            plu_lo, plu_hi = _CAT_RANGES[categoria]
+            plu_ids = list(
+                ProductoFijo.objects
+                .annotate(plu_int=Cast('plu', IntegerField()))
+                .filter(plu_int__gte=plu_lo, plu_int__lte=plu_hi)
+                .values_list('plu', flat=True)
+            )
+            balde_plu_q = Q(producto__plu__in=plu_ids)
+            mov_plu_q   = Q(producto__plu__in=plu_ids)
+            prod_plu_q  = Q(plu__in=plu_ids)
         
         
         # ============================================================
         # 1. RESUMEN GENERAL
         # ============================================================
         
-        # Stock actual
-        total_baldes = StockBalde.objects.filter(is_activo=True).count()
-        total_kilos = StockBalde.objects.filter(is_activo=True).aggregate(
+        # Stock actual (filtrado por categoría si corresponde)
+        total_baldes = StockBalde.objects.filter(balde_plu_q, is_activo=True).count()
+        total_kilos = StockBalde.objects.filter(balde_plu_q, is_activo=True).aggregate(
             total=Sum('peso')
         )['total'] or 0
-        
+
         # Valor del inventario (ejemplo: cada kg vale $100)
         valor_por_kg = 22500
         valor_inventario = float(total_kilos) * valor_por_kg
-        
+
         # Productos únicos en stock
         productos_en_stock = StockBalde.objects.filter(
-            is_activo=True
+            balde_plu_q, is_activo=True
         ).values('producto').distinct().count()
         
         # ============================================================
@@ -1634,7 +1710,7 @@ def api_dashboard_metricas(request):
         # ============================================================
         
         movimientos_hoy = RegistroMovimiento.objects.filter(
-            timestamp__gte=inicio_dia
+            mov_plu_q, timestamp__gte=inicio_dia
         ).aggregate(
             ingresos=Count('id', filter=Q(tipo='ingreso')),
             retiros=Count('id', filter=Q(tipo='salida')),
@@ -1651,8 +1727,7 @@ def api_dashboard_metricas(request):
         fin_ayer = inicio_dia
         
         movimientos_ayer = RegistroMovimiento.objects.filter(
-            timestamp__gte=inicio_ayer,
-            timestamp__lt=fin_ayer
+            mov_plu_q, timestamp__gte=inicio_ayer, timestamp__lt=fin_ayer
         ).aggregate(
             ingresos=Count('id', filter=Q(tipo='ingreso')),
             retiros=Count('id', filter=Q(tipo='salida'))
@@ -1680,7 +1755,7 @@ def api_dashboard_metricas(request):
         
         top_productos = (
             RegistroMovimiento.objects
-            .filter(timestamp__gte=hace_30_dias)
+            .filter(mov_plu_q, timestamp__gte=hace_30_dias)
             .values('producto__nombre', 'producto__plu')
             .annotate(
                 total_movimientos=Count('id'),
@@ -1695,7 +1770,7 @@ def api_dashboard_metricas(request):
         # 5. PRODUCTOS BAJO STOCK MÍNIMO
         # ============================================================
         
-        productos_bajo_stock = ProductoFijo.objects.annotate(
+        productos_bajo_stock = ProductoFijo.objects.filter(prod_plu_q).annotate(
             stock_actual=Count('stockbalde', filter=Q(stockbalde__is_activo=True))
         ).filter(
             stock_actual__lt=F('stock_minimo')
@@ -1718,10 +1793,10 @@ def api_dashboard_metricas(request):
         # ============================================================
         
         productos_con_movimiento = RegistroMovimiento.objects.filter(
-            timestamp__gte=hace_30_dias
+            mov_plu_q, timestamp__gte=hace_30_dias
         ).values_list('producto_id', flat=True).distinct()
-        
-        productos_sin_movimiento = ProductoFijo.objects.exclude(
+
+        productos_sin_movimiento = ProductoFijo.objects.filter(prod_plu_q).exclude(
             plu__in=productos_con_movimiento
         ).annotate(
             stock_actual=Count('stockbalde', filter=Q(stockbalde__is_activo=True))
@@ -1739,15 +1814,14 @@ def api_dashboard_metricas(request):
             dia_siguiente = dia + timedelta(days=1)
             
             movs = RegistroMovimiento.objects.filter(
-                timestamp__gte=dia,
-                timestamp__lt=dia_siguiente
+                mov_plu_q, timestamp__gte=dia, timestamp__lt=dia_siguiente
             ).aggregate(
                 ingresos=Count('id', filter=Q(tipo='ingreso')),
                 retiros=Count('id', filter=Q(tipo='salida')),
                 kg_ingresados=Sum('peso', filter=Q(tipo='ingreso')),
                 kg_retirados=Sum('peso', filter=Q(tipo='salida'))
             )
-            
+
             movimientos_7_dias.append({
                 'fecha': dia.strftime('%d/%m'),
                 'dia_completo': dia.strftime('%Y-%m-%d'),
@@ -1767,15 +1841,14 @@ def api_dashboard_metricas(request):
             dia_siguiente = dia + timedelta(days=1)
             
             movs = RegistroMovimiento.objects.filter(
-                timestamp__gte=dia,
-                timestamp__lt=dia_siguiente
+                mov_plu_q, timestamp__gte=dia, timestamp__lt=dia_siguiente
             ).aggregate(
                 ingresos=Count('id', filter=Q(tipo='ingreso')),
                 retiros=Count('id', filter=Q(tipo='salida')),
                 kg_ingresados=Sum('peso', filter=Q(tipo='ingreso')),
                 kg_retirados=Sum('peso', filter=Q(tipo='salida'))
             )
-            
+
             movimientos_30_dias.append({
                 'dia': i + 1,
                 'fecha': dia.strftime('%d/%m'),
@@ -1826,8 +1899,7 @@ def api_dashboard_metricas(request):
                     dia_siguiente = dia + timedelta(days=1)
                     
                     movs = RegistroMovimiento.objects.filter(
-                        timestamp__gte=dia,
-                        timestamp__lt=dia_siguiente
+                        mov_plu_q, timestamp__gte=dia, timestamp__lt=dia_siguiente
                     ).aggregate(
                         ingresos=Count('id', filter=Q(tipo='ingreso')),
                         retiros=Count('id', filter=Q(tipo='salida')),
@@ -2008,7 +2080,7 @@ def api_dashboard_metricas(request):
         distribucion_grupos['otros'] = 0
 
         baldes_activos = StockBalde.objects.filter(
-            is_activo=True
+            balde_plu_q, is_activo=True
         ).select_related('producto')
 
         for balde in baldes_activos:
@@ -2034,8 +2106,7 @@ def api_dashboard_metricas(request):
             fin_hora = inicio_hora + timedelta(hours=1)
             
             count = RegistroMovimiento.objects.filter(
-                timestamp__gte=inicio_hora,
-                timestamp__lt=fin_hora
+                mov_plu_q, timestamp__gte=inicio_hora, timestamp__lt=fin_hora
             ).count()
             
             actividad_horas.append({
@@ -2050,7 +2121,7 @@ def api_dashboard_metricas(request):
         # Top orígenes (ingresos)
         top_origenes = (
             RegistroMovimiento.objects
-            .filter(tipo='ingreso', timestamp__gte=hace_30_dias)
+            .filter(mov_plu_q, tipo='ingreso', timestamp__gte=hace_30_dias)
             .exclude(origen__isnull=True)
             .exclude(origen='')
             .values('origen')
@@ -2064,7 +2135,7 @@ def api_dashboard_metricas(request):
         # Top destinos (retiros)
         top_destinos = (
             RegistroMovimiento.objects
-            .filter(tipo='salida', timestamp__gte=hace_30_dias)
+            .filter(mov_plu_q, tipo='salida', timestamp__gte=hace_30_dias)
             .exclude(boca_salida__isnull=True)
             .exclude(boca_salida='')
             .values('boca_salida')
@@ -2080,7 +2151,7 @@ def api_dashboard_metricas(request):
         # ============================================================
         
         stats_mes = RegistroMovimiento.objects.filter(
-            timestamp__gte=inicio_mes
+            mov_plu_q, timestamp__gte=inicio_mes
         ).aggregate(
             total_ingresos=Count('id', filter=Q(tipo='ingreso')),
             total_retiros=Count('id', filter=Q(tipo='salida')),
@@ -2111,13 +2182,30 @@ def api_dashboard_metricas(request):
         # RESPUESTA JSON
         # ============================================================
         
+        cats_dash = {
+            'helado':       {'baldes': 0, 'kilos': 0.0},
+            'barra_torta':  {'baldes': 0, 'kilos': 0.0},
+            'gastronomico': {'baldes': 0, 'kilos': 0.0},
+        }
+        for p in ProductoFijo.objects.annotate(
+            cantidad=Count('stockbalde', filter=Q(stockbalde__is_activo=True)),
+            kg_total=Sum('stockbalde__peso', filter=Q(stockbalde__is_activo=True)),
+        ).values('plu', 'cantidad', 'kg_total'):
+            cat = _categorizar_producto(p['plu'])
+            cats_dash[cat]['baldes'] += p['cantidad'] or 0
+            cats_dash[cat]['kilos']  += float(p['kg_total'] or 0)
+        for cat in cats_dash:
+            cats_dash[cat]['kilos'] = round(cats_dash[cat]['kilos'], 2)
+
         response_data = {
             'timestamp': timezone.now().isoformat(),
+            'categoria_activa': categoria,
             'resumen_general': {
                 'total_baldes': total_baldes,
                 'total_kilos': round(float(total_kilos), 2),
                 'valor_inventario': valor_inventario,
                 'productos_en_stock': productos_en_stock,
+                'categorias': cats_dash,
             },
             'movimientos_hoy': {
                 'ingresos': movimientos_hoy['ingresos'] or 0,
@@ -2151,12 +2239,42 @@ def api_dashboard_metricas(request):
         }
         
         return JsonResponse(response_data)
-        
+
     except Exception as e:
         import traceback
         return JsonResponse({
             'error': str(e),
             'traceback': traceback.format_exc()
         }, status=500)
-    
 
+
+# =========================================================
+# Auto-updater
+# =========================================================
+
+def api_check_update(request):
+    from version import APP_VERSION
+    from app_inventario.updater import check_for_update
+    result = check_for_update(APP_VERSION)
+    if result:
+        return JsonResponse({"update_available": True, **result})
+    return JsonResponse({"update_available": False, "version": APP_VERSION})
+
+
+@csrf_exempt
+def api_apply_update(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+    download_url = (data.get("download_url") or "").strip()
+    if not download_url:
+        return JsonResponse({"error": "Falta download_url"}, status=400)
+    from app_inventario.updater import download_and_apply_update
+    result = download_and_apply_update(download_url)
+    if result.get("restart"):
+        import threading, os as _os
+        threading.Timer(2.0, lambda: _os._exit(0)).start()
+    return JsonResponse(result)

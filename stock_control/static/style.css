@@ -2116,6 +2116,94 @@ td input {
 }
 
 /* ============================================
+   STOCK POR CATEGORÍA (dashboard)
+   ============================================ */
+.cats-section {
+    margin-bottom: 30px;
+}
+
+.cats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.cat-dash-card {
+    background: white;
+    padding: 20px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: var(--transition);
+    border-left: 5px solid var(--color-primary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.cat-dash-card:nth-child(2) { border-left-color: var(--color-warning); }
+.cat-dash-card:nth-child(3) { border-left-color: var(--color-success); }
+
+.cat-dash-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.cat-dash-card.active {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+    background: #f0f9ff;
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.cat-dash-card:nth-child(1).active { outline-color: var(--color-primary); }
+.cat-dash-card:nth-child(2).active { outline-color: var(--color-warning); background: #fffbeb; }
+.cat-dash-card:nth-child(3).active { outline-color: var(--color-success); background: #f0fdf4; }
+
+.cat-filtro-label {
+    text-align: center;
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.cat-dash-icon { font-size: 2.2rem; opacity: 0.85; }
+
+.cat-dash-content h3 {
+    font-size: 0.85rem;
+    color: var(--color-gray);
+    font-weight: 600;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.cat-dash-stats {
+    display: flex;
+    gap: 14px;
+    align-items: baseline;
+    flex-wrap: wrap;
+}
+
+.cat-dash-num {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--color-dark);
+}
+
+.cat-dash-stats span { font-size: 0.9rem; color: var(--color-gray); }
+
+.cat-dash-label {
+    font-size: 0.75rem;
+    color: #aaa;
+    margin-top: 4px;
+}
+
+/* ============================================
    KPIs SECTION
    ============================================ */
 .kpis-section {
@@ -3643,4 +3731,5 @@ canvas {
         width: 100%;
     }
 }
+
 

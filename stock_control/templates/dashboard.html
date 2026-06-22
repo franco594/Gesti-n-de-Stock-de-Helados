@@ -50,7 +50,7 @@
             <div class="kpi-card kpi-primary">
                 <div class="kpi-icon">📦</div>
                 <div class="kpi-content">
-                    <h3>Baldes en Stock</h3>
+                    <h3 id="labelBaldes">Baldes</h3>
                     <div class="kpi-value" id="totalBaldes">-</div>
                     <p class="kpi-label">unidades</p>
                 </div>
@@ -59,7 +59,7 @@
             <div class="kpi-card kpi-success">
                 <div class="kpi-icon">⚖️</div>
                 <div class="kpi-content">
-                    <h3>Kilos Totales</h3>
+                    <h3 id="labelKilos">Kilos</h3>
                     <div class="kpi-value" id="totalKilos">-</div>
                     <p class="kpi-label">kg</p>
                 </div>
@@ -68,7 +68,7 @@
             <div class="kpi-card kpi-warning">
                 <div class="kpi-icon">📊</div>
                 <div class="kpi-content">
-                    <h3>Productos</h3>
+                    <h3 id="labelProductos">Productos</h3>
                     <div class="kpi-value" id="productosEnStock">-</div>
                     <p class="kpi-label">variedades</p>
                 </div>
@@ -77,11 +77,52 @@
             <div class="kpi-card kpi-info">
                 <div class="kpi-icon"></div>
                 <div class="kpi-content">
-                    <h3>Valor Estimado</h3>
+                    <h3 id="labelValor">Valor Estimado</h3>
                     <div class="kpi-value" id="valorInventario">-</div>
                     <p class="kpi-label">pesos</p>
                 </div>
             </div>
+        </section>
+
+        <!-- Stock por Categoría -->
+        <section class="cats-section">
+            <!-- <h2 class="section-title">📦 Stock por Categoría</h2> -->
+            <div class="cats-cards">
+                <div class="cat-dash-card" data-cat="helado" onclick="filtrarPorCategoria('helado')">
+                    <div class="cat-dash-icon">🍦</div>
+                    <div class="cat-dash-content">
+                        <h3>Helados</h3>
+                        <div class="cat-dash-stats">
+                            <span><span class="cat-dash-num" id="catHeladoBaldes">-</span> baldes</span>
+                            <span><span class="cat-dash-num" id="catHeladoKilos">-</span> kg</span>
+                        </div>
+                        <p class="cat-dash-label">PLU 1 – 88</p>
+                    </div>
+                </div>
+                <div class="cat-dash-card" data-cat="barra_torta" onclick="filtrarPorCategoria('barra_torta')">
+                    <div class="cat-dash-icon">🎂</div>
+                    <div class="cat-dash-content">
+                        <h3>Barras y Tortas</h3>
+                        <div class="cat-dash-stats">
+                            <span><span class="cat-dash-num" id="catBarraTortaBaldes">-</span> unidades</span>
+                            <span><span class="cat-dash-num" id="catBarraTortaKilos">-</span> kg</span>
+                        </div>
+                        <p class="cat-dash-label">PLU 89 – 98</p>
+                    </div>
+                </div>
+                <div class="cat-dash-card" data-cat="gastronomico" onclick="filtrarPorCategoria('gastronomico')">
+                    <div class="cat-dash-icon">🍽️</div>
+                    <div class="cat-dash-content">
+                        <h3>Gastronómicos</h3>
+                        <div class="cat-dash-stats">
+                            <span><span class="cat-dash-num" id="catGastroBaldes">-</span> baldes</span>
+                            <span><span class="cat-dash-num" id="catGastroKilos">-</span> kg</span>
+                        </div>
+                        <p class="cat-dash-label">PLU 100 – 199</p>
+                    </div>
+                </div>
+            </div>
+            <p id="cat-filtro-label" class="cat-filtro-label" style="display:none;"></p>
         </section>
 
         <!-- Movimientos de Hoy -->

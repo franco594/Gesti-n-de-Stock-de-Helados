@@ -458,6 +458,10 @@
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\app_inventario\\tests.py',
    'PYMODULE'),
+  ('app_inventario.updater',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\app_inventario\\updater.py',
+   'PYMODULE'),
   ('app_inventario.utils', '-', 'PYMODULE'),
   ('app_inventario.utils.backups',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
@@ -9948,6 +9952,10 @@
    'PYMODULE'),
   ('uuid',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\uuid.py',
+   'PYMODULE'),
+  ('version',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\version.py',
    'PYMODULE'),
   ('webbrowser',
    'C:\\Users\\franc\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\webbrowser.py',
