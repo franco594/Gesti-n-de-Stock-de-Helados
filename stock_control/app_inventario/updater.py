@@ -95,7 +95,12 @@ def download_and_apply_update(download_url: str) -> dict:
             "Move-Item -Force $dst $bak\n"
             "Move-Item -Force $src $dst\n"
             "Start-Sleep -Seconds 1\n"
-            "if (Test-Path $dst) { Start-Process $dst }\n"
+            "if (Test-Path $dst) {\n"
+            "    $psi = New-Object System.Diagnostics.ProcessStartInfo\n"
+            "    $psi.FileName = $dst\n"
+            "    $psi.UseShellExecute = $true\n"
+            "    [System.Diagnostics.Process]::Start($psi) | Out-Null\n"
+            "}\n"
             "Remove-Item -Path $PSCommandPath -Force\n"
         )
         with open(ps1_path, "w", encoding="utf-8-sig") as f:
