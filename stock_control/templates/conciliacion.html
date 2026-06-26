@@ -1,0 +1,356 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280, initial-scale=1.0">
+    <title>Conciliación - Stock</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .input-conc {
+            width: 90px; padding: 5px 8px;
+            border: 1px solid #d1d5db; border-radius: 6px;
+            font-size: .88rem; font-family: inherit; text-align: right;
+            background: #f8fafc;
+        }
+        .input-conc:focus {
+            outline: none; border-color: #1e40af;
+            box-shadow: 0 0 0 2px rgba(30,64,175,.15);
+            background: white;
+        }
+        .col-sistema { color: #64748b; }
+        .col-neto    { font-weight: 600; }
+        .dif-positivo { color: #d97706; font-weight: 700; }
+        .dif-negativo { color: #dc2626; font-weight: 700; }
+        .dif-cero     { color: #059669; font-weight: 700; }
+
+        .filter-bocas {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            padding: 14px 20px; border-bottom: 1px solid #e2e8f0;
+            align-items: center;
+        }
+        .filter-bocas-label {
+            font-size: .8rem; font-weight: 600; color: #475569;
+            text-transform: uppercase; letter-spacing: .04em;
+            margin-right: 4px;
+        }
+        .chip-boca {
+            padding: 4px 12px; border-radius: 20px; font-size: .82rem;
+            font-weight: 500; cursor: pointer; border: 1.5px solid #cbd5e1;
+            background: white; color: #475569; transition: all .15s;
+            user-select: none;
+        }
+        .chip-boca.activo {
+            background: #1e40af; color: white; border-color: #1e40af;
+        }
+        .chip-boca:hover:not(.activo) { border-color: #94a3b8; background: #f8fafc; }
+
+        .leyenda {
+            display: flex; flex-wrap: wrap; gap: 16px; font-size: .78rem;
+            color: #64748b; padding: 10px 20px; border-top: 1px solid #f1f5f9;
+        }
+        .leyenda span { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+        .dot-pos { background: #d97706; }
+        .dot-neg { background: #dc2626; }
+        .dot-ok  { background: #059669; }
+
+        tfoot td {
+            background: #f8fafc; font-weight: 700; color: #1e293b;
+            border-top: 2px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard-container">
+
+    <header class="dashboard-header">
+        <div class="header-content">
+            <div class="header-left">
+                <h3>🧮 Conciliación por Boca de Salida</h3>
+                <p class="subtitle">Stock inicial · Kg recibidos · Kg vendidos · Diferencia</p>
+            </div>
+            <div class="header-right">
+                <a href="{% url 'historial_movimientos' %}" class="btn-icon" title="Movimientos">📋</a>
+                <a href="{% url 'dashboard' %}" class="btn-icon" title="Dashboard">📊</a>
+                <a href="{% url 'index' %}" class="btn-secondary">← Volver</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="dashboard-main">
+
+        <!-- Filtros -->
+        <section class="filters-section card">
+            <div class="filters-grid" style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:16px 20px;">
+                <label style="font-weight:600; color:#374151; font-size:.9rem;">Mes:</label>
+                <div class="filter-group">
+                    
+                    <input type="month" id="mesSel"
+                           style="padding:7px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:.9rem; font-family:inherit; margin-left:8px; margin-bottom: 11px;">
+                </div>
+                <button class="btn-primary" onclick="cargarDatos()" style="padding:8px 18px;">Cargar</button>
+                <div style="display:flex;gap:8px;margin-left:auto;">
+                    <button onclick="guardarTodo()"
+                            style="padding:8px 18px; background:#28A745; color:white; border:none; border-radius:8px;
+                                   font-size:.9rem; font-weight:600; cursor:pointer;">
+                        💾 Guardar
+                    </button>
+                    <button onclick="exportarExcel()"
+                            style="padding:8px 18px; background:#1e40af; color:white; border:none; border-radius:8px;
+                                   font-size:.9rem; font-weight:600; cursor:pointer;">
+                        📥 Exportar Excel
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tabla -->
+        <section class="movements-section">
+            <div class="card-header" style="display:flex; align-items:center; justify-content:space-between;">
+                <h3 id="tituloTabla">Conciliación</h3>
+            </div>
+
+            <!-- Filtro de bocas -->
+            <div class="filter-bocas" id="filtrosBocas" style="display:none;">
+                <span class="filter-bocas-label">Bocas:</span>
+                <!-- chips se renderizan con JS -->
+            </div>
+
+            <!-- Tabla -->
+            <div id="contenidoTabla">
+                <p class="loading-cell" style="text-align:center;padding:40px;color:#94a3b8;font-style:italic;">Cargando...</p>
+            </div>
+
+            <div class="leyenda">
+                <span><span class="dot dot-pos"></span> Diferencia positiva: merma o stock residual en el local</span>
+                <span><span class="dot dot-neg"></span> Diferencia negativa: inconsistencia (vendieron más de lo disponible)</span>
+                <span><span class="dot dot-ok"></span> Diferencia cero: contabilidad exacta</span>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- Toast -->
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+    const CSRF = (document.cookie.split(';').map(c => c.trim())
+        .find(c => c.startsWith('csrftoken=')) || '').split('=')[1] || '';
+
+    let mesActual = '';
+    let bocasData = [];       // todos los datos del servidor
+    let bocasActivas = new Set(); // nombres de bocas visibles
+
+    // ── Inicialización ───────────────────────────────────────────
+    (function init() {
+        const hoy = new Date();
+        const mes = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+        document.getElementById('mesSel').value = mes;
+        mesActual = mes;
+        cargarDatos();
+    })();
+
+    // ── Carga de datos desde el servidor ─────────────────────────
+    async function cargarDatos() {
+        mesActual = document.getElementById('mesSel').value;
+        if (!mesActual) return;
+
+        const [y, m] = mesActual.split('-');
+        const nombreMes = new Date(y, m - 1, 1)
+            .toLocaleString('es-AR', { month: 'long', year: 'numeric' });
+        document.getElementById('tituloTabla').textContent = `Conciliación — ${nombreMes}`;
+        document.getElementById('contenidoTabla').innerHTML =
+            '<p class="loading-cell" style="text-align:center;padding:40px;color:#94a3b8;font-style:italic;">Cargando...</p>';
+
+        try {
+            const res = await fetch(`/api/conciliacion/?mes=${mesActual}`);
+            const data = await res.json();
+            if (data.error) { toast(data.error, true); return; }
+            bocasData = data.bocas;
+
+            // Restaurar selección guardada en localStorage o activar todas
+            const guardadas = JSON.parse(localStorage.getItem('conciliacion_bocas') || 'null');
+            bocasActivas = guardadas
+                ? new Set(guardadas.filter(n => bocasData.some(b => b.boca_nombre === n)))
+                : new Set(bocasData.map(b => b.boca_nombre));
+
+            renderChips();
+            renderTabla();
+        } catch (e) {
+            document.getElementById('contenidoTabla').innerHTML =
+                '<p style="text-align:center;padding:40px;color:#94a3b8;">Error al cargar los datos.</p>';
+        }
+    }
+
+    // ── Chips de bocas ────────────────────────────────────────────
+    function renderChips() {
+        const cont = document.getElementById('filtrosBocas');
+        if (!bocasData.length) { cont.style.display = 'none'; return; }
+        cont.style.display = 'flex';
+
+        // conservar el label
+        cont.innerHTML = '<span class="filter-bocas-label">Bocas:</span>';
+
+        bocasData.forEach(b => {
+            const chip = document.createElement('span');
+            chip.className = 'chip-boca' + (bocasActivas.has(b.boca_nombre) ? ' activo' : '');
+            chip.textContent = b.boca_nombre;
+            chip.onclick = () => toggleBoca(b.boca_nombre, chip);
+            cont.appendChild(chip);
+        });
+    }
+
+    function toggleBoca(nombre, chip) {
+        if (bocasActivas.has(nombre)) {
+            if (bocasActivas.size === 1) return; // al menos una activa
+            bocasActivas.delete(nombre);
+            chip.classList.remove('activo');
+        } else {
+            bocasActivas.add(nombre);
+            chip.classList.add('activo');
+        }
+        localStorage.setItem('conciliacion_bocas', JSON.stringify([...bocasActivas]));
+        renderTabla();
+    }
+
+    // ── Tabla ─────────────────────────────────────────────────────
+    function renderTabla() {
+        const visibles = bocasData.filter(b => bocasActivas.has(b.boca_nombre));
+
+        if (!visibles.length) {
+            document.getElementById('contenidoTabla').innerHTML =
+                '<p style="text-align:center;padding:40px;color:#94a3b8;">No hay bocas seleccionadas.</p>';
+            return;
+        }
+
+        const filas = visibles.map((b, i) => {
+            const idx = bocasData.indexOf(b);
+            return `
+            <tr data-idx="${idx}" data-boca-id="${b.boca_id}">
+                <td style="text-align:left;font-weight:600;color:#1e293b;">${b.boca_nombre}</td>
+                <td><input class="input-conc" type="number" step="0.001" min="0"
+                           id="si-${idx}" value="${b.stock_inicial.toFixed(3)}"
+                           oninput="recalcular(${idx})"></td>
+                <td class="col-sistema">${b.kg_recibidos.toFixed(3)}</td>
+                <td class="col-sistema">${b.kg_devueltos > 0 ? '−' + b.kg_devueltos.toFixed(3) : '—'}</td>
+                <td class="col-neto">${b.kg_neto.toFixed(3)}</td>
+                <td><input class="input-conc" type="number" step="0.001" min="0"
+                           id="kv-${idx}" value="${b.kg_vendidos.toFixed(3)}"
+                           oninput="recalcular(${idx})"></td>
+                <td id="dif-${idx}" class="${clsDif(b.diferencia)}">${fmtDif(b.diferencia)}</td>
+            </tr>`;
+        }).join('');
+
+        document.getElementById('contenidoTabla').innerHTML = `
+            <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;">Boca de Salida</th>
+                        <th>Stock Inicial (kg)</th>
+                        <th>Kg Recibidos</th>
+                        <th>Kg Devueltos</th>
+                        <th>Kg Neto</th>
+                        <th>Kg Vendidos</th>
+                        <th>Diferencia</th>
+                    </tr>
+                </thead>
+                <tbody>${filas}</tbody>
+                <tfoot><tr id="fila-totales"></tr></tfoot>
+            </table>
+            </div>`;
+
+        recalcularTotales();
+    }
+
+    // ── Recálculo ─────────────────────────────────────────────────
+    function recalcular(idx) {
+        const b = bocasData[idx];
+        const si = parseFloat(document.getElementById(`si-${idx}`)?.value) || 0;
+        const kv = parseFloat(document.getElementById(`kv-${idx}`)?.value) || 0;
+        const dif = si + b.kg_neto - kv;
+        const el = document.getElementById(`dif-${idx}`);
+        if (el) { el.textContent = fmtDif(dif); el.className = clsDif(dif); }
+        recalcularTotales();
+    }
+
+    function recalcularTotales() {
+        const visibles = bocasData.filter(b => bocasActivas.has(b.boca_nombre));
+        let totSI = 0, totRec = 0, totDev = 0, totKV = 0, totDif = 0;
+        visibles.forEach(b => {
+            const idx = bocasData.indexOf(b);
+            const si = parseFloat(document.getElementById(`si-${idx}`)?.value) || 0;
+            const kv = parseFloat(document.getElementById(`kv-${idx}`)?.value) || 0;
+            totSI  += si;
+            totRec += b.kg_recibidos;
+            totDev += b.kg_devueltos;
+            totKV  += kv;
+            totDif += si + b.kg_neto - kv;
+        });
+        const totNeto = totRec - totDev;
+        const fila = document.getElementById('fila-totales');
+        if (!fila) return;
+        fila.innerHTML = `
+            <td style="text-align:left;color:#475569;font-size:.85rem;text-transform:uppercase;">TOTAL</td>
+            <td>${totSI.toFixed(3)}</td>
+            <td class="col-sistema">${totRec.toFixed(3)}</td>
+            <td class="col-sistema">${totDev > 0 ? '−' + totDev.toFixed(3) : '—'}</td>
+            <td class="col-neto">${totNeto.toFixed(3)}</td>
+            <td>${totKV.toFixed(3)}</td>
+            <td class="${clsDif(totDif)}">${fmtDif(totDif)}</td>`;
+    }
+
+    // ── Guardar ───────────────────────────────────────────────────
+    async function guardarTodo() {
+        if (!mesActual || !bocasData.length) return;
+
+        const filas = bocasData.map((b, idx) => ({
+            boca_id:       b.boca_id,
+            stock_inicial: parseFloat(document.getElementById(`si-${idx}`)?.value) || 0,
+            kg_vendidos:   parseFloat(document.getElementById(`kv-${idx}`)?.value) || 0,
+        }));
+
+        try {
+            const res = await fetch('/api/conciliacion/guardar/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify({ mes: mesActual, filas }),
+            });
+            const data = await res.json();
+            if (data.success) toast('✅ ' + data.message);
+            else toast(data.error || 'Error al guardar', true);
+        } catch {
+            toast('Error de conexión', true);
+        }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function clsDif(v) {
+        if (Math.abs(v) < 0.005) return 'dif-cero';
+        return v > 0 ? 'dif-positivo' : 'dif-negativo';
+    }
+    function fmtDif(v) {
+        return (v >= 0 ? '+' : '') + Number(v).toFixed(3);
+    }
+
+    function exportarExcel() {
+        if (!mesActual) { toast('Cargá un mes primero', true); return; }
+        window.open(`/api/conciliacion/exportar/?mes=${mesActual}`, '_blank');
+    }
+
+    function toast(msg, error = false) {
+        const c = document.getElementById('toast-container');
+        const t = document.createElement('div');
+        t.className = 'toast' + (error ? ' toast-error' : ' toast-success');
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(() => t.remove(), 3200);
+    }
+</script>
+</body>
+</html>

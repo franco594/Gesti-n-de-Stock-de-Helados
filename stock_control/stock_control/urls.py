@@ -6,7 +6,7 @@ from app_inventario.views import (
     actualizar_stock_minimo,
 
     # Historial / movimientos
-    historial, historial_movimientos, detalle_movimiento, eliminar_movimiento,
+    historial, historial_movimientos, detalle_movimiento, eliminar_movimiento, eliminar_item_movimiento,
 
     # Búsqueda
     buscar, buscar_detallado,
@@ -30,6 +30,15 @@ from app_inventario.views import (
 
     # Auto-updater
     api_check_update, api_apply_update,
+
+    # Devolución
+    confirmar_devolucion,
+
+    # Conciliación
+    conciliacion, api_conciliacion_datos, api_conciliacion_guardar, api_conciliacion_exportar,
+
+    # Edición de ítems
+    api_editar_item_movimiento,
 )
 
 urlpatterns = [
@@ -56,6 +65,7 @@ urlpatterns = [
     # Alias opcional (por compatibilidad con el front)
     path('movimientos/<int:grupo_id>/', detalle_movimiento, name='movimientos_detalle_json'),
     path('eliminar_movimiento/<int:grupo_id>/', eliminar_movimiento, name='eliminar_movimiento'),
+    path('api/eliminar_item_movimiento/', eliminar_item_movimiento, name='eliminar_item_movimiento'),
     path('api/movimientos/<int:grupo_id>/reimprimir/', reimprimir_ticket, name='reimprimir_ticket'),
 
     # Búsqueda
@@ -97,4 +107,16 @@ urlpatterns = [
     # Auto-updater
     path('api/check-update/', api_check_update, name='api_check_update'),
     path('api/apply-update/', api_apply_update, name='api_apply_update'),
+
+    # Devolución
+    path('api/confirmar_devolucion/', confirmar_devolucion, name='confirmar_devolucion'),
+
+    # Conciliación
+    path('conciliacion/', conciliacion, name='conciliacion'),
+    path('api/conciliacion/', api_conciliacion_datos, name='api_conciliacion_datos'),
+    path('api/conciliacion/guardar/', api_conciliacion_guardar, name='api_conciliacion_guardar'),
+    path('api/conciliacion/exportar/', api_conciliacion_exportar, name='api_conciliacion_exportar'),
+
+    # Edición de ítem individual
+    path('api/editar_item_movimiento/', api_editar_item_movimiento, name='api_editar_item_movimiento'),
 ]

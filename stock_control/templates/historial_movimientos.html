@@ -23,6 +23,9 @@
                     <a href="{% url 'dashboard' %}" class="btn-icon" title="Dashboard">
                         📊
                     </a>
+                    <a href="{% url 'conciliacion' %}" class="btn-icon" title="Conciliación">
+                        🧮
+                    </a>
                     <a href="{% url 'index' %}" class="btn-secondary">← Volver</a>
                 </div>
             </div>
@@ -56,6 +59,7 @@
                         <option value="">Todos</option>
                         <option value="ingreso" {% if filtros.tipo == 'ingreso' %}selected{% endif %}>Ingreso</option>
                         <option value="salida" {% if filtros.tipo == 'salida' %}selected{% endif %}>Retiro</option>
+                        <option value="devolucion" {% if filtros.tipo == 'devolucion' %}selected{% endif %}>↩ Re-ingreso</option>
                     </select>
                 </div>
                 
@@ -111,10 +115,13 @@
             </div>
             
             <div class="summary-card card-retiro">
-                <div class="summary-icon">📤</div>  
+                <div class="summary-icon">📤</div>
                 <div class="summary-content">
                     <h4>Retiros</h4>
-                    <p class="summary-value">{{ totales_plus.total_kg_retirados|floatformat:2 }} kg</p>
+                    <p class="summary-value">{{ totales_plus.total_kg_neto|floatformat:2 }} kg neto</p>
+                    {% if totales_plus.total_kg_devueltos %}
+                    <p style="font-size:.8em;color:#10b981;margin:0;">↩ {{ totales_plus.total_kg_devueltos|floatformat:2 }} kg devueltos</p>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}
@@ -169,26 +176,31 @@
             <!-- Vista de Movimientos Agrupados -->
             <div class="movements-list">
                 {% for grupo in movimientos %}
-                <div class="movement-item {% if grupo.tipo == 'ingreso' %}ingreso{% else %}salida{% endif %}" 
+                <div class="movement-item {% if grupo.tipo == 'ingreso' or grupo.tipo == 'devolucion' %}ingreso{% else %}salida{% endif %}"
                      data-id="{{ grupo.grupo_id }}"
                      onclick="verDetalleMovimiento('{{ grupo.grupo_id }}')">
                     <div class="movement-main">
                         <div class="movement-icon">
-                            {% if grupo.tipo == 'ingreso' %}📥{% else %}📤{% endif %}
+                            {% if grupo.tipo == 'ingreso' %}📥{% elif grupo.tipo == 'devolucion' %}↩{% else %}📤{% endif %}
                         </div>
                         <div class="movement-info">
                             <div class="movement-tipo">
                                 {% if grupo.tipo == 'ingreso' %}
                                     <strong>Ingreso</strong>
                                     {% if grupo.origen %}
-                                        <span class="movement-location">desde {{ grupo.origen }} - 
+                                        <span class="movement-location">desde {{ grupo.origen }} -
                     {{ grupo.timestamp|date:"d/m/Y H:i" }} - </span>
-                                        
+                                    {% endif %}
+                                {% elif grupo.tipo == 'devolucion' %}
+                                    <strong>↩ Re-ingreso</strong>
+                                    {% if grupo.origen %}
+                                        <span class="movement-location">desde {{ grupo.origen }} -
+                    {{ grupo.fecha|date:"d/m/Y H:i" }} - </span>
                                     {% endif %}
                                 {% else %}
                                     <strong>Retiro</strong>
                                     {% if grupo.destino %}
-                                        <span class="movement-location">hacia {{ grupo.destino }} - 
+                                        <span class="movement-location">hacia {{ grupo.destino }} -
                     {{ grupo.timestamp|date:"d/m/Y H:i" }} -</span>
                                     {% endif %}
                                 {% endif %}
@@ -257,7 +269,7 @@
             <details class="summary-box" {% if request.GET.expand_ret %}open{% endif %}>
                 <summary>
                     <span class="summary-title">📤 Resumen de Retiros por PLU</span>
-                    <span class="summary-badge">{{ totales_plus.total_baldes_retirados }} baldes · {{ totales_plus.total_kg_retirados|floatformat:2 }} kg</span>
+                    <span class="summary-badge">{{ totales_plus.total_baldes_retirados }} baldes · {{ totales_plus.total_kg_neto|floatformat:2 }} kg neto</span>
                 </summary>
                 
                 <div class="summary-actions">
@@ -287,21 +299,24 @@
                                 <th>PLU</th>
                                 <th>Producto</th>
                                 <th>Baldes</th>
-                                <th>Kilos</th>
+                                <th>Kg Retirados</th>
+                                <th>Kg Devueltos</th>
+                                <th>Kg Neto</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- ✅ CAMBIAR A detalle_retiros -->
                             {% for r in totales_plus.detalle_retiros %}
                             <tr>
                                 <td>{{ r.producto__plu }}</td>
                                 <td>{{ r.producto__nombre }}</td>
                                 <td>{{ r.cant }}</td>
                                 <td>{{ r.kg|floatformat:2 }}</td>
+                                <td>{% if r.kg_devuelto %}{{ r.kg_devuelto|floatformat:2 }}{% else %}—{% endif %}</td>
+                                <td><strong>{{ r.kg_neto|floatformat:2 }}</strong></td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="4" class="no-data">No hay retiros en este período</td>
+                                <td colspan="6" class="no-data">No hay retiros en este período</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -310,6 +325,8 @@
                                 <th colspan="2">TOTAL</th>
                                 <th>{{ totales_plus.total_baldes_retirados }}</th>
                                 <th>{{ totales_plus.total_kg_retirados|floatformat:2 }}</th>
+                                <th>{{ totales_plus.total_kg_devueltos|floatformat:2 }}</th>
+                                <th>{{ totales_plus.total_kg_neto|floatformat:2 }}</th>
                             </tr>
                         </tfoot>
                     </table>
@@ -432,7 +449,7 @@
 
         function verDetalleMovimiento(grupoId) {
             document.getElementById("detalleGrupoId").textContent = `#${grupoId}`;
-            
+
             fetch(`/movimientos/${grupoId}/?format=json`, {
                 headers: { "X-Requested-With": "XMLHttpRequest" }
             })
@@ -440,30 +457,130 @@
             .then(data => {
                 const resumen = document.getElementById("detalleResumen");
                 const esIngreso = (data.tipo === "ingreso");
-                
+                const esDevolucion = (data.tipo === "devolucion");
+
                 resumen.innerHTML = `
                     <strong>Total:</strong> ${Number(data.total_peso || 0).toFixed(2)} kg
                     · <strong>Baldes:</strong> ${data.cantidad_items ?? 0}
-                    ${esIngreso
-                        ? `· <strong>Origen:</strong> ${data.origen ?? "-"}`
+                    ${(esIngreso || esDevolucion)
+                        ? `· <strong>${esDevolucion ? "Re-ingreso desde" : "Origen"}:</strong> ${data.origen ?? "-"}`
                         : `· <strong>Destino:</strong> ${data.destino ?? "-"}`}
                 `;
-                
+
                 const detalleLista = document.getElementById("detalleLista");
                 detalleLista.innerHTML = (data.items || []).map(it => `
-                    <li>
-                        <span class="producto">${it.producto}</span>
-                        ${it.codigo_barras ? `<span class="codigo"><small>${it.codigo_barras}</small></span>` : ''}
-                        <span class="peso">${Number(it.peso || 0).toFixed(3)} kg</span>
+                    <li id="item-${it.id}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                        <div>
+                            <span class="producto">${it.producto}</span>
+                            ${it.codigo_barras ? `<span class="codigo"><small>${it.codigo_barras}</small></span>` : ''}
+                            <span class="peso">${Number(it.peso || 0).toFixed(3)} kg</span>
+                        </div>
+                        <div style="display:flex;gap:2px;">
+                            <button onclick="editarItemMovimiento(${it.id}, ${grupoId}, '${it.plu}', ${it.peso})"
+                                    title="Corregir PLU o peso"
+                                    style="background:none;border:none;cursor:pointer;font-size:1rem;color:#1e40af;padding:2px 6px;">✏️</button>
+                            <button onclick="eliminarItemMovimiento(${it.id}, ${grupoId})"
+                                    title="Anular este balde"
+                                    style="background:none;border:none;cursor:pointer;font-size:1rem;color:#e53e3e;padding:2px 6px;">🗑️</button>
+                        </div>
                     </li>
                 `).join("");
-                
+
                 document.getElementById("detalleModal").style.display = "flex";
             })
             .catch(err => {
                 console.error("Error al cargar detalle:", err);
                 alert("No se pudo cargar el detalle del movimiento");
             });
+        }
+
+        function eliminarItemMovimiento(registroId, grupoId) {
+            if (!confirm("¿Anular este balde del movimiento?")) return;
+
+            fetch("/api/eliminar_item_movimiento/", {
+                method: "DELETE",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='))?.split('=')[1] || ''
+                },
+                body: JSON.stringify({ registro_id: registroId }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { alert(data.error || "Error al anular."); return; }
+                if (data.items_restantes === 0) {
+                    cerrarDetalle();
+                    document.querySelector(`.movement-item[data-id="${grupoId}"]`)?.remove();
+                } else {
+                    verDetalleMovimiento(grupoId);
+                }
+            })
+            .catch(() => alert("Error de conexión al anular el balde."));
+        }
+
+        // ── Edición de ítems ──────────────────────────────────────
+        let _productosCache = null;
+
+        async function _cargarProductos() {
+            if (_productosCache) return _productosCache;
+            const r = await fetch('/api/productos/');
+            const d = await r.json();
+            _productosCache = d.productos || [];
+            return _productosCache;
+        }
+
+        async function editarItemMovimiento(registroId, grupoId, pluActual, pesoActual) {
+            const li = document.getElementById(`item-${registroId}`);
+            if (!li) return;
+
+            const productos = await _cargarProductos();
+            const opts = productos.map(p =>
+                `<option value="${p.plu}"${p.plu === pluActual ? ' selected' : ''}>${p.plu} — ${p.nombre}</option>`
+            ).join('');
+
+            li.innerHTML = `
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;padding:4px 0;">
+                    <select id="ep-${registroId}"
+                            style="flex:1;min-width:160px;padding:4px 8px;border-radius:6px;border:1px solid #cbd5e1;font-size:.85rem;">
+                        ${opts}
+                    </select>
+                    <input type="number" id="ew-${registroId}" value="${pesoActual}" step="0.001" min="0.001"
+                           style="width:85px;padding:4px 8px;border-radius:6px;border:1px solid #cbd5e1;text-align:right;font-size:.85rem;margin: 0px">
+                    <span style="font-size:.82rem;color:#64748b;">kg</span>
+                    <button onclick="guardarEdicionItem(${registroId}, ${grupoId})"
+                            style="background:#1e40af;color:white;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:.82rem;font-weight:600;">✓ Guardar</button>
+                    <button onclick="verDetalleMovimiento(${grupoId})"
+                            style="background:#94a3b8;color:white;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.82rem;">✕</button>
+                </div>`;
+        }
+
+        async function guardarEdicionItem(registroId, grupoId) {
+            const nuevoPlu = document.getElementById(`ep-${registroId}`)?.value;
+            const nuevoPeso = parseFloat(document.getElementById(`ew-${registroId}`)?.value);
+
+            if (!nuevoPlu || isNaN(nuevoPeso) || nuevoPeso <= 0) {
+                alert('Ingresá un PLU y peso válidos');
+                return;
+            }
+
+            const csrf = document.cookie.split(';').map(c => c.trim())
+                .find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+
+            try {
+                const r = await fetch('/api/editar_item_movimiento/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                    body: JSON.stringify({ registro_id: registroId, nuevo_plu: nuevoPlu, nuevo_peso: nuevoPeso }),
+                });
+                const data = await r.json();
+                if (data.success) {
+                    verDetalleMovimiento(grupoId);
+                } else {
+                    alert(data.error || 'Error al guardar');
+                }
+            } catch {
+                alert('Error de conexión');
+            }
         }
 
         function cerrarDetalle() {

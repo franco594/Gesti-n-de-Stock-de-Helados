@@ -75,7 +75,8 @@ class OrigenIngreso(models.Model):
 class RegistroMovimiento(models.Model):
     TIPO_CHOICES = [
         ("ingreso", "Ingreso"),
-        ("salida", "Retiro")
+        ("salida", "Retiro"),
+        ("devolucion", "Devolución"),
     ]
     
     grupo_id = models.IntegerField(db_index=True)
@@ -130,7 +131,8 @@ class RegistroMovimiento(models.Model):
 class GrupoMovimiento(models.Model):
     TIPO_CHOICES = [
         ("ingreso", "Ingreso"),
-        ("salida", "Retiro")
+        ("salida", "Retiro"),
+        ("devolucion", "Devolución"),
     ]
     
     grupo_id = models.IntegerField(primary_key=True)
@@ -162,3 +164,20 @@ class GrupoMovimiento(models.Model):
     
     def __str__(self):
         return f"Grupo {self.grupo_id} - {self.tipo} - {self.total_peso:.3f} kg"
+
+
+class ConciliacionBoca(models.Model):
+    boca = models.ForeignKey(BocaSalida, on_delete=models.CASCADE)
+    mes = models.DateField()  # primer día del mes: YYYY-MM-01
+    stock_inicial = models.DecimalField(max_digits=8, decimal_places=3, default=0)
+    kg_vendidos = models.DecimalField(max_digits=8, decimal_places=3, default=0)
+
+    class Meta:
+        db_table = 'app_inventario_conciliacionboca'
+        unique_together = [('boca', 'mes')]
+        ordering = ['-mes', 'boca__nombre']
+        verbose_name = 'Conciliación'
+        verbose_name_plural = 'Conciliaciones'
+
+    def __str__(self):
+        return f"{self.boca.nombre} - {self.mes.strftime('%Y-%m')}"

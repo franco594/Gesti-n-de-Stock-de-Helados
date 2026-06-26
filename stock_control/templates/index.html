@@ -37,6 +37,9 @@
         <a href="{% url 'dashboard' %}" class="btn-icon" title="Dashboard" style="background-color: #0505A6; margin-left: 10px;">
             📊
         </a>
+        <a href="{% url 'conciliacion' %}" class="btn-icon" title="Conciliación" style="background-color: #0505A6; margin-left: 10px;">
+            🧮
+        </a>
         </div>
         
         <div class="sidebar" id="sidebar">
@@ -44,6 +47,7 @@
                 <button id="configButton">Dashboard</button>
             </a>
             <a href="{% url 'historial_movimientos' %}"><button id="historial-btn">Movimientos</button></a>
+            <a href="{% url 'conciliacion' %}"><button id="configButton">Conciliación</button></a>
             <button id="configButton"  onclick="abrirModalStock()">Stock</button>
             <button id="configButton"  onclick="abrirModalCrearBoca('ingresar')">Origen</button>
             <button id="configButton"  onclick="abrirModalCrearBoca('retirar')">Salidas</button>
@@ -76,6 +80,7 @@
         <div class="menu-btn">
             <button id="ingresar" onclick="abrirModal('ingresar');">Ingresar Baldes</button>
             <button id="retirar" onclick="abrirModal('retirar');">Retirar Baldes</button>
+            <div class="menu-btn"><button id="devolver" onclick="abrirModalDevolucion();">↩ Devolver Baldes</button></div>
         </div>
     </div>
     <div class="menu-container">
@@ -577,6 +582,20 @@
             <div id="chipsExistentes" class="bocas-container"></div>
         </div>
     </div>
+    <!-- Modal Devolución -->
+    <div id="modal-devolucion" class="modal" style="display:none;">
+        <div class="modal-content" id="modal-content-devolucion">
+            <h2>Productos Escaneados: <span id="contadorDevolucion" style="background:#f59e0b;color:white;padding:8px 16px;border-radius:20px;font-weight:bold;font-size:0.8em;">0</span></h2>
+            <ul id="listaEscaneadosDevolucion"></ul>
+            <div class="modal-buttons">
+                <button onclick="confirmarDevolucion()">Devolver</button>
+                <button onclick="cerrarModalDevolucion()">Cancelar</button>
+            </div>
+            <div id="contenedor-input-devolucion"></div>
+            <div id="contenedor-boca-devolucion"></div>
+        </div>
+    </div>
+
     <!-- Container para las notificaciones -->
     <div id="toast-container" class="toast-container"></div>
     <div id="confirm-dialog" class="modal" style="display: none;">

@@ -45,6 +45,7 @@ const SELECTORS = {
   menuBtn: "#menu-btn",
   listaRetiro: "#listaEscaneadosRetiro",
   listaIngreso: "#listaEscaneadosIngreso",
+  listaDevolucion: "#listaEscaneadosDevolucion",
   mensajeError: "#mensaje-error",
 };
 
@@ -414,7 +415,7 @@ function desactivarInputEscaneo() {
 
 if (codigoScanner) {
   codigoScanner.addEventListener("keydown", async (event) => {
-    if (!modalAbierta) {
+    if (!modalAbierta && !modoDevolucion) {
       console.warn("⛔ Escaneo bloqueado porque la modal está cerrada.");
       return;
     }
@@ -423,7 +424,11 @@ if (codigoScanner) {
       const codigo = codigoScanner.value.trim();
       if (codigo.length === 13 && !isNaN(Number(codigo))) {
         console.log("📡 Código escaneado:", codigo);
-        await procesarCodigoEscaneado(codigo);
+        if (modoDevolucion) {
+          await procesarCodigoDevolucion(codigo);
+        } else {
+          await procesarCodigoEscaneado(codigo);
+        }
         codigoScanner.value = "";
       } else {
         console.warn("⚠️ Código inválido:", codigo);
@@ -553,29 +558,29 @@ function cerrarModalConfirmacion() {
  * 7) Productos escaneados / listas / UI   *
  *******************************************/
 async function obtenerProductosEscaneados() {
-  if (!modalAbierta) return;
+  if (!modalAbierta && !modoDevolucion) return;
   try {
     const data = await getJSON(API.obtenerTemporales);
     productosEscaneados = Array.isArray(data?.productos) ? data.productos : [];
-    actualizarListaEscaneados(modo, productosEscaneados);
+    actualizarListaEscaneados(modoDevolucion ? "devolucion" : modo, productosEscaneados);
   } catch (e) {
     console.error("Error al obtener productos escaneados:", e);
   }
 }
 
 function actualizarListaEscaneados(modalTipo, lista) {
-  if (!modalAbierta) return;
-  const listaEl = modalTipo === "retirar" ? $(SELECTORS.listaRetiro) : $(SELECTORS.listaIngreso);
+  if (!modalAbierta && !modoDevolucion) return;
+  let listaEl;
+  if (modalTipo === "retirar") listaEl = $(SELECTORS.listaRetiro);
+  else if (modalTipo === "devolucion") listaEl = $(SELECTORS.listaDevolucion);
+  else listaEl = $(SELECTORS.listaIngreso);
   if (!listaEl) {
     console.error("⚠️ No se encontró la lista del modal:", modalTipo);
     return;
   }
 
-  // Actualizar contador de baldes
   const cantidad = Array.isArray(lista) ? lista.length : 0;
-  console.log(cantidad);
-  const contadorId = modalTipo === "retirar" ? "contadorRetiro" : "contadorIngreso";
-  console.log(contadorId);
+  const contadorId = modalTipo === "retirar" ? "contadorRetiro" : modalTipo === "devolucion" ? "contadorDevolucion" : "contadorIngreso";
   const contadorEl = document.getElementById(contadorId);
   console.log(contadorEl);
   if (contadorEl) {
@@ -1433,6 +1438,91 @@ async function _aplicarActualizacion(downloadUrl) {
 window.checkForUpdate = checkForUpdate;
 
 /*******************************************
+ * Devolución de baldes                    *
+ *******************************************/
+let modoDevolucion = false;
+
+async function abrirModalDevolucion() {
+  modoDevolucion = true;
+  await fetch(API.reiniciarLista, { method: "POST", headers: { "X-CSRFToken": window.CSRF_TOKEN } });
+  actualizarListaEscaneados("devolucion", []);
+
+  if (codigoScanner) {
+    codigoScanner.style.visibility = "visible";
+    byId("contenedor-input-devolucion")?.appendChild(codigoScanner);
+  }
+
+  await _cargarBocasDevolucion();
+  byId("modal-devolucion").style.display = "flex";
+  activarInputEscaneo();
+}
+
+function cerrarModalDevolucion() {
+  modoDevolucion = false;
+  desactivarInputEscaneo();
+  if (codigoScanner) codigoScanner.style.visibility = "hidden";
+  byId("modal-devolucion").style.display = "none";
+}
+
+async function _cargarBocasDevolucion() {
+  const cont = byId("contenedor-boca-devolucion");
+  if (!cont) return;
+  try {
+    const data = await getJSON(API.obtenerBocas);
+    const lista = (data?.lista || []).map(n => String(n).trim());
+    if (!lista.length) {
+      cont.innerHTML = '<p style="color:#888;font-size:.9em;">No hay bocas de salida cargadas.</p>';
+      return;
+    }
+    cont.innerHTML = `
+      <label>Boca de salida de origen:</label>
+      <div id="bocas-container-devolucion" class="bocas-container">
+        ${lista.map(nombre =>
+          `<button class="boca-btn" data-nombre="${nombre}" onclick="seleccionarBoca('${nombre.replace(/'/g, "\\'")}', 'devolucion')">📍 ${nombre}</button>`
+        ).join("")}
+      </div>
+      <input type="hidden" id="input-boca-devolucion" value="">
+    `;
+  } catch (e) {
+    console.error("Error cargando bocas de salida:", e);
+  }
+}
+
+// Llamada desde el scanner cuando el modal de devolución está abierto
+async function procesarCodigoDevolucion(codigo) {
+  try {
+    const data = await postJSON(API.procesarCodigo, { codigo });
+    if (data?.error) { Toast.error(data.error); return; }
+    actualizarListaEscaneados("devolucion", data.productos_temporales || []);
+  } catch (e) {
+    Toast.error("Error al procesar código: " + e.message);
+  }
+}
+
+async function confirmarDevolucion() {
+  const productos = await fetch(API.obtenerTemporales).then(r => r.json()).then(d => d.productos || []);
+  if (!productos.length) { Toast.error("No hay baldes en la lista."); return; }
+
+  const origen = byId("input-boca-devolucion")?.value || "";
+  if (!origen) { Toast.error("Seleccioná el local de origen."); return; }
+  try {
+    const res = await fetch("/api/confirmar_devolucion/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": window.CSRF_TOKEN },
+      body: JSON.stringify({ productos, origen }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || "Error desconocido");
+    Toast.success(data.message);
+    cerrarModalDevolucion();
+    actualizarTablaStock();
+    location.reload();
+  } catch (e) {
+    Toast.error("Error al confirmar devolución: " + e.message);
+  }
+}
+
+/*******************************************
  * 15) Exponer funciones globales          *
  *******************************************/
 Object.assign(window, {
@@ -1451,6 +1541,10 @@ Object.assign(window, {
   eliminarProducto,
   editarProducto,
   cerrarModalAdminProductos,
+  // Devolución
+  abrirModalDevolucion,
+  cerrarModalDevolucion,
+  confirmarDevolucion,
 });
 
 function seleccionarBoca(nombre, tipo) {
@@ -2309,13 +2403,15 @@ function actualizarOrigenesDestinos() {
             containerDestinos.innerHTML = '<p class="no-data">No hay datos</p>';
         } else {
             containerDestinos.innerHTML = top_destinos.map(d => {
-                const kgTotal = toNumber(d.kg_total);
+                const kgNeto = toNumber(d.kg_neto ?? d.kg_total);
+                const kgDevuelto = toNumber(d.kg_devuelto ?? 0);
                 return `
                     <div class="list-item">
                         <span class="list-item-name">${d.boca_salida}</span>
                         <div class="list-item-stats">
                             <span>${d.cantidad} mov.</span>
-                            <span>${kgTotal.toFixed(2)} kg</span>
+                            <span>${kgNeto.toFixed(2)} kg neto</span>
+                            ${kgDevuelto > 0 ? `<span style="color:#10b981;font-size:.8em;">↩ ${kgDevuelto.toFixed(2)} kg devuelto</span>` : ''}
                         </div>
                     </div>
                 `;

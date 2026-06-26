@@ -36,7 +36,7 @@ from django.db.models.functions import Cast
 
 from .models import (
     BocaSalida, OrigenIngreso, ProductoFijo,
-    RegistroMovimiento, GrupoMovimiento, StockBalde
+    RegistroMovimiento, GrupoMovimiento, StockBalde, ConciliacionBoca
 )
 from app_inventario import models
 
@@ -268,7 +268,7 @@ def _actualizar_total_grupo(grupo_id, tipo, origen=None, destino_nombre=None):
         grupo_id=grupo_id,
         defaults={
             'tipo': tipo,
-            'origen': origen if tipo == 'ingreso' else None,
+            'origen': origen if tipo in ('ingreso', 'devolucion') else None,
             'destino': destino_obj if tipo == 'salida' else None,
             'total_peso': total,
             'cantidad_items': cant,
@@ -690,6 +690,8 @@ def historial_movimientos(request):
             base_qs = base_qs.filter(tipo__in=["retiro", "salida"])
         elif tipo == "ingreso":
             base_qs = base_qs.filter(tipo="ingreso")
+        elif tipo == "devolucion":
+            base_qs = base_qs.filter(tipo="devolucion")
 
     if gusto:
         base_qs = base_qs.filter(producto__nombre__icontains=gusto)
@@ -739,12 +741,43 @@ def historial_movimientos(request):
     detalle_por_plu = list(detalle_por_plu_qs)
     totales_plus = None
     if detalle_por_plu:
+        # Devoluciones por PLU (mismos filtros de fecha/gusto/código, sin filtro de tipo)
+        qs_dev_plu = RegistroMovimiento.objects.filter(tipo='devolucion')
+        if dt_desde:
+            qs_dev_plu = qs_dev_plu.filter(timestamp__gte=dt_desde)
+        if dt_hasta:
+            qs_dev_plu = qs_dev_plu.filter(timestamp__lte=dt_hasta)
+        if gusto:
+            qs_dev_plu = qs_dev_plu.filter(producto__nombre__icontains=gusto)
+        if codigo:
+            qs_dev_plu = qs_dev_plu.filter(codigo_barras__icontains=codigo)
+        if plus_list:
+            qs_dev_plu = qs_dev_plu.filter(producto__plu__in=plus_list)
+        dev_por_plu = {
+            row['producto__plu']: float(row['kg_dev'] or 0)
+            for row in qs_dev_plu.values('producto__plu').annotate(kg_dev=Sum('peso'))
+        }
+
+        detalle_enriquecido = []
+        for r in detalle_por_plu:
+            kg_ret = float(r['kg'] or 0)
+            kg_dev = dev_por_plu.get(r['producto__plu'], 0.0)
+            detalle_enriquecido.append({
+                **r,
+                'kg_devuelto': round(kg_dev, 3),
+                'kg_neto': round(kg_ret - kg_dev, 3),
+            })
+
+        total_kg_ret = float(sum((r['kg'] or 0) for r in detalle_por_plu))
+        total_kg_dev = sum(r['kg_devuelto'] for r in detalle_enriquecido)
         totales_plus = {
-        "detalle_retiros": detalle_por_plu,  # ← Nombre específico para retiros
-        "total_baldes_retirados": sum(r["cant"] for r in detalle_por_plu),
-        "total_kg_retirados": sum((r["kg"] or 0) for r in detalle_por_plu),
-        "orden": orden,
-    }
+            "detalle_retiros": detalle_enriquecido,
+            "total_baldes_retirados": sum(r["cant"] for r in detalle_por_plu),
+            "total_kg_retirados": total_kg_ret,
+            "total_kg_devueltos": round(total_kg_dev, 3),
+            "total_kg_neto": round(total_kg_ret - total_kg_dev, 3),
+            "orden": orden,
+        }
 
     # ------------------------------------------------------------
     # Resumen de INGRESOS por PLU
@@ -902,9 +935,11 @@ def detalle_movimiento(request, grupo_id: int):
             "cantidad_items": int(cantidad_items),
             "items": [
                 {
+                    "id": i.id,
                     "producto": i.producto.nombre,
+                    "plu": i.producto.plu,
                     "peso": float(i.peso),
-                    "codigo_barras": getattr(i, "codigo_barras", None)  # 👈 nuevo
+                    "codigo_barras": getattr(i, "codigo_barras", None),
                 }
                 for i in items
             ],
@@ -923,14 +958,184 @@ def detalle_movimiento(request, grupo_id: int):
 
 @csrf_exempt
 def eliminar_movimiento(request, grupo_id):
-    if request.method == "DELETE":
-        movs = RegistroMovimiento.objects.filter(grupo_id=grupo_id)
-        if movs.exists():
+    if request.method != "DELETE":
+        return JsonResponse({"success": False, "error": "Método no permitido."}, status=405)
+
+    movs = RegistroMovimiento.objects.filter(grupo_id=grupo_id)
+    if not movs.exists():
+        return JsonResponse({"success": False, "error": "Movimiento no encontrado."}, status=404)
+
+    tipo = movs.values_list("tipo", flat=True).first()
+    codigos = list(
+        movs.exclude(codigo_barras__isnull=True)
+            .exclude(codigo_barras="")
+            .values_list("codigo_barras", flat=True)
+    )
+
+    try:
+        with transaction.atomic():
+            if tipo == "ingreso":
+                # Verificar que ningún balde del grupo ya fue retirado
+                ya_retirados = StockBalde.objects.filter(
+                    codigo_barras__in=codigos, is_activo=False
+                ).exists()
+                if ya_retirados:
+                    return JsonResponse({
+                        "success": False,
+                        "error": "No se puede anular: uno o más baldes de este ingreso ya fueron retirados.",
+                    }, status=400)
+                StockBalde.objects.filter(codigo_barras__in=codigos).delete()
+
+            elif tipo == "salida":
+                # Reactivar los baldes retirados
+                StockBalde.objects.filter(
+                    codigo_barras__in=codigos, is_activo=False
+                ).update(is_activo=True, fecha_retiro=None)
+
+            elif tipo == "devolucion":
+                # Verificar que el balde devuelto no fue retirado nuevamente
+                ya_retirados = StockBalde.objects.filter(
+                    codigo_barras__in=codigos, is_activo=False
+                ).exists()
+                if ya_retirados:
+                    return JsonResponse({
+                        "success": False,
+                        "error": "No se puede anular: uno o más baldes de esta devolución ya fueron retirados.",
+                    }, status=400)
+                StockBalde.objects.filter(codigo_barras__in=codigos).delete()
+
             movs.delete()
             GrupoMovimiento.objects.filter(grupo_id=grupo_id).delete()
-            return JsonResponse({"success": True, "message": "Movimiento eliminado correctamente."})
-        return JsonResponse({"success": False, "error": "Movimiento no encontrado."}, status=404)
-    return JsonResponse({"success": False, "error": "Método no permitido."}, status=405)
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error": f"Error al eliminar: {e}"}, status=500)
+
+    return JsonResponse({"success": True, "message": "Movimiento anulado correctamente."})
+
+
+@csrf_exempt
+def eliminar_item_movimiento(request):
+    """DELETE /api/eliminar_item_movimiento/  { "registro_id": 123 }
+    Elimina un balde individual dentro de un grupo de movimiento y ajusta los totales.
+    """
+    if request.method != "DELETE":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+
+    registro_id = data.get("registro_id")
+    if not registro_id:
+        return JsonResponse({"error": "registro_id requerido"}, status=400)
+
+    try:
+        mov = RegistroMovimiento.objects.get(id=registro_id)
+    except RegistroMovimiento.DoesNotExist:
+        return JsonResponse({"error": "Registro no encontrado"}, status=404)
+
+    grupo_id = mov.grupo_id
+    tipo = mov.tipo
+    codigo = (mov.codigo_barras or "").strip()
+
+    try:
+        with transaction.atomic():
+            if tipo in ("ingreso", "devolucion"):
+                if codigo:
+                    if StockBalde.objects.filter(codigo_barras=codigo, is_activo=False).exists():
+                        return JsonResponse({
+                            "error": "Este balde ya fue retirado y no puede anularse."
+                        }, status=400)
+                    StockBalde.objects.filter(codigo_barras=codigo, is_activo=True).delete()
+
+            elif tipo == "salida":
+                if codigo:
+                    StockBalde.objects.filter(
+                        codigo_barras=codigo, is_activo=False
+                    ).update(is_activo=True, fecha_retiro=None)
+
+            mov.delete()
+
+            restantes = RegistroMovimiento.objects.filter(grupo_id=grupo_id)
+            if restantes.exists():
+                agg = restantes.aggregate(total=Sum("peso"), cant=Count("id"))
+                GrupoMovimiento.objects.filter(grupo_id=grupo_id).update(
+                    total_peso=agg["total"] or 0,
+                    cantidad_items=agg["cant"] or 0,
+                )
+                items_restantes = agg["cant"] or 0
+            else:
+                GrupoMovimiento.objects.filter(grupo_id=grupo_id).delete()
+                items_restantes = 0
+
+    except Exception as e:
+        return JsonResponse({"error": f"Error al eliminar: {e}"}, status=500)
+
+    return JsonResponse({
+        "success": True,
+        "items_restantes": items_restantes,
+        "message": "Balde eliminado del movimiento.",
+    })
+
+
+@csrf_exempt
+def api_editar_item_movimiento(request):
+    """POST /api/editar_item_movimiento/  { "registro_id": 123, "nuevo_plu": "001", "nuevo_peso": 2.500 }
+    Corrige el producto y/o peso de un balde dentro de un grupo de movimiento.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+
+    registro_id = data.get("registro_id")
+    nuevo_plu = (str(data.get("nuevo_plu") or "")).strip().zfill(3)
+    nuevo_peso_raw = data.get("nuevo_peso")
+
+    if not registro_id:
+        return JsonResponse({"error": "registro_id requerido"}, status=400)
+
+    try:
+        nuevo_peso = float(nuevo_peso_raw)
+        if nuevo_peso <= 0:
+            return JsonResponse({"error": "El peso debe ser mayor a 0"}, status=400)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Peso inválido"}, status=400)
+
+    try:
+        producto = ProductoFijo.objects.get(plu=nuevo_plu)
+    except ProductoFijo.DoesNotExist:
+        return JsonResponse({"error": f"No existe producto con PLU {nuevo_plu}"}, status=404)
+
+    try:
+        registro = RegistroMovimiento.objects.select_related("destino").get(id=registro_id)
+    except RegistroMovimiento.DoesNotExist:
+        return JsonResponse({"error": "Registro no encontrado"}, status=404)
+
+    with transaction.atomic():
+        if registro.codigo_barras:
+            StockBalde.objects.filter(codigo_barras=registro.codigo_barras).update(
+                producto=producto,
+                peso=nuevo_peso,
+            )
+
+        registro.producto = producto
+        registro.peso = nuevo_peso
+        registro.save(update_fields=["producto", "peso"])
+
+        destino_nombre = registro.destino.nombre if registro.destino else None
+        _actualizar_total_grupo(
+            registro.grupo_id,
+            tipo=registro.tipo,
+            origen=registro.origen,
+            destino_nombre=destino_nombre,
+        )
+
+    return JsonResponse({"success": True, "message": "Balde corregido correctamente"})
 
 
 def buscar(request):
@@ -1390,6 +1595,92 @@ def confirmar_retiro(request):
         },
         status=200,
     )
+
+# =========================================================
+# Devolución de baldes
+# =========================================================
+
+@csrf_exempt
+def confirmar_devolucion(request):
+    """
+    POST /api/confirmar_devolucion/
+    Body: { "productos": [...], "origen": "Local Norte" }
+
+    El balde fue re-etiquetado: el nuevo código ya contiene producto y peso.
+    Se crea un StockBalde nuevo (como en ingreso) pero con tipo='devolucion'.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Formato JSON inválido"}, status=400)
+
+    productos = data.get("productos", []) or request.session.get("productos_temporales", [])
+    origen = (data.get("origen") or "").strip()
+
+    if not productos:
+        return JsonResponse({"error": "No hay baldes para devolver"}, status=400)
+
+    devueltos = []
+    try:
+        with transaction.atomic():
+            ultimo = (
+                RegistroMovimiento.objects
+                .select_for_update()
+                .order_by("-grupo_id")
+                .values_list("grupo_id", flat=True)
+                .first()
+            )
+            nuevo_grupo_id = (ultimo or 0) + 1
+
+            for p in productos:
+                plu          = (p or {}).get("plu")
+                peso         = (p or {}).get("peso")
+                codigo_str   = str((p or {}).get("codigo_barras") or "")
+
+                if not plu or peso in (None, "", 0):
+                    return JsonResponse({"error": "Datos incompletos en la lista"}, status=400)
+                if len(codigo_str) != 13 or not codigo_str.isdigit():
+                    return JsonResponse({"error": "Código de barras inválido"}, status=400)
+
+                try:
+                    producto_obj = ProductoFijo.objects.get(plu=plu)
+                except ProductoFijo.DoesNotExist:
+                    return JsonResponse({"error": f"Producto PLU {plu} no encontrado"}, status=404)
+
+                StockBalde.objects.create(
+                    producto=producto_obj,
+                    peso=float(peso),
+                    codigo_barras=codigo_str,
+                    is_activo=True,
+                )
+                RegistroMovimiento.objects.create(
+                    grupo_id=nuevo_grupo_id,
+                    producto=producto_obj,
+                    peso=float(peso),
+                    tipo="devolucion",
+                    origen=origen or None,
+                    codigo_barras=codigo_str,
+                )
+                devueltos.append(producto_obj.nombre)
+
+            _actualizar_total_grupo(nuevo_grupo_id, tipo="devolucion", origen=origen)
+
+            request.session["productos_temporales"] = []
+            request.session.modified = True
+
+    except Exception as e:
+        return JsonResponse({"error": f"Error al procesar devolución: {e}"}, status=500)
+
+    return JsonResponse({
+        "success": True,
+        "grupo_id": nuevo_grupo_id,
+        "cantidad": len(devueltos),
+        "message": f"Devolución registrada: {len(devueltos)} balde(s) reingresado(s).",
+    })
+
 
 # =========================================================
 # Catálogos: Bocas / Orígenes
@@ -2132,19 +2423,37 @@ def api_dashboard_metricas(request):
             .order_by('-cantidad')[:5]
         )
         
-        # Top destinos (retiros)
-        top_destinos = (
+        # Top destinos (retiros) con devoluciones descontadas
+        top_destinos_qs = (
             RegistroMovimiento.objects
             .filter(mov_plu_q, tipo='salida', timestamp__gte=hace_30_dias)
             .exclude(boca_salida__isnull=True)
             .exclude(boca_salida='')
             .values('boca_salida')
-            .annotate(
-                cantidad=Count('id'),
-                kg_total=Sum('peso')
-            )
+            .annotate(cantidad=Count('id'), kg_total=Sum('peso'))
             .order_by('-cantidad')[:5]
         )
+        # kg devueltos desde cada boca en el mismo período
+        dev_map = {
+            row['origen']: float(row['kg_dev'] or 0)
+            for row in (
+                RegistroMovimiento.objects
+                .filter(mov_plu_q, tipo='devolucion', timestamp__gte=hace_30_dias)
+                .exclude(origen__isnull=True).exclude(origen='')
+                .values('origen')
+                .annotate(kg_dev=Sum('peso'))
+            )
+        }
+        top_destinos = [
+            {
+                'boca_salida': d['boca_salida'],
+                'cantidad':    d['cantidad'],
+                'kg_total':    float(d['kg_total'] or 0),
+                'kg_devuelto': round(dev_map.get(d['boca_salida'], 0), 3),
+                'kg_neto':     round(float(d['kg_total'] or 0) - dev_map.get(d['boca_salida'], 0), 3),
+            }
+            for d in top_destinos_qs
+        ]
         
         # ============================================================
         # 11. ESTADÍSTICAS DEL MES
@@ -2278,3 +2587,208 @@ def api_apply_update(request):
         import threading, os as _os
         threading.Timer(2.0, lambda: _os._exit(0)).start()
     return JsonResponse(result)
+
+
+# =========================================================
+# Conciliación por Boca de Salida
+# =========================================================
+
+def conciliacion(request):
+    return render(request, "conciliacion.html")
+
+
+def api_conciliacion_datos(request):
+    if request.method != "GET":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+
+    mes_str = (request.GET.get("mes") or "").strip()  # "YYYY-MM"
+    if not mes_str:
+        hoy = timezone.now().date()
+        mes_str = f"{hoy.year}-{hoy.month:02d}"
+
+    try:
+        year, month = int(mes_str[:4]), int(mes_str[5:7])
+        from datetime import date as _date
+        mes_date = _date(year, month, 1)
+    except (ValueError, IndexError):
+        return JsonResponse({"error": "Formato de mes inválido (YYYY-MM)"}, status=400)
+
+    bocas = BocaSalida.objects.all().order_by("nombre")
+
+    retiros_map = {
+        r["boca_salida"]: float(r["kg"] or 0)
+        for r in (
+            RegistroMovimiento.objects
+            .filter(tipo="salida", timestamp__year=year, timestamp__month=month)
+            .exclude(boca_salida__isnull=True).exclude(boca_salida="")
+            .values("boca_salida")
+            .annotate(kg=Sum("peso"))
+        )
+    }
+
+    dev_map = {
+        r["origen"]: float(r["kg"] or 0)
+        for r in (
+            RegistroMovimiento.objects
+            .filter(tipo="devolucion", timestamp__year=year, timestamp__month=month)
+            .exclude(origen__isnull=True).exclude(origen="")
+            .values("origen")
+            .annotate(kg=Sum("peso"))
+        )
+    }
+
+    conc_map = {
+        c.boca_id: c
+        for c in ConciliacionBoca.objects.filter(mes=mes_date).select_related("boca")
+    }
+
+    resultado = []
+    for boca in bocas:
+        kg_recibidos = retiros_map.get(boca.nombre, 0.0)
+        kg_devueltos = dev_map.get(boca.nombre, 0.0)
+        kg_neto = kg_recibidos - kg_devueltos
+        conc = conc_map.get(boca.pk)
+        stock_inicial = float(conc.stock_inicial) if conc else 0.0
+        kg_vendidos = float(conc.kg_vendidos) if conc else 0.0
+        diferencia = stock_inicial + kg_neto - kg_vendidos
+        resultado.append({
+            "boca_id":      boca.pk,
+            "boca_nombre":  boca.nombre,
+            "kg_recibidos": round(kg_recibidos, 3),
+            "kg_devueltos": round(kg_devueltos, 3),
+            "kg_neto":      round(kg_neto, 3),
+            "stock_inicial": round(stock_inicial, 3),
+            "kg_vendidos":  round(kg_vendidos, 3),
+            "diferencia":   round(diferencia, 3),
+        })
+
+    return JsonResponse({"mes": mes_str, "bocas": resultado})
+
+
+@csrf_exempt
+def api_conciliacion_guardar(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+
+    mes_str = (data.get("mes") or "").strip()
+    filas = data.get("filas", [])
+
+    try:
+        year, month = int(mes_str[:4]), int(mes_str[5:7])
+        from datetime import date as _date
+        mes_date = _date(year, month, 1)
+    except (ValueError, IndexError):
+        return JsonResponse({"error": "Mes inválido"}, status=400)
+
+    try:
+        with transaction.atomic():
+            for fila in filas:
+                boca_id = fila.get("boca_id")
+                stock_inicial = float(fila.get("stock_inicial") or 0)
+                kg_vendidos = float(fila.get("kg_vendidos") or 0)
+                try:
+                    boca = BocaSalida.objects.get(pk=boca_id)
+                except BocaSalida.DoesNotExist:
+                    continue
+                ConciliacionBoca.objects.update_or_create(
+                    boca=boca,
+                    mes=mes_date,
+                    defaults={"stock_inicial": stock_inicial, "kg_vendidos": kg_vendidos},
+                )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"success": True, "message": "Conciliación guardada correctamente."})
+
+
+def api_conciliacion_exportar(request):
+    """GET /api/conciliacion/exportar/?mes=YYYY-MM
+    Descarga la conciliación del mes como archivo .xlsx.
+    """
+    if request.method != "GET":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+
+    mes_str = (request.GET.get("mes") or "").strip()
+    if not mes_str:
+        hoy = timezone.now().date()
+        mes_str = f"{hoy.year}-{hoy.month:02d}"
+
+    try:
+        year, month = int(mes_str[:4]), int(mes_str[5:7])
+        from datetime import date as _date
+        mes_date = _date(year, month, 1)
+    except (ValueError, IndexError):
+        return JsonResponse({"error": "Formato de mes inválido (YYYY-MM)"}, status=400)
+
+    bocas = BocaSalida.objects.all().order_by("nombre")
+
+    retiros_map = {
+        r["boca_salida"]: float(r["kg"] or 0)
+        for r in (
+            RegistroMovimiento.objects
+            .filter(tipo="salida", timestamp__year=year, timestamp__month=month)
+            .exclude(boca_salida__isnull=True).exclude(boca_salida="")
+            .values("boca_salida")
+            .annotate(kg=Sum("peso"))
+        )
+    }
+
+    dev_map = {
+        r["origen"]: float(r["kg"] or 0)
+        for r in (
+            RegistroMovimiento.objects
+            .filter(tipo="devolucion", timestamp__year=year, timestamp__month=month)
+            .exclude(origen__isnull=True).exclude(origen="")
+            .values("origen")
+            .annotate(kg=Sum("peso"))
+        )
+    }
+
+    conc_map = {
+        c.boca_id: c
+        for c in ConciliacionBoca.objects.filter(mes=mes_date).select_related("boca")
+    }
+
+    rows = []
+    for boca in bocas:
+        kg_recibidos = retiros_map.get(boca.nombre, 0.0)
+        kg_devueltos = dev_map.get(boca.nombre, 0.0)
+        kg_neto = kg_recibidos - kg_devueltos
+        conc = conc_map.get(boca.pk)
+        stock_inicial = float(conc.stock_inicial) if conc else 0.0
+        kg_vendidos = float(conc.kg_vendidos) if conc else 0.0
+        diferencia = stock_inicial + kg_neto - kg_vendidos
+        rows.append({
+            "Boca de Salida":   boca.nombre,
+            "Stock Inicial (kg)": round(stock_inicial, 3),
+            "Kg Recibidos":     round(kg_recibidos, 3),
+            "Kg Devueltos":     round(kg_devueltos, 3),
+            "Kg Neto":          round(kg_neto, 3),
+            "Kg Vendidos":      round(kg_vendidos, 3),
+            "Diferencia (kg)":  round(diferencia, 3),
+        })
+
+    df = pd.DataFrame(rows)
+
+    buffer = BytesIO()
+    sheet_name = f"Conc {mes_str}"
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name=sheet_name)
+        ws = writer.sheets[sheet_name]
+        for col in ws.columns:
+            max_len = max((len(str(cell.value or "")) for cell in col), default=8) + 3
+            ws.column_dimensions[col[0].column_letter].width = min(max_len, 28)
+
+    buffer.seek(0)
+    filename = f"conciliacion_{mes_str}.xlsx"
+    response = HttpResponse(
+        buffer,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response

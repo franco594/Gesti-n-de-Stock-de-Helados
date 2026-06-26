@@ -90,6 +90,15 @@ def main():
         
         threading.Thread(target=_abrir_cuando_este_listo, daemon=True).start()
 
+    # --- MIGRACIONES ---
+    if es_runserver and es_proceso_principal:
+        try:
+            from django.core.management import call_command
+            call_command("migrate", "--run-syncdb", verbosity=0)
+            print("✅ Migraciones aplicadas")
+        except Exception as e:
+            print(f"⚠️ Error al aplicar migraciones: {e}")
+
     # --- EJECUTAR DJANGO ---
     try:
         from django.core.management import execute_from_command_line
