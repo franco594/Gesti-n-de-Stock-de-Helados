@@ -11,6 +11,7 @@ a = Analysis(
         ('templates', 'templates'),
         ('seed_db.sqlite3', '.'),
         ('version.py', '.'),
+        ('venv\\Lib\\site-packages\\escpos\\*.json', 'escpos'),
     ],
     hiddenimports=[
         'django', 'escpos', 'escpos.printer', 'escpos.escpos',

@@ -39,6 +39,9 @@ from app_inventario.views import (
 
     # Edición de ítems
     api_editar_item_movimiento,
+
+    # Configuración de precios
+    config_precios, api_config_precios,
 )
 
 urlpatterns = [
@@ -119,4 +122,8 @@ urlpatterns = [
 
     # Edición de ítem individual
     path('api/editar_item_movimiento/', api_editar_item_movimiento, name='api_editar_item_movimiento'),
+
+    # Configuración de precios
+    path('config/precios/', config_precios, name='config_precios'),
+    path('api/config/precios/', api_config_precios, name='api_config_precios'),
 ]

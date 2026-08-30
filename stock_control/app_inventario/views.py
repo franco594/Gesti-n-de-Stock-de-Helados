@@ -36,8 +36,24 @@ from django.db.models.functions import Cast
 
 from .models import (
     BocaSalida, OrigenIngreso, ProductoFijo,
-    RegistroMovimiento, GrupoMovimiento, StockBalde, ConciliacionBoca
+    RegistroMovimiento, GrupoMovimiento, StockBalde, ConciliacionBoca,
+    ConfiguracionSistema,
 )
+
+_CONFIG_DEFAULTS = {
+    'precio_cat1':                  '12500',
+    'precio_cat2':                  '13500',
+    'precio_cat3':                  '14500',
+    'precio_gastronomico':          '15000',
+    'precio_gastronomico_pistacho': '18000',
+    'valor_inventario_kg':          '22500',
+}
+
+def get_config(clave, default=None):
+    try:
+        return ConfiguracionSistema.objects.get(clave=clave).valor
+    except ConfiguracionSistema.DoesNotExist:
+        return default if default is not None else _CONFIG_DEFAULTS.get(clave, '')
 from app_inventario import models
 
 logger = logging.getLogger(__name__)
@@ -53,20 +69,13 @@ def conectar_bd():
     return conn
 
 def api_stock_detallado(request):
-    """
-    API JSON con el stock por producto: nombre, stock_minimo y cantidad (baldes).
-    """
-    productos = ProductoFijo.objects.annotate(stock_actual=Count('stockbalde'))
+    productos = ProductoFijo.objects.annotate(
+        stock_actual=Count('stockbalde', filter=Q(stockbalde__is_activo=True))
+    )
     data = [
         {"nombre": p.nombre, "stock_minimo": p.stock_minimo, "cantidad": p.stock_actual}
         for p in productos
     ]
-    return JsonResponse({"stock_detallado": data})
-
-# --- Legacy: api_stock_detallado (si te lo sigue importando urls.py)
-def api_stock_detallado(request):
-    productos = ProductoFijo.objects.annotate(stock_actual=Count('stockbalde'))
-    data = [{"nombre": p.nombre, "stock_minimo": p.stock_minimo, "cantidad": p.stock_actual} for p in productos]
     return JsonResponse({"stock_detallado": data})
 
 # --- Legacy: agregar_productos (agrega directo al stock SIN grupo/movimiento)
@@ -1558,9 +1567,8 @@ def confirmar_retiro(request):
             for producto_obj, balde in seleccionados:
                 # Marcar balde como inactivo
                 balde.is_activo = False
-                # (Opcional: si tenés campo fecha_retiro, podés setearlo acá)
-                # balde.fecha_retiro = timezone.now()
-                balde.save(update_fields=["is_activo"])
+                balde.fecha_retiro = timezone.now()
+                balde.save(update_fields=["is_activo", "fecha_retiro"])
 
                 # Registrar movimiento
                 RegistroMovimiento.objects.create(
@@ -1988,7 +1996,7 @@ def api_dashboard_metricas(request):
         )['total'] or 0
 
         # Valor del inventario (ejemplo: cada kg vale $100)
-        valor_por_kg = 22500
+        valor_por_kg = float(get_config('valor_inventario_kg', '22500'))
         valor_inventario = float(total_kilos) * valor_por_kg
 
         # Productos únicos en stock
@@ -2273,78 +2281,6 @@ def api_dashboard_metricas(request):
             ]
         }
 
-        # Función para clasificar un producto
-        def clasificar_producto_exacto(nombre_producto):
-            """
-            Clasifica un producto buscando coincidencia exacta o parcial.
-            Primero busca coincidencia exacta, luego parcial.
-            """
-            nombre_upper = nombre_producto.upper().strip()
-            
-            # 1. Buscar coincidencia EXACTA
-            for grupo, nombres in grupos_productos.items():
-                for nombre_grupo in nombres:
-                    if nombre_upper == nombre_grupo.upper():
-                        return grupo
-            
-            # 2. Buscar coincidencia PARCIAL (contiene)
-            for grupo, nombres in grupos_productos.items():
-                for nombre_grupo in nombres:
-                    # Si el nombre del producto contiene el nombre del grupo
-                    if nombre_grupo.upper() in nombre_upper:
-                        return grupo
-                    # O si el nombre del grupo contiene el nombre del producto
-                    # (útil para nombres más largos en la base de datos)
-                    if nombre_upper in nombre_grupo.upper():
-                        return grupo
-            
-            return None
-
-        # Obtener todos los productos únicos con stock
-        productos_con_stock = (
-            StockBalde.objects
-            .filter(is_activo=True)
-            .values('producto__plu', 'producto__nombre')
-            .distinct()
-        )
-
-        # Inicializar contadores
-        distribucion_grupos = {grupo: 0 for grupo in grupos_productos.keys()}
-        productos_sin_clasificar = 0
-
-        # Clasificar cada producto y contar baldes
-        for p in productos_con_stock:
-            plu = p['producto__plu']
-            nombre = p['producto__nombre']
-            
-            # Contar cuántos baldes tiene este producto
-            cantidad = StockBalde.objects.filter(
-                is_activo=True,
-                producto__plu=plu
-            ).count()
-            
-            # Clasificar el producto
-            grupo = clasificar_producto_exacto(nombre)
-            
-            if grupo:
-                distribucion_grupos[grupo] += cantidad
-            else:
-                productos_sin_clasificar += cantidad
-
-        # Agregar "otros" solo si hay productos sin clasificar
-        if productos_sin_clasificar > 0:
-            distribucion_grupos['otros'] = productos_sin_clasificar
-
-        # Log para debugging (opcional)
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"📊 Distribución de grupos: {distribucion_grupos}")
-        if productos_sin_clasificar > 0:
-            logger.warning(f"⚠️ {productos_sin_clasificar} baldes sin clasificar")
-
-
-                # ← AQUÍ FALTA TODO ESTE CÓDIGO ↓
-
         def clasificar_producto_exacto(nombre_producto):
             """
             Clasifica un producto en UN SOLO grupo (sin duplicación).
@@ -2366,44 +2302,38 @@ def api_dashboard_metricas(request):
             
             return None
 
-        # Clasificar cada balde en su grupo (sin duplicación)
+        # Clasificar agrupando por producto (1 query, no N+1)
         distribucion_grupos = {grupo: 0 for grupo in grupos_productos.keys()}
         distribucion_grupos['otros'] = 0
-
-        baldes_activos = StockBalde.objects.filter(
-            balde_plu_q, is_activo=True
-        ).select_related('producto')
-
-        for balde in baldes_activos:
-            grupo = clasificar_producto_exacto(balde.producto.nombre)
-            if grupo:
-                distribucion_grupos[grupo] += 1
-            else:
-                distribucion_grupos['otros'] += 1
-
-        # Verificación (opcional, para debugging en consola)
-        suma_grupos = sum(distribucion_grupos.values())
-        if total_baldes != suma_grupos:
-            print(f"⚠️ Discrepancia: {total_baldes} baldes vs {suma_grupos} en gráfico")
+        for item in (
+            StockBalde.objects
+            .filter(balde_plu_q, is_activo=True)
+            .values('producto__nombre')
+            .annotate(cantidad=Count('id'))
+        ):
+            grupo = clasificar_producto_exacto(item['producto__nombre'])
+            distribucion_grupos[grupo if grupo else 'otros'] += item['cantidad']
 
         
         # ============================================================
         # 9. ACTIVIDAD POR HORA (Hoy)
         # ============================================================
         
-        actividad_horas = []
-        for hora in range(24):
-            inicio_hora = inicio_dia.replace(hour=hora)
-            fin_hora = inicio_hora + timedelta(hours=1)
-            
-            count = RegistroMovimiento.objects.filter(
-                mov_plu_q, timestamp__gte=inicio_hora, timestamp__lt=fin_hora
-            ).count()
-            
-            actividad_horas.append({
-                'hora': f'{hora:02d}:00',
-                'movimientos': count
-            })
+        from django.db.models.functions import TruncHour
+        _hora_map = {
+            r['hora'].hour: r['total']
+            for r in (
+                RegistroMovimiento.objects
+                .filter(mov_plu_q, timestamp__gte=inicio_dia)
+                .annotate(hora=TruncHour('timestamp'))
+                .values('hora')
+                .annotate(total=Count('id'))
+            )
+        }
+        actividad_horas = [
+            {'hora': f'{h:02d}:00', 'movimientos': _hora_map.get(h, 0)}
+            for h in range(24)
+        ]
         
         # ============================================================
         # 10. ORÍGENES Y DESTINOS MÁS USADOS
@@ -2792,3 +2722,40 @@ def api_conciliacion_exportar(request):
     )
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+
+# =========================================================
+# Configuración de Precios
+# =========================================================
+
+def config_precios(request):
+    return render(request, 'config_precios.html')
+
+
+@csrf_exempt
+def api_config_precios(request):
+    if request.method == 'GET':
+        db_rows = {c.clave: c.valor for c in ConfiguracionSistema.objects.filter(clave__in=_CONFIG_DEFAULTS)}
+        configs = {clave: db_rows.get(clave, default) for clave, default in _CONFIG_DEFAULTS.items()}
+        return JsonResponse({'config': configs})
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body or '{}')
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+        for clave, valor in data.items():
+            if clave not in _CONFIG_DEFAULTS:
+                continue
+            try:
+                float(valor)
+            except (ValueError, TypeError):
+                return JsonResponse({'error': f'Valor inválido para {clave}'}, status=400)
+            ConfiguracionSistema.objects.update_or_create(
+                clave=clave,
+                defaults={'valor': str(int(float(valor))), 'descripcion': ''},
+            )
+        return JsonResponse({'success': True, 'message': 'Configuración guardada correctamente'})
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)

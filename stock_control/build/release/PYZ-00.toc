@@ -453,6 +453,10 @@
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\app_inventario\\migrations\\0017_conciliacionboca.py',
    'PYMODULE'),
+  ('app_inventario.migrations.0018_configuracionsistema',
+   'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
+   'Helados\\stock_control\\app_inventario\\migrations\\0018_configuracionsistema.py',
+   'PYMODULE'),
   ('app_inventario.models',
    'C:\\Users\\franc\\Proyectos2024\\Gestión de Stock de '
    'Helados\\stock_control\\app_inventario\\models.py',

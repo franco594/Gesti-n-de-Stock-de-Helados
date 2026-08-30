@@ -19,7 +19,7 @@ def _default_db_path() -> Path:
 DB_FILE = Path(os.getenv("DB_FILE", _default_db_path()))
 DB_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-SECRET_KEY = 'tu_clave_secreta'
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-key-cambiar-en-produccion-00000000000000")
 
 DEBUG = True
 
@@ -113,14 +113,14 @@ GITHUB_REPO       = "franco594/Gesti-n-de-Stock-de-Helados"
 UPDATE_ASSET_NAME = "StockControl.exe"
 
 
-LEGACY_ALLOW_NO_CODE = True  # ← durante 1 semana. Luego ponelo en False
+LEGACY_ALLOW_NO_CODE = False
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "francopiero594@gmail.com"
-EMAIL_HOST_PASSWORD = "hnyi jprn nhyj wplq"
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 TIME_ZONE = "America/Argentina/Buenos_Aires"

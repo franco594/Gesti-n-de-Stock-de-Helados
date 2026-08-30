@@ -75,19 +75,31 @@ CAT3_NOMBRES = {
     "CHOCO DUBAI", "PISTACHO",
 }
 
-PRECIO_CAT1 = Decimal("12500")
-PRECIO_CAT2 = Decimal("13500")
-PRECIO_CAT3 = Decimal("14500")
-
-PRECIO_PLU_ALTO_DEFAULT = Decimal("15000")
-PRECIO_PLU_ALTO_PISTACHO = Decimal("18000")
-
 
 def _norm(nombre: str) -> str:
     return " ".join((nombre or "").strip().upper().split())
 
 
-def costo_por_kilo(nombre_producto: str, plu: str) -> Decimal:
+def _get_precios() -> dict:
+    """Carga precios desde la DB con fallback a valores hardcodeados."""
+    defaults = {
+        'precio_cat1':                  Decimal('12500'),
+        'precio_cat2':                  Decimal('13500'),
+        'precio_cat3':                  Decimal('14500'),
+        'precio_gastronomico':          Decimal('15000'),
+        'precio_gastronomico_pistacho': Decimal('18000'),
+    }
+    try:
+        from app_inventario.models import ConfiguracionSistema
+        db = {c.clave: Decimal(c.valor) for c in ConfiguracionSistema.objects.filter(clave__in=defaults)}
+        return {**defaults, **db}
+    except Exception:
+        return defaults
+
+
+def costo_por_kilo(nombre_producto: str, plu: str, precios: dict = None) -> Decimal:
+    if precios is None:
+        precios = _get_precios()
     nombre = _norm(nombre_producto)
     try:
         plu_int = int(plu)
@@ -96,17 +108,17 @@ def costo_por_kilo(nombre_producto: str, plu: str) -> Decimal:
 
     if plu_int is not None and 100 <= plu_int <= 199:
         if "PISTACHO" in nombre:
-            return PRECIO_PLU_ALTO_PISTACHO
-        return PRECIO_PLU_ALTO_DEFAULT
+            return precios['precio_gastronomico_pistacho']
+        return precios['precio_gastronomico']
 
     if nombre in CAT1_NOMBRES:
-        return PRECIO_CAT1
+        return precios['precio_cat1']
     if nombre in CAT2_NOMBRES:
-        return PRECIO_CAT2
+        return precios['precio_cat2']
     if nombre in CAT3_NOMBRES:
-        return PRECIO_CAT3
+        return precios['precio_cat3']
 
-    return PRECIO_CAT1
+    return precios['precio_cat1']
 
 
 # ==========================
@@ -118,7 +130,6 @@ def print_grupo_movimiento(grupo_id: int, copias: int = 1):
 
     g = GrupoMovimiento.objects.select_related("destino").get(grupo_id=grupo_id)
 
-    # ❌ NO imprimir si es INGRESO
     if g.tipo == "ingreso":
         return
 
@@ -133,8 +144,10 @@ def print_grupo_movimiento(grupo_id: int, copias: int = 1):
 
     total_items = g.cantidad_items or sum(r["n"] for r in qs)
     total_kilos = float(g.total_peso or sum((r["kg"] or 0) for r in qs))
+    es_devolucion = g.tipo == "devolucion"
 
     p = _dummy()
+    precios = _get_precios()
     total_costo = Decimal("0")
 
     for _ in range(max(1, int(copias))):
@@ -144,42 +157,59 @@ def print_grupo_movimiento(grupo_id: int, copias: int = 1):
         p.set(align="center", font="b", bold=True)
         p.textln(f"MOVIMIENTO #{g.grupo_id}")
 
-        # ✅ FIX: convertir a hora local antes de formatear
         fecha_local = _a_local(g.fecha)
         p.set(align="center", font="a")
         p.textln(fecha_local.strftime("%d/%m/%Y %H:%M"))
-        p.textln("Tipo: RETIRO")
-        if g.destino:
-            p.textln(f"Salida: {g.destino}")
+
+        if es_devolucion:
+            p.textln("Tipo: RE-INGRESO")
+            if g.origen:
+                p.textln(f"Origen: {g.origen}")
+        else:
+            p.textln("Tipo: RETIRO")
+            if g.destino:
+                p.textln(f"Salida: {g.destino}")
 
         p.textln(LINE)
 
-        p.set(align="left", font="a", bold=True)
-        p.textln("Producto          Unid  Kilos      Total")
-        p.set(align="left", font="a")
-
-        for r in qs:
-            nombre = r["producto__nombre"] or ""
-            plu = r["producto__plu"] or ""
-            kg = Decimal(str(r["kg"] or 0))
-            unidades = int(r["n"])
-
-            precio = costo_por_kilo(nombre, plu)
-            costo = (kg * precio).quantize(Decimal("0.01"))
-            total_costo += costo
-
-            p.textln(
-                f"{nombre[:18].ljust(18)}"
-                f"{str(unidades).rjust(4)}"
-                f"{f'{float(kg):.3f}'.rjust(7)}"
-                f"{str(int(costo)).rjust(11)}"
-            )
+        if es_devolucion:
+            p.set(align="left", font="a", bold=True)
+            p.textln("Producto          Unid  Kilos")
+            p.set(align="left", font="a")
+            for r in qs:
+                nombre = r["producto__nombre"] or ""
+                kg = Decimal(str(r["kg"] or 0))
+                unidades = int(r["n"])
+                p.textln(
+                    f"{nombre[:18].ljust(18)}"
+                    f"{str(unidades).rjust(4)}"
+                    f"{f'{float(kg):.3f}'.rjust(7)}"
+                )
+        else:
+            p.set(align="left", font="a", bold=True)
+            p.textln("Producto          Unid  Kilos      Total")
+            p.set(align="left", font="a")
+            for r in qs:
+                nombre = r["producto__nombre"] or ""
+                plu = r["producto__plu"] or ""
+                kg = Decimal(str(r["kg"] or 0))
+                unidades = int(r["n"])
+                precio = costo_por_kilo(nombre, plu, precios)
+                costo = (kg * precio).quantize(Decimal("0.01"))
+                total_costo += costo
+                p.textln(
+                    f"{nombre[:18].ljust(18)}"
+                    f"{str(unidades).rjust(4)}"
+                    f"{f'{float(kg):.3f}'.rjust(7)}"
+                    f"{str(int(costo)).rjust(11)}"
+                )
 
         p.textln(LINE)
         p.set(align="left", font="b", bold=True)
         p.textln(f"Total baldes: {total_items}")
         p.textln(f"Total kilos:  {total_kilos:.3f} kg")
-        p.textln(f"Total costo: ${int(total_costo)}")
+        if not es_devolucion:
+            p.textln(f"Total costo: ${int(total_costo)}")
         p.textln(LINE)
 
         p.cut()

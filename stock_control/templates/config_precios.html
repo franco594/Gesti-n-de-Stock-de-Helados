@@ -1,0 +1,163 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280, initial-scale=1.0">
+    <title>Configuración de Precios</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .precio-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding: 20px;
+        }
+        @media (max-width: 700px) { .precio-grid { grid-template-columns: 1fr; } }
+        .precio-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 16px 20px;
+        }
+        .precio-card label {
+            display: block;
+            font-size: .82rem;
+            font-weight: 600;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            margin-bottom: 6px;
+        }
+        .precio-card .desc {
+            font-size: .78rem;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+        .precio-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .precio-input-wrap span {
+            font-weight: 600;
+            color: #374151;
+            font-size: 1rem;
+        }
+        .precio-input {
+            width: 120px;
+            padding: 7px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: .95rem;
+            font-family: inherit;
+            text-align: right;
+            background: white;
+        }
+        .precio-input:focus {
+            outline: none;
+            border-color: #1e40af;
+            box-shadow: 0 0 0 2px rgba(30,64,175,.15);
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard-container">
+
+    <header class="dashboard-header">
+        <div class="header-content">
+            <div class="header-left">
+                <h3>⚙️ Configuración de Precios</h3>
+                <p class="subtitle">Precios por kg usados en tickets y valor de inventario</p>
+            </div>
+            <div class="header-right">
+                <a href="{% url 'dashboard' %}" class="btn-icon" title="Dashboard">📊</a>
+                <a href="{% url 'index' %}" class="btn-secondary">← Volver</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="dashboard-main">
+        <section class="movements-section card">
+            <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+                <h3>Precios por kilogramo</h3>
+                <button onclick="guardarPrecios()"
+                        style="padding:8px 20px;background:#1e40af;color:white;border:none;border-radius:8px;
+                               font-size:.9rem;font-weight:600;cursor:pointer;">
+                    💾 Guardar
+                </button>
+            </div>
+
+            <div class="precio-grid" id="precioGrid">
+                <p style="padding:20px;color:#94a3b8;font-style:italic;">Cargando...</p>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+    const CSRF = (document.cookie.split(';').map(c => c.trim())
+        .find(c => c.startsWith('csrftoken=')) || '').split('=')[1] || '';
+
+    const CAMPOS = [
+        { clave: 'precio_cat1',                  label: 'Categoría 1 (helados base)',         desc: 'Limón, Frutilla, Vainilla, Chocolate...' },
+        { clave: 'precio_cat2',                  label: 'Categoría 2 (chocolates especiales)', desc: 'Almendrado, Cabsha, Amargo, Sambayón' },
+        { clave: 'precio_cat3',                  label: 'Categoría 3 (premium)',               desc: 'Choco Dubai, Pistacho' },
+        { clave: 'precio_gastronomico',          label: 'Gastronómico (PLU 100–199)',          desc: 'Precio base para productos gastronómicos' },
+        { clave: 'precio_gastronomico_pistacho', label: 'Gastronómico Pistacho',               desc: 'Precio especial para pistacho gastronómico' },
+        { clave: 'valor_inventario_kg',          label: 'Valor inventario (dashboard)',         desc: 'Precio estimado para el KPI de valor total' },
+    ];
+
+    async function cargarPrecios() {
+        const r = await fetch('/api/config/precios/');
+        const data = await r.json();
+        const cfg = data.config || {};
+
+        document.getElementById('precioGrid').innerHTML = CAMPOS.map(c => `
+            <div class="precio-card">
+                <label>${c.label}</label>
+                <p class="desc">${c.desc}</p>
+                <div class="precio-input-wrap">
+                    <span>$</span>
+                    <input class="precio-input" type="number" id="${c.clave}"
+                           value="${cfg[c.clave] || ''}" min="0" step="100">
+                    <span style="color:#94a3b8;font-size:.85rem;">/kg</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function guardarPrecios() {
+        const payload = {};
+        for (const c of CAMPOS) {
+            const val = document.getElementById(c.clave)?.value;
+            if (val !== undefined) payload[c.clave] = val;
+        }
+        const r = await fetch('/api/config/precios/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify(payload),
+        });
+        const data = await r.json();
+        if (data.success) toast('✅ ' + data.message);
+        else toast(data.error || 'Error al guardar', true);
+    }
+
+    function toast(msg, error = false) {
+        const c = document.getElementById('toast-container');
+        const t = document.createElement('div');
+        t.className = 'toast' + (error ? ' toast-error' : ' toast-success');
+        t.textContent = msg;
+        c.appendChild(t);
+        setTimeout(() => t.remove(), 3200);
+    }
+
+    cargarPrecios();
+</script>
+</body>
+</html>

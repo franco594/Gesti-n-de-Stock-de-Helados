@@ -181,3 +181,17 @@ class ConciliacionBoca(models.Model):
 
     def __str__(self):
         return f"{self.boca.nombre} - {self.mes.strftime('%Y-%m')}"
+
+
+class ConfiguracionSistema(models.Model):
+    clave = models.CharField(max_length=50, primary_key=True)
+    valor = models.CharField(max_length=200)
+    descripcion = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        db_table = 'app_inventario_configuracionsistema'
+        verbose_name = 'Configuración'
+        verbose_name_plural = 'Configuraciones'
+
+    def __str__(self):
+        return f"{self.clave} = {self.valor}"

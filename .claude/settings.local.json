@@ -3,7 +3,8 @@
     "allow": [
       "Bash(.\\\\venv\\\\Scripts\\\\python.exe manage.py makemigrations --check)",
       "Bash(python manage.py migrate)",
-      "Bash(venv\\\\Scripts\\\\pip install *)"
+      "Bash(venv\\\\Scripts\\\\pip install *)",
+      "Bash(..\\\\venv\\\\Scripts\\\\python manage.py migrate --run-syncdb)"
     ]
   }
 }
