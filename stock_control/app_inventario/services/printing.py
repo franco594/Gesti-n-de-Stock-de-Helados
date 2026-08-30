@@ -133,24 +133,23 @@ def print_grupo_movimiento(grupo_id: int, copias: int = 1):
     if g.tipo == "ingreso":
         return
 
-    qs = (
+    # Listar items individuales (no agregados) para mostrar el codigo_barras de cada balde.
+    items = list(
         RegistroMovimiento.objects
         .filter(grupo_id=grupo_id)
         .select_related("producto")
-        .values("producto__nombre", "producto__plu")
-        .annotate(n=Count("id"), kg=Sum("peso"))
-        .order_by("producto__nombre")
+        .order_by("producto__nombre", "id")
     )
 
-    total_items = g.cantidad_items or sum(r["n"] for r in qs)
-    total_kilos = float(g.total_peso or sum((r["kg"] or 0) for r in qs))
+    total_items = len(items)
+    total_kilos = float(g.total_peso or sum(float(i.peso or 0) for i in items))
     es_devolucion = g.tipo == "devolucion"
 
     p = _dummy()
     precios = _get_precios()
-    total_costo = Decimal("0")
 
     for _ in range(max(1, int(copias))):
+        # ── Encabezado ──────────────────────────────────────────────
         p.set(align="center", font="b", width=2, height=2, bold=True)
         p.textln(getattr(settings, "NOMBRE_COMERCIO", "Gestión de Stock"))
 
@@ -172,38 +171,52 @@ def print_grupo_movimiento(grupo_id: int, copias: int = 1):
 
         p.textln(LINE)
 
+        # ── Detalle por balde ────────────────────────────────────────
+        # Cada ítem ocupa dos líneas:
+        #   Línea 1: Producto | Kilos | (Total si es retiro)
+        #   Línea 2:   codigo_barras EAN-13
+        #
+        # Ancho de papel: 42 caracteres (LINE)
+        # Retiro  → "Producto(18) Kilos(6) Total(10)"  = 34 chars
+        # Devol.  → "Producto(20) Kilos(7)"             = 27 chars
+
+        total_costo = Decimal("0")  # se recalcula por copia para evitar acumulación
+
         if es_devolucion:
             p.set(align="left", font="a", bold=True)
-            p.textln("Producto          Unid  Kilos")
+            p.textln("Producto             Kilos")
             p.set(align="left", font="a")
-            for r in qs:
-                nombre = r["producto__nombre"] or ""
-                kg = Decimal(str(r["kg"] or 0))
-                unidades = int(r["n"])
+            for item in items:
+                nombre = (item.producto.nombre or "")
+                kg = float(item.peso or 0)
                 p.textln(
-                    f"{nombre[:18].ljust(18)}"
-                    f"{str(unidades).rjust(4)}"
-                    f"{f'{float(kg):.3f}'.rjust(7)}"
+                    f"{nombre[:20].ljust(20)}"
+                    f"{f'{kg:.3f}'.rjust(7)}"
                 )
+                cb = (item.codigo_barras or "").strip()
+                if cb:
+                    p.textln(f"  {cb}")
         else:
             p.set(align="left", font="a", bold=True)
-            p.textln("Producto          Unid  Kilos      Total")
+            p.textln("Producto           Kilos      Total")
             p.set(align="left", font="a")
-            for r in qs:
-                nombre = r["producto__nombre"] or ""
-                plu = r["producto__plu"] or ""
-                kg = Decimal(str(r["kg"] or 0))
-                unidades = int(r["n"])
+            for item in items:
+                nombre = (item.producto.nombre or "")
+                plu = (item.producto.plu or "")
+                kg = Decimal(str(item.peso or 0))
                 precio = costo_por_kilo(nombre, plu, precios)
                 costo = (kg * precio).quantize(Decimal("0.01"))
                 total_costo += costo
                 p.textln(
                     f"{nombre[:18].ljust(18)}"
-                    f"{str(unidades).rjust(4)}"
                     f"{f'{float(kg):.3f}'.rjust(7)}"
                     f"{str(int(costo)).rjust(11)}"
                 )
+                cb = (item.codigo_barras or "").strip()
+                if cb:
+                    p.textln(f"  {cb}")
 
+        # ── Totales ──────────────────────────────────────────────────
         p.textln(LINE)
         p.set(align="left", font="b", bold=True)
         p.textln(f"Total baldes: {total_items}")

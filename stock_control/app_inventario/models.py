@@ -92,7 +92,20 @@ class RegistroMovimiento(models.Model):
     
     # Trazabilidad
     codigo_barras = models.CharField(max_length=13, db_index=True, null=True, blank=True)
-    
+
+    # Referencia directa al balde físico involucrado en el movimiento.
+    # Permite identificar el balde exacto sin depender del codigo_barras
+    # (que puede no ser único cuando dos baldes tienen el mismo PLU y peso).
+    # SET_NULL: si el balde es eliminado, se conserva el historial del movimiento.
+    balde = models.ForeignKey(
+        'StockBalde',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='movimientos',
+        verbose_name='Balde',
+    )
+
     class Meta:
         db_table = 'app_inventario_registromovimiento'
         ordering = ['-timestamp', '-id']

@@ -351,6 +351,28 @@ def _categorizar_producto(plu):
     return 'helado'
 
 
+def _plu_listas_categoria():
+    """Devuelve (plu_helados, plu_tortas, plu_gastro) como listas de str PKs.
+    Cada lista contiene los valores de plu (CharField) del rango correspondiente:
+      helados      PLU 1-88
+      tortas/barras PLU 89-98
+      gastronómico  PLU 100-199
+    Usado como filtro en anotaciones condicionales Sum."""
+    helados, tortas, gastro = [], [], []
+    for plu_str in ProductoFijo.objects.values_list("plu", flat=True):
+        try:
+            v = int(plu_str)
+        except (ValueError, TypeError):
+            continue
+        if 1 <= v <= 88:
+            helados.append(plu_str)
+        elif 89 <= v <= 98:
+            tortas.append(plu_str)
+        elif 100 <= v <= 199:
+            gastro.append(plu_str)
+    return helados, tortas, gastro
+
+
 def index(request):
     stock_resumido = ProductoFijo.objects.annotate(
         cantidad=Count('stockbalde', filter=Q(stockbalde__is_activo=True))
@@ -970,48 +992,69 @@ def eliminar_movimiento(request, grupo_id):
     if request.method != "DELETE":
         return JsonResponse({"success": False, "error": "Método no permitido."}, status=405)
 
-    movs = RegistroMovimiento.objects.filter(grupo_id=grupo_id)
+    # Cargar registros con el balde asociado en una sola query
+    movs = RegistroMovimiento.objects.filter(grupo_id=grupo_id).select_related("balde")
     if not movs.exists():
         return JsonResponse({"success": False, "error": "Movimiento no encontrado."}, status=404)
 
     tipo = movs.values_list("tipo", flat=True).first()
-    codigos = list(
-        movs.exclude(codigo_barras__isnull=True)
-            .exclude(codigo_barras="")
-            .values_list("codigo_barras", flat=True)
-    )
 
     try:
         with transaction.atomic():
-            if tipo == "ingreso":
-                # Verificar que ningún balde del grupo ya fue retirado
-                ya_retirados = StockBalde.objects.filter(
-                    codigo_barras__in=codigos, is_activo=False
-                ).exists()
-                if ya_retirados:
-                    return JsonResponse({
-                        "success": False,
-                        "error": "No se puede anular: uno o más baldes de este ingreso ya fueron retirados.",
-                    }, status=400)
-                StockBalde.objects.filter(codigo_barras__in=codigos).delete()
+            if tipo in ("ingreso", "devolucion"):
+                # Para ingreso y devolución: eliminar el StockBalde creado por este movimiento.
+                # Si el balde_id está disponible → acceso directo y exacto al balde.
+                # Si no (registro histórico) → fallback FIFO por codigo_barras.
+                for mov in movs:
+                    if mov.balde_id:
+                        # FK directo: el balde exacto involucrado en este movimiento
+                        balde = mov.balde
+                        if not balde:
+                            # Balde ya no existe (eliminado externamente) — skip
+                            continue
+                        if not balde.is_activo:
+                            return JsonResponse({
+                                "success": False,
+                                "error": "No se puede anular: uno o más baldes de este movimiento ya fueron retirados.",
+                            }, status=400)
+                        balde.delete()
+                    elif mov.codigo_barras:
+                        # Fallback para registros sin balde_id (datos históricos)
+                        balde = (
+                            StockBalde.objects
+                            .filter(codigo_barras=mov.codigo_barras, is_activo=True)
+                            .order_by("timestamp", "id")
+                            .first()
+                        )
+                        if not balde:
+                            return JsonResponse({
+                                "success": False,
+                                "error": "No se puede anular: uno o más baldes ya fueron retirados.",
+                            }, status=400)
+                        balde.delete()
 
             elif tipo == "salida":
-                # Reactivar los baldes retirados
-                StockBalde.objects.filter(
-                    codigo_barras__in=codigos, is_activo=False
-                ).update(is_activo=True, fecha_retiro=None)
-
-            elif tipo == "devolucion":
-                # Verificar que el balde devuelto no fue retirado nuevamente
-                ya_retirados = StockBalde.objects.filter(
-                    codigo_barras__in=codigos, is_activo=False
-                ).exists()
-                if ya_retirados:
-                    return JsonResponse({
-                        "success": False,
-                        "error": "No se puede anular: uno o más baldes de esta devolución ya fueron retirados.",
-                    }, status=400)
-                StockBalde.objects.filter(codigo_barras__in=codigos).delete()
+                # Para salida (retiro): reactivar el StockBalde que fue retirado.
+                # balde_id → reactivar el balde exacto.
+                # Sin balde_id → reactivar el más recientemente retirado con ese código (fallback).
+                for mov in movs:
+                    if mov.balde_id:
+                        balde = mov.balde
+                        if balde:
+                            balde.is_activo = True
+                            balde.fecha_retiro = None
+                            balde.save(update_fields=["is_activo", "fecha_retiro"])
+                    elif mov.codigo_barras:
+                        balde = (
+                            StockBalde.objects
+                            .filter(codigo_barras=mov.codigo_barras, is_activo=False)
+                            .order_by("-fecha_retiro", "-id")
+                            .first()
+                        )
+                        if balde:
+                            balde.is_activo = True
+                            balde.fecha_retiro = None
+                            balde.save(update_fields=["is_activo", "fecha_retiro"])
 
             movs.delete()
             GrupoMovimiento.objects.filter(grupo_id=grupo_id).delete()
@@ -1040,7 +1083,7 @@ def eliminar_item_movimiento(request):
         return JsonResponse({"error": "registro_id requerido"}, status=400)
 
     try:
-        mov = RegistroMovimiento.objects.get(id=registro_id)
+        mov = RegistroMovimiento.objects.select_related("balde").get(id=registro_id)
     except RegistroMovimiento.DoesNotExist:
         return JsonResponse({"error": "Registro no encontrado"}, status=404)
 
@@ -1051,18 +1094,52 @@ def eliminar_item_movimiento(request):
     try:
         with transaction.atomic():
             if tipo in ("ingreso", "devolucion"):
-                if codigo:
-                    if StockBalde.objects.filter(codigo_barras=codigo, is_activo=False).exists():
+                if mov.balde_id:
+                    # FK directo: balde exacto involucrado en este ítem
+                    balde = mov.balde
+                    if not balde:
+                        pass  # ya fue eliminado externamente — OK
+                    elif not balde.is_activo:
                         return JsonResponse({
                             "error": "Este balde ya fue retirado y no puede anularse."
                         }, status=400)
-                    StockBalde.objects.filter(codigo_barras=codigo, is_activo=True).delete()
+                    else:
+                        balde.delete()
+                elif codigo:
+                    # Fallback para registros históricos sin balde_id
+                    if not StockBalde.objects.filter(codigo_barras=codigo, is_activo=True).exists():
+                        return JsonResponse({
+                            "error": "Este balde ya fue retirado y no puede anularse."
+                        }, status=400)
+                    balde = (
+                        StockBalde.objects
+                        .filter(codigo_barras=codigo, is_activo=True)
+                        .order_by("timestamp", "id")
+                        .first()
+                    )
+                    if balde:
+                        balde.delete()
 
             elif tipo == "salida":
-                if codigo:
-                    StockBalde.objects.filter(
-                        codigo_barras=codigo, is_activo=False
-                    ).update(is_activo=True, fecha_retiro=None)
+                if mov.balde_id:
+                    # FK directo: reactivar el balde exacto que fue retirado
+                    balde = mov.balde
+                    if balde:
+                        balde.is_activo = True
+                        balde.fecha_retiro = None
+                        balde.save(update_fields=["is_activo", "fecha_retiro"])
+                elif codigo:
+                    # Fallback: reactivar el más recientemente retirado con ese barcode
+                    balde = (
+                        StockBalde.objects
+                        .filter(codigo_barras=codigo, is_activo=False)
+                        .order_by("-fecha_retiro", "-id")
+                        .first()
+                    )
+                    if balde:
+                        balde.is_activo = True
+                        balde.fecha_retiro = None
+                        balde.save(update_fields=["is_activo", "fecha_retiro"])
 
             mov.delete()
 
@@ -1121,16 +1198,27 @@ def api_editar_item_movimiento(request):
         return JsonResponse({"error": f"No existe producto con PLU {nuevo_plu}"}, status=404)
 
     try:
-        registro = RegistroMovimiento.objects.select_related("destino").get(id=registro_id)
+        registro = RegistroMovimiento.objects.select_related("destino", "balde").get(id=registro_id)
     except RegistroMovimiento.DoesNotExist:
         return JsonResponse({"error": "Registro no encontrado"}, status=404)
 
     with transaction.atomic():
-        if registro.codigo_barras:
-            StockBalde.objects.filter(codigo_barras=registro.codigo_barras).update(
-                producto=producto,
-                peso=nuevo_peso,
-            )
+        if registro.tipo in ("ingreso", "devolucion"):
+            if registro.balde_id:
+                # FK directo: actualizar el balde exacto de este movimiento
+                balde = registro.balde
+                if balde and balde.is_activo:
+                    balde.producto = producto
+                    balde.peso = nuevo_peso
+                    balde.save(update_fields=["producto", "peso"])
+            elif registro.codigo_barras:
+                # Fallback histórico: actualizar el balde activo con ese barcode
+                StockBalde.objects.filter(
+                    codigo_barras=registro.codigo_barras,
+                    is_activo=True,
+                ).update(producto=producto, peso=nuevo_peso)
+        # Para salidas: el balde ya está INACTIVO (retirado). No tocar StockBalde,
+        # solo corregir el RegistroMovimiento para trazabilidad del movimiento.
 
         registro.producto = producto
         registro.peso = nuevo_peso
@@ -1260,10 +1348,19 @@ def eliminar_producto_temporal(request):
 
     try:
         data = json.loads(request.body or "{}")
-        plu = data.get("plu")
+        codigo_barras = (data.get("codigo_barras") or "").strip()
+        if not codigo_barras:
+            return JsonResponse({"success": False, "error": "codigo_barras requerido"}, status=400)
         productos_temporales = request.session.get("productos_temporales", [])
-        productos_temporales = [p for p in productos_temporales if p["plu"] != plu]
-        request.session["productos_temporales"] = productos_temporales
+        # Eliminar SOLO el primer elemento con ese codigo_barras exacto (no todos los del mismo PLU)
+        nuevo_listado = []
+        eliminado = False
+        for p in productos_temporales:
+            if not eliminado and p.get("codigo_barras") == codigo_barras:
+                eliminado = True  # saltar solo la primera ocurrencia
+            else:
+                nuevo_listado.append(p)
+        request.session["productos_temporales"] = nuevo_listado
         request.session.modified = True
         return JsonResponse({"success": True, "message": "Producto eliminado de la sesión."})
     except Exception as e:
@@ -1424,7 +1521,7 @@ def confirmar_codigos(request):
                     fecha_retiro=None,
                 )
 
-                # ✅ Registrar movimiento
+                # ✅ Registrar movimiento con referencia directa al balde (balde_id)
                 RegistroMovimiento.objects.create(
                     grupo_id=nuevo_grupo_id,
                     producto=producto_obj,
@@ -1433,6 +1530,7 @@ def confirmar_codigos(request):
                     origen=origen,
                     boca_salida=origen,  # compatibilidad con layouts existentes
                     codigo_barras=codigo_str,
+                    balde=balde,
                 )
 
                 ingresados.append(producto_obj.nombre)
@@ -1570,7 +1668,7 @@ def confirmar_retiro(request):
                 balde.fecha_retiro = timezone.now()
                 balde.save(update_fields=["is_activo", "fecha_retiro"])
 
-                # Registrar movimiento
+                # Registrar movimiento con referencia directa al balde (balde_id)
                 RegistroMovimiento.objects.create(
                     grupo_id=nuevo_grupo_id,
                     producto=producto_obj,
@@ -1579,6 +1677,7 @@ def confirmar_retiro(request):
                     destino=destino_obj,
                     boca_salida=destino_nombre,
                     codigo_barras=(balde.codigo_barras or ""),
+                    balde=balde,
                 )
                 productos_retirados.append(producto_obj.nombre)
 
@@ -1643,6 +1742,7 @@ def confirmar_devolucion(request):
             )
             nuevo_grupo_id = (ultimo or 0) + 1
 
+            codigos_devolucion_vistos = set()
             for p in productos:
                 plu          = (p or {}).get("plu")
                 peso         = (p or {}).get("peso")
@@ -1653,12 +1753,23 @@ def confirmar_devolucion(request):
                 if len(codigo_str) != 13 or not codigo_str.isdigit():
                     return JsonResponse({"error": "Código de barras inválido"}, status=400)
 
+                # Evitar duplicados dentro de este mismo lote de devolución
+                if codigo_str in codigos_devolucion_vistos:
+                    continue
+                codigos_devolucion_vistos.add(codigo_str)
+
+                # Evitar que el mismo balde ya esté activo en stock (doble devolución)
+                if StockBalde.objects.filter(codigo_barras=codigo_str, is_activo=True).exists():
+                    return JsonResponse({
+                        "error": f"El balde con código {codigo_str} ya está en stock activo."
+                    }, status=409)
+
                 try:
                     producto_obj = ProductoFijo.objects.get(plu=plu)
                 except ProductoFijo.DoesNotExist:
                     return JsonResponse({"error": f"Producto PLU {plu} no encontrado"}, status=404)
 
-                StockBalde.objects.create(
+                balde_dev = StockBalde.objects.create(
                     producto=producto_obj,
                     peso=float(peso),
                     codigo_barras=codigo_str,
@@ -1671,6 +1782,7 @@ def confirmar_devolucion(request):
                     tipo="devolucion",
                     origen=origen or None,
                     codigo_barras=codigo_str,
+                    balde=balde_dev,
                 )
                 devueltos.append(producto_obj.nombre)
 
@@ -2353,14 +2465,21 @@ def api_dashboard_metricas(request):
             .order_by('-cantidad')[:5]
         )
         
-        # Top destinos (retiros) con devoluciones descontadas
+        # Top destinos (retiros) con devoluciones descontadas + desglose por categoría
+        _plu_h, _plu_t, _plu_g = _plu_listas_categoria()
         top_destinos_qs = (
             RegistroMovimiento.objects
             .filter(mov_plu_q, tipo='salida', timestamp__gte=hace_30_dias)
             .exclude(boca_salida__isnull=True)
             .exclude(boca_salida='')
             .values('boca_salida')
-            .annotate(cantidad=Count('id'), kg_total=Sum('peso'))
+            .annotate(
+                cantidad=Count('id'),
+                kg_total=Sum('peso'),
+                kg_helados=Sum('peso', filter=Q(producto__plu__in=_plu_h)),
+                kg_tortas =Sum('peso', filter=Q(producto__plu__in=_plu_t)),
+                kg_gastro =Sum('peso', filter=Q(producto__plu__in=_plu_g)),
+            )
             .order_by('-cantidad')[:5]
         )
         # kg devueltos desde cada boca en el mismo período
@@ -2381,6 +2500,9 @@ def api_dashboard_metricas(request):
                 'kg_total':    float(d['kg_total'] or 0),
                 'kg_devuelto': round(dev_map.get(d['boca_salida'], 0), 3),
                 'kg_neto':     round(float(d['kg_total'] or 0) - dev_map.get(d['boca_salida'], 0), 3),
+                'kg_helados':  round(float(d['kg_helados'] or 0), 3),
+                'kg_tortas':   round(float(d['kg_tortas'] or 0), 3),
+                'kg_gastro':   round(float(d['kg_gastro'] or 0), 3),
             }
             for d in top_destinos_qs
         ]
@@ -2545,14 +2667,25 @@ def api_conciliacion_datos(request):
 
     bocas = BocaSalida.objects.all().order_by("nombre")
 
+    plu_helados, plu_tortas, plu_gastro = _plu_listas_categoria()
     retiros_map = {
-        r["boca_salida"]: float(r["kg"] or 0)
+        r["boca_salida"]: {
+            "kg":         float(r["kg"] or 0),
+            "kg_helados": float(r["kg_helados"] or 0),
+            "kg_tortas":  float(r["kg_tortas"] or 0),
+            "kg_gastro":  float(r["kg_gastro"] or 0),
+        }
         for r in (
             RegistroMovimiento.objects
             .filter(tipo="salida", timestamp__year=year, timestamp__month=month)
             .exclude(boca_salida__isnull=True).exclude(boca_salida="")
             .values("boca_salida")
-            .annotate(kg=Sum("peso"))
+            .annotate(
+                kg=Sum("peso"),
+                kg_helados=Sum("peso", filter=Q(producto__plu__in=plu_helados)),
+                kg_tortas =Sum("peso", filter=Q(producto__plu__in=plu_tortas)),
+                kg_gastro =Sum("peso", filter=Q(producto__plu__in=plu_gastro)),
+            )
         )
     }
 
@@ -2574,7 +2707,11 @@ def api_conciliacion_datos(request):
 
     resultado = []
     for boca in bocas:
-        kg_recibidos = retiros_map.get(boca.nombre, 0.0)
+        retiro_data  = retiros_map.get(boca.nombre, {})
+        kg_recibidos = retiro_data.get("kg", 0.0)
+        kg_helados   = retiro_data.get("kg_helados", 0.0)
+        kg_tortas    = retiro_data.get("kg_tortas", 0.0)
+        kg_gastro    = retiro_data.get("kg_gastro", 0.0)
         kg_devueltos = dev_map.get(boca.nombre, 0.0)
         kg_neto = kg_recibidos - kg_devueltos
         conc = conc_map.get(boca.pk)
@@ -2585,6 +2722,9 @@ def api_conciliacion_datos(request):
             "boca_id":      boca.pk,
             "boca_nombre":  boca.nombre,
             "kg_recibidos": round(kg_recibidos, 3),
+            "kg_helados":   round(kg_helados, 3),
+            "kg_tortas":    round(kg_tortas, 3),
+            "kg_gastro":    round(kg_gastro, 3),
             "kg_devueltos": round(kg_devueltos, 3),
             "kg_neto":      round(kg_neto, 3),
             "stock_inicial": round(stock_inicial, 3),
@@ -2657,14 +2797,25 @@ def api_conciliacion_exportar(request):
 
     bocas = BocaSalida.objects.all().order_by("nombre")
 
+    plu_helados, plu_tortas, plu_gastro = _plu_listas_categoria()
     retiros_map = {
-        r["boca_salida"]: float(r["kg"] or 0)
+        r["boca_salida"]: {
+            "kg":         float(r["kg"] or 0),
+            "kg_helados": float(r["kg_helados"] or 0),
+            "kg_tortas":  float(r["kg_tortas"] or 0),
+            "kg_gastro":  float(r["kg_gastro"] or 0),
+        }
         for r in (
             RegistroMovimiento.objects
             .filter(tipo="salida", timestamp__year=year, timestamp__month=month)
             .exclude(boca_salida__isnull=True).exclude(boca_salida="")
             .values("boca_salida")
-            .annotate(kg=Sum("peso"))
+            .annotate(
+                kg=Sum("peso"),
+                kg_helados=Sum("peso", filter=Q(producto__plu__in=plu_helados)),
+                kg_tortas =Sum("peso", filter=Q(producto__plu__in=plu_tortas)),
+                kg_gastro =Sum("peso", filter=Q(producto__plu__in=plu_gastro)),
+            )
         )
     }
 
@@ -2686,7 +2837,11 @@ def api_conciliacion_exportar(request):
 
     rows = []
     for boca in bocas:
-        kg_recibidos = retiros_map.get(boca.nombre, 0.0)
+        retiro_data  = retiros_map.get(boca.nombre, {})
+        kg_recibidos = retiro_data.get("kg", 0.0)
+        kg_helados   = retiro_data.get("kg_helados", 0.0)
+        kg_tortas    = retiro_data.get("kg_tortas", 0.0)
+        kg_gastro    = retiro_data.get("kg_gastro", 0.0)
         kg_devueltos = dev_map.get(boca.nombre, 0.0)
         kg_neto = kg_recibidos - kg_devueltos
         conc = conc_map.get(boca.pk)
@@ -2694,13 +2849,16 @@ def api_conciliacion_exportar(request):
         kg_vendidos = float(conc.kg_vendidos) if conc else 0.0
         diferencia = stock_inicial + kg_neto - kg_vendidos
         rows.append({
-            "Boca de Salida":   boca.nombre,
-            "Stock Inicial (kg)": round(stock_inicial, 3),
-            "Kg Recibidos":     round(kg_recibidos, 3),
-            "Kg Devueltos":     round(kg_devueltos, 3),
-            "Kg Neto":          round(kg_neto, 3),
-            "Kg Vendidos":      round(kg_vendidos, 3),
-            "Diferencia (kg)":  round(diferencia, 3),
+            "Boca de Salida":             boca.nombre,
+            "Stock Inicial (kg)":         round(stock_inicial, 3),
+            "Kg Recibidos":               round(kg_recibidos, 3),
+            "↳ Helados (PLU 1-88)":       round(kg_helados, 3),
+            "↳ Tortas/Barras (PLU 89-98)": round(kg_tortas, 3),
+            "↳ Gastronómico (PLU 100+)":  round(kg_gastro, 3),
+            "Kg Devueltos":               round(kg_devueltos, 3),
+            "Kg Neto":                    round(kg_neto, 3),
+            "Kg Vendidos":                round(kg_vendidos, 3),
+            "Diferencia (kg)":            round(diferencia, 3),
         })
 
     df = pd.DataFrame(rows)

@@ -6,6 +6,66 @@ import threading
 import time
 import webbrowser
 
+def _corregir_baldes_incorrectamente_activos():
+    """
+    Detecta y corrige baldes que quedaron marcados como is_activo=True
+    cuando deberían estar inactivos, causado por el bug en eliminar_movimiento /
+    eliminar_item_movimiento que usaba bulk .update(is_activo=True) filtrando
+    solo por codigo_barras (reactivaba baldes de otros retiros con barcode duplicado).
+
+    Lógica: para cada codigo_barras en retiros registrados, si hay más retiros
+    activos que baldes inactivos con ese código, los baldes activos sobrantes
+    (los más viejos, por FIFO) deberían estar inactivos.
+    """
+    from collections import defaultdict
+    from django.utils import timezone
+
+    # Importar modelos después de django.setup()
+    from app_inventario.models import StockBalde, RegistroMovimiento
+
+    retiros_por_codigo = defaultdict(int)
+    for cb in (
+        RegistroMovimiento.objects
+        .filter(tipo="salida")
+        .exclude(codigo_barras="")
+        .exclude(codigo_barras__isnull=True)
+        .values_list("codigo_barras", flat=True)
+    ):
+        retiros_por_codigo[cb] += 1
+
+    inactivos_por_codigo = defaultdict(int)
+    for cb in (
+        StockBalde.objects
+        .filter(is_activo=False)
+        .exclude(codigo_barras="")
+        .values_list("codigo_barras", flat=True)
+    ):
+        inactivos_por_codigo[cb] += 1
+
+    corregidos = 0
+    for cb, n_retiros in retiros_por_codigo.items():
+        n_inactivos = inactivos_por_codigo[cb]
+        exceso = n_retiros - n_inactivos
+        if exceso <= 0:
+            continue
+
+        # Marcar los más viejos como inactivos (FIFO: los más viejos debieron
+        # haberse retirado primero, por eso son los incorrectamente activos)
+        baldes_a_corregir = list(
+            StockBalde.objects
+            .filter(codigo_barras=cb, is_activo=True)
+            .order_by("timestamp", "id")[:exceso]
+        )
+        for b in baldes_a_corregir:
+            b.is_activo = False
+            b.fecha_retiro = timezone.now()
+            b.save(update_fields=["is_activo", "fecha_retiro"])
+            corregidos += 1
+
+    if corregidos:
+        print(f"🔧 Stock corregido: {corregidos} balde(s) inactivos incorrectamente marcados como activos fueron saneados.")
+
+
 def _default_db_path() -> Path:
     root = Path(os.getenv("LOCALAPPDATA", str(Path(__file__).resolve().parent)))
     return root / "StockControl" / "db.sqlite3"
@@ -98,6 +158,18 @@ def main():
             print("✅ Migraciones aplicadas")
         except Exception as e:
             print(f"⚠️ Error al aplicar migraciones: {e}")
+
+    # --- CORRECCIÓN DE STOCK CORRUPTO (one-time fix por bug de anulación de retiros) ---
+    # El bug: eliminar_movimiento/eliminar_item_movimiento hacía bulk .update(is_activo=True)
+    # filtrando solo por codigo_barras. Con barcodes duplicados (mismo PLU+peso = mismo EAN-13)
+    # esto reactivaba baldes de OTROS retiros que no tenían nada que ver, dejando baldes
+    # viejos como activos cuando deberían estar inactivos.
+    # Esta rutina detecta y corrige cualquier balde que esté incorrectamente activo.
+    if es_runserver and es_proceso_principal:
+        try:
+            _corregir_baldes_incorrectamente_activos()
+        except Exception as e:
+            print(f"⚠️ Error en corrección de stock: {e}")
 
     # --- EJECUTAR DJANGO ---
     try:

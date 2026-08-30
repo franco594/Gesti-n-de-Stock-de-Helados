@@ -606,7 +606,7 @@ function actualizarListaEscaneados(modalTipo, lista) {
     btn.classList.add("btnEliminar");
     btn.textContent = "✕";
     btn.style.cursor = "pointer";
-    btn.addEventListener("click", () => eliminarProductoEscaneado(producto.plu, modalTipo));
+    btn.addEventListener("click", () => eliminarProductoEscaneado(producto.codigo_barras, modalTipo));
 
     li.appendChild(btn);
     listaEl.appendChild(li);
@@ -617,9 +617,9 @@ function actualizarListaEscaneados(modalTipo, lista) {
   }
 }
 
-async function eliminarProductoEscaneado(plu, modalTipo) {
+async function eliminarProductoEscaneado(codigoBarras, modalTipo) {
   try {
-    const data = await postJSON(API.eliminarTemporal, { plu });
+    const data = await postJSON(API.eliminarTemporal, { codigo_barras: codigoBarras });
     if (data?.success) {
       console.log("🗑️ Producto eliminado de la sesión:", plu);
       Toast.info("Producto eliminado");
