@@ -1,5 +1,11 @@
 import os
+import mimetypes
 from pathlib import Path
+
+# Registrar MIME types de fuentes web (no siempre presentes en Windows)
+mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("font/woff", ".woff")
+mimetypes.add_type("application/vnd.ms-fontobject", ".eot")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
