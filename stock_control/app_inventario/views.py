@@ -1032,6 +1032,15 @@ def eliminar_movimiento(request, grupo_id):
 
     tipo = movs.values_list("tipo", flat=True).first()
 
+    # Fix BUG-B: excepción local para salir del atomic con ROLLBACK garantizado.
+    # `raise` fuerza el rollback antes de que el except exterior devuelva el error.
+    # `return` dentro de `with transaction.atomic():` haría COMMIT de las
+    # escrituras parciales (balde.delete()) ejecutadas en iteraciones previas.
+    class _ErrorAnulacion(Exception):
+        def __init__(self, mensaje, status_code=400):
+            self.mensaje = mensaje
+            self.status_code = status_code
+
     try:
         with transaction.atomic():
             if tipo in ("ingreso", "devolucion"):
@@ -1046,10 +1055,9 @@ def eliminar_movimiento(request, grupo_id):
                             # Balde ya no existe (eliminado externamente) — skip
                             continue
                         if not balde.is_activo:
-                            return JsonResponse({
-                                "success": False,
-                                "error": "No se puede anular: uno o más baldes de este movimiento ya fueron retirados.",
-                            }, status=400)
+                            raise _ErrorAnulacion(
+                                "No se puede anular: uno o más baldes de este movimiento ya fueron retirados."
+                            )
                         balde.delete()
                     elif mov.codigo_barras:
                         # Fallback para registros sin balde_id (datos históricos)
@@ -1060,10 +1068,9 @@ def eliminar_movimiento(request, grupo_id):
                             .first()
                         )
                         if not balde:
-                            return JsonResponse({
-                                "success": False,
-                                "error": "No se puede anular: uno o más baldes ya fueron retirados.",
-                            }, status=400)
+                            raise _ErrorAnulacion(
+                                "No se puede anular: uno o más baldes ya fueron retirados."
+                            )
                         balde.delete()
 
             elif tipo == "salida":
@@ -1092,6 +1099,8 @@ def eliminar_movimiento(request, grupo_id):
             movs.delete()
             GrupoMovimiento.objects.filter(grupo_id=grupo_id).delete()
 
+    except _ErrorAnulacion as exc:
+        return JsonResponse({"success": False, "error": exc.mensaje}, status=exc.status_code)
     except Exception as e:
         return JsonResponse({"success": False, "error": f"Error al eliminar: {e}"}, status=500)
 
@@ -1689,8 +1698,9 @@ def confirmar_retiro(request):
         vistos.add(clave)
         solicitudes.append((plu, codigo))
 
-    # -------- Selección de baldes (siempre con código) --------
-    seleccionados = []  # [(producto_obj, balde), ...]
+    # -------- Fase 1: lookup de PLU y pre-verificación de stock (sin lock) --------
+    # La re-verificación definitiva ocurre dentro del atomic con select_for_update (Fase 2).
+    solicitudes_validadas = []  # [(producto_obj, codigo_barras), ...]
     faltantes = []
 
     for plu, codigo in solicitudes:
@@ -1699,35 +1709,63 @@ def confirmar_retiro(request):
         except ProductoFijo.DoesNotExist:
             return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
 
-        # Buscamos SIEMPRE por código y sólo baldes activos
-        # Si hubiera más de uno con el mismo código, tomamos el MÁS VIEJO
-        balde = (
-            StockBalde.objects
-            .filter(producto=producto_obj, is_activo=True, codigo_barras=codigo)
-            .order_by("timestamp", "id")
-            .first()
-        )
-
-        if not balde:
-            faltantes.append(f"{producto_obj.nombre} ({codigo})")
+        # Pre-check rápido (sin select_for_update) para el caso habitual (sin concurrencia)
+        if StockBalde.objects.filter(
+            producto=producto_obj, is_activo=True, codigo_barras=codigo
+        ).exists():
+            solicitudes_validadas.append((producto_obj, codigo))
         else:
-            seleccionados.append((producto_obj, balde))
+            faltantes.append(f"{producto_obj.nombre} ({codigo})")
 
     if faltantes:
         return JsonResponse(
             {"error": f"No hay stock disponible para: {', '.join(faltantes)}"},
-            status=400
+            status=400,
         )
 
-    # -------- Nuevo grupo_id --------
-    ultimo_grupo = RegistroMovimiento.objects.aggregate(Max("grupo_id"))["grupo_id__max"] or 0
-    nuevo_grupo_id = ultimo_grupo + 1
+    # -------- Fase 2: retiro atómico con locks (corrige BUG-1 y BUG-2) --------
+    # BUG-1: el balde se re-lee con select_for_update dentro del atomic →
+    #        si otro proceso lo retiró entre el pre-check y aquí, se detecta y rollback.
+    # BUG-2: el grupo_id se calcula con select_for_update dentro del atomic →
+    #        no puede colisionar con el de un request concurrente.
 
-    # -------- Ejecutar retiro --------
+    class _ErrorRetiro(Exception):
+        def __init__(self, data, status_code=400):
+            self.data = data
+            self.status_code = status_code
+
     productos_retirados = []
+    nuevo_grupo_id = None
     try:
         with transaction.atomic():
-            for producto_obj, balde in seleccionados:
+            # grupo_id serializado dentro del atomic (mismo patrón que confirmar_codigos)
+            ultimo = (
+                RegistroMovimiento.objects
+                .select_for_update()
+                .order_by("-grupo_id")
+                .values_list("grupo_id", flat=True)
+                .first()
+            )
+            nuevo_grupo_id = (ultimo or 0) + 1
+
+            for producto_obj, codigo in solicitudes_validadas:
+                # Re-fetch con lock: detecta retiros concurrentes entre el pre-check y aquí
+                balde = (
+                    StockBalde.objects
+                    .select_for_update()
+                    .filter(producto=producto_obj, is_activo=True, codigo_barras=codigo)
+                    .order_by("timestamp", "id")
+                    .first()
+                )
+                if not balde:
+                    raise _ErrorRetiro(
+                        {"error": (
+                            f"El balde {codigo} ({producto_obj.nombre}) "
+                            f"fue retirado por otro proceso."
+                        )},
+                        status_code=409,
+                    )
+
                 # Marcar balde como inactivo
                 balde.is_activo = False
                 balde.fecha_retiro = timezone.now()
@@ -1753,6 +1791,8 @@ def confirmar_retiro(request):
                 destino_nombre=destino_nombre,
             )
 
+    except _ErrorRetiro as exc:
+        return JsonResponse(exc.data, status=exc.status_code)
     except Exception as e:
         return JsonResponse({"error": f"Error al retirar productos: {e}"}, status=500)
 
@@ -1795,6 +1835,45 @@ def confirmar_devolucion(request):
     if not productos:
         return JsonResponse({"error": "No hay baldes para devolver"}, status=400)
 
+    # ── Fix BUG-A: separar validación de escritura ────────────────────────────
+    # Excepción local para salir del bloque atómico con rollback garantizado.
+    # `raise` dentro de `with transaction.atomic()` hace ROLLBACK antes de que
+    # el except exterior devuelva la respuesta de error.
+    class _ErrorDevolucion(Exception):
+        def __init__(self, data, status_code=400):
+            self.data = data
+            self.status_code = status_code
+
+    # Fase 1 (pre-validación, FUERA de la transacción):
+    # Si algún item es inválido se rechaza TODO antes de tocar la BD.
+    validados_dev = []
+    codigos_devolucion_vistos = set()
+    for p in productos:
+        plu        = (p or {}).get("plu")
+        peso       = (p or {}).get("peso")
+        codigo_str = str((p or {}).get("codigo_barras") or "")
+
+        if not plu or peso in (None, "", 0):
+            return JsonResponse({"error": "Datos incompletos en la lista"}, status=400)
+        if len(codigo_str) != 13 or not codigo_str.isdigit():
+            return JsonResponse({"error": "Código de barras inválido"}, status=400)
+
+        if codigo_str in codigos_devolucion_vistos:
+            continue
+        codigos_devolucion_vistos.add(codigo_str)
+
+        try:
+            producto_obj = ProductoFijo.objects.get(plu=plu)
+        except ProductoFijo.DoesNotExist:
+            return JsonResponse({"error": f"Producto PLU {plu} no encontrado"}, status=404)
+
+        validados_dev.append({
+            "producto": producto_obj,
+            "peso": float(peso),
+            "codigo": codigo_str,
+        })
+
+    # Fase 2 (transacción): solo escrituras + chequeo de doble-devolución con lock.
     devueltos = []
     try:
         with transaction.atomic():
@@ -1807,43 +1886,29 @@ def confirmar_devolucion(request):
             )
             nuevo_grupo_id = (ultimo or 0) + 1
 
-            codigos_devolucion_vistos = set()
-            for p in productos:
-                plu          = (p or {}).get("plu")
-                peso         = (p or {}).get("peso")
-                codigo_str   = str((p or {}).get("codigo_barras") or "")
+            for item in validados_dev:
+                producto_obj = item["producto"]
+                peso_f       = item["peso"]
+                codigo_str   = item["codigo"]
 
-                if not plu or peso in (None, "", 0):
-                    return JsonResponse({"error": "Datos incompletos en la lista"}, status=400)
-                if len(codigo_str) != 13 or not codigo_str.isdigit():
-                    return JsonResponse({"error": "Código de barras inválido"}, status=400)
-
-                # Evitar duplicados dentro de este mismo lote de devolución
-                if codigo_str in codigos_devolucion_vistos:
-                    continue
-                codigos_devolucion_vistos.add(codigo_str)
-
-                # Evitar que el mismo balde ya esté activo en stock (doble devolución)
+                # Doble-devolución: debe verificarse dentro del atomic para evitar
+                # carreras entre requests concurrentes.
                 if StockBalde.objects.filter(codigo_barras=codigo_str, is_activo=True).exists():
-                    return JsonResponse({
-                        "error": f"El balde con código {codigo_str} ya está en stock activo."
-                    }, status=409)
-
-                try:
-                    producto_obj = ProductoFijo.objects.get(plu=plu)
-                except ProductoFijo.DoesNotExist:
-                    return JsonResponse({"error": f"Producto PLU {plu} no encontrado"}, status=404)
+                    raise _ErrorDevolucion(
+                        {"error": f"El balde con código {codigo_str} ya está en stock activo."},
+                        status_code=409,
+                    )
 
                 balde_dev = StockBalde.objects.create(
                     producto=producto_obj,
-                    peso=float(peso),
+                    peso=peso_f,
                     codigo_barras=codigo_str,
                     is_activo=True,
                 )
                 RegistroMovimiento.objects.create(
                     grupo_id=nuevo_grupo_id,
                     producto=producto_obj,
-                    peso=float(peso),
+                    peso=peso_f,
                     tipo="devolucion",
                     origen=origen or None,
                     codigo_barras=codigo_str,
@@ -1856,6 +1921,8 @@ def confirmar_devolucion(request):
             request.session["productos_temporales"] = []
             request.session.modified = True
 
+    except _ErrorDevolucion as exc:
+        return JsonResponse(exc.data, status=exc.status_code)
     except Exception as e:
         return JsonResponse({"error": f"Error al procesar devolución: {e}"}, status=500)
 
@@ -1969,7 +2036,8 @@ def eliminar_origen(request):
 
 # views.py
 import tempfile
-from django.db import connection
+import shutil
+from django.db import connection, connections
 
 def descargar_backup(request):
     """
@@ -2010,18 +2078,19 @@ def importar_backup(request):
     db_path = settings.DATABASES["default"]["NAME"]
     db_dir = os.path.dirname(db_path) or "."
 
-    # 1) Escribir a un archivo temporal
-    os.makedirs(db_dir, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(prefix="upload_", suffix=".sqlite3", dir=db_dir)
-    os.close(fd)
-
+    tmp_path = None
     try:
+        # 1) Escribir el archivo subido a un temporal en el mismo directorio
+        os.makedirs(db_dir, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(prefix="upload_", suffix=".sqlite3", dir=db_dir)
+        os.close(fd)
+
         with open(tmp_path, "wb") as destino:
             for chunk in up.chunks():
                 destino.write(chunk)
 
-        # 2) Cerrar conexiones actuales
-        connection.close()
+        # 2) Cerrar TODAS las conexiones (incluye APScheduler y otros hilos)
+        connections.close_all()
 
         # 3) Backup previo opcional (por si querés volver atrás)
         prev_backup = None
@@ -2033,12 +2102,23 @@ def importar_backup(request):
             except Exception:
                 pass
             try:
-                os.replace(db_path, prev_backup)
+                shutil.copy2(db_path, prev_backup)
             except Exception:
-                prev_backup = None  # si falla, seguimos sin .prev
+                prev_backup = None
 
-        # 4) Reemplazo atómico por el nuevo archivo
-        os.replace(tmp_path, db_path)
+        # 4) Reemplazar la base de datos
+        # En Windows, os.replace falla si el archivo destino sigue bloqueado.
+        # Usamos shutil.copy2 + borrado del original como fallback seguro.
+        try:
+            os.replace(tmp_path, db_path)
+        except OSError:
+            # Fallback: copiar encima y eliminar el temporal
+            shutil.copy2(tmp_path, db_path)
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+            tmp_path = None
 
         # 5) Migraciones (sin run_syncdb)
         try:
@@ -2071,7 +2151,7 @@ def importar_backup(request):
     except Exception as e:
         # Limpieza si algo falla
         try:
-            if os.path.exists(tmp_path):
+            if tmp_path and os.path.exists(tmp_path):
                 os.remove(tmp_path)
         except Exception:
             pass

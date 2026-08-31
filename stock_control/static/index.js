@@ -582,7 +582,7 @@ function actualizarListaEscaneados(modalTipo, lista) {
   const cantidad = Array.isArray(lista) ? lista.length : 0;
   const contadorId = modalTipo === "retirar" ? "contadorRetiro" : modalTipo === "devolucion" ? "contadorDevolucion" : "contadorIngreso";
   const contadorEl = document.getElementById(contadorId);
-  console.log(contadorEl);
+  //console.log(contadorEl);
   if (contadorEl) {
     contadorEl.textContent = `${cantidad}`;
   }
@@ -621,7 +621,7 @@ async function eliminarProductoEscaneado(codigoBarras, modalTipo) {
   try {
     const data = await postJSON(API.eliminarTemporal, { codigo_barras: codigoBarras });
     if (data?.success) {
-      console.log("🗑️ Producto eliminado de la sesión:", plu);
+      console.log("🗑️ Producto eliminado de la sesión:", codigoBarras);
       Toast.info("Producto eliminado");
       await obtenerProductosEscaneados();
     } else {

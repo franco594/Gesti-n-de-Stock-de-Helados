@@ -13,7 +13,9 @@ Convención: tests que detectan un bug existente llevan el prefijo
 """
 
 import json
-from django.test import TestCase, Client
+from unittest.mock import patch
+from django.db import transaction
+from django.test import TestCase, TransactionTestCase, Client
 from django.utils import timezone
 
 from app_inventario.models import (
@@ -422,3 +424,416 @@ class TestEditarItemFallback(TestCase):
 
         self.assertEqual(b1.producto_id, "002", "El balde referenciado por FK debe actualizarse")
         self.assertEqual(b2.producto_id, "001", "El otro balde NO debe ser modificado")
+
+
+# ─── 6. BUG-A (auditoría) — return dentro de atomic en confirmar_devolucion ──
+
+class TestDevolucionParcial(TestCase):
+    """
+    BUG-A: `return JsonResponse(...)` dentro de `with transaction.atomic()`
+    en confirmar_devolucion commitea los StockBalde y RegistroMovimiento
+    creados en iteraciones anteriores.
+
+    Si el N-ésimo balde del lote es inválido (código de 12 dígitos, PLU
+    inexistente, balde ya activo en stock), los baldes 1..N-1 ya creados
+    NO deben quedar en la BD — la transacción debe ser atómica.
+
+    Causa (views.py ~L1817-1835): varios `return JsonResponse(...)` sueltos
+    dentro del bloque `with transaction.atomic()`. Un `return` no levanta
+    excepción, por lo que el contexto hace COMMIT en vez de ROLLBACK.
+
+    Fix correcto: reemplazar los `return` por `raise` de una excepción interna
+    y capturarla en el bloque except para retornar el JsonResponse desde afuera.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        crear_producto("001", "Vainilla")
+
+    def test_BUGA_devolucion_segundo_barcode_invalido_no_deja_primer_balde(self):
+        """
+        Bug A: el 1er balde se crea correctamente, el 2do tiene código de 12
+        dígitos (inválido). El `return 400` dentro del atomic commitea el 1er
+        StockBalde + RM. Con el fix, debe haber 0 baldes y 0 RMs.
+        """
+        payload = {
+            "origen": "Local Norte",
+            "productos": [
+                # Iteración 1: válido → StockBalde + RM creados antes del return
+                {"plu": "001", "codigo_barras": "2000100045001", "peso": 4.5},
+                # Iteración 2: código de 12 dígitos → return 400 dentro del atomic
+                {"plu": "001", "codigo_barras": "200010004500",  "peso": 3.0},
+            ],
+        }
+        resp = post_json(self.client, "/api/confirmar_devolucion/", payload)
+
+        self.assertNotEqual(resp.status_code, 200,
+            "Debe rechazar la devolución porque el 2do código es inválido (12 dígitos)")
+
+        # BUG: con el código actual, StockBalde.count() == 1 (el 1er balde quedó committed)
+        self.assertEqual(StockBalde.objects.count(), 0,
+            "Bug A: el balde del 1er producto NO debe quedar si el lote falló parcialmente")
+        self.assertEqual(RegistroMovimiento.objects.count(), 0,
+            "Bug A: el RM del 1er producto NO debe quedar si el lote falló parcialmente")
+        self.assertFalse(GrupoMovimiento.objects.exists(),
+            "Bug A: no debe quedar ningún GrupoMovimiento si la devolución falló")
+
+    def test_BUGA_devolucion_segundo_plu_invalido_no_deja_primer_balde(self):
+        """
+        Bug A: igual al anterior, pero el fallo ocurre por PLU inexistente.
+        El `return 404` dentro del atomic commitea el balde del 1er producto.
+        """
+        payload = {
+            "origen": "Local Norte",
+            "productos": [
+                {"plu": "001", "codigo_barras": "2000100045001", "peso": 4.5},
+                # PLU 999 no existe en la BD → return 404 dentro del atomic
+                {"plu": "999", "codigo_barras": "2009990032001", "peso": 3.0},
+            ],
+        }
+        resp = post_json(self.client, "/api/confirmar_devolucion/", payload)
+
+        self.assertNotEqual(resp.status_code, 200,
+            "Debe rechazar la devolución porque PLU 999 no existe")
+        self.assertEqual(StockBalde.objects.count(), 0,
+            "Bug A: el balde del 1er producto NO debe quedar si PLU 999 no existe")
+        self.assertEqual(RegistroMovimiento.objects.count(), 0,
+            "Bug A: el RM del 1er producto NO debe quedar si PLU 999 no existe")
+
+    def test_BUGA_devolucion_balde_ya_activo_no_deja_primer_balde(self):
+        """
+        Bug A: el 1er balde se crea, el 2do ya existe en stock activo (doble
+        devolución). El `return 409` dentro del atomic commitea el 1er balde.
+        """
+        prod2 = crear_producto("002", "Chocolate")
+        # Pre-existente en stock: simula que el 2do balde ya fue devuelto antes
+        StockBalde.objects.create(
+            producto=prod2, peso=3.0,
+            codigo_barras="2000200030001", is_activo=True,
+        )
+        payload = {
+            "origen": "Local Norte",
+            "productos": [
+                {"plu": "001", "codigo_barras": "2000100045001", "peso": 4.5},
+                # Este código ya existe activo → return 409 dentro del atomic
+                {"plu": "002", "codigo_barras": "2000200030001", "peso": 3.0},
+            ],
+        }
+        resp = post_json(self.client, "/api/confirmar_devolucion/", payload)
+
+        self.assertNotEqual(resp.status_code, 200,
+            "Debe rechazar porque el 2do balde ya está activo en stock")
+        # Con bug: count == 2 (el pre-existente + el del 1er item committed)
+        # Sin bug: count == 1 (solo el pre-existente; el del 1er item se hizo rollback)
+        self.assertEqual(StockBalde.objects.count(), 1,
+            "Bug A: solo debe existir el balde pre-existente, no el del 1er item del lote fallido")
+
+
+# ─── 7. BUG-B (auditoría) — return dentro de atomic en eliminar_movimiento ───
+
+class TestAnulacionParcial(TransactionTestCase):
+    """
+    BUG-B: `return JsonResponse(...)` dentro de `with transaction.atomic()`
+    en eliminar_movimiento commitea los `balde.delete()` ejecutados antes.
+
+    Si el N-ésimo balde del grupo ya está inactivo (fue retirado previamente),
+    los N-1 baldes anteriores ya borrados NO deben quedar eliminados — toda la
+    anulación debe fallar atómicamente (todo o nada).
+
+    Causa (views.py ~L1048-1052): el check `if not balde.is_activo: return ...`
+    dentro de `with transaction.atomic()`. Las iteraciones previas ya llamaron
+    a `balde.delete()`, y el `return` hace COMMIT de esas eliminaciones.
+
+    Fix correcto: mismo patrón que `confirmar_codigos` → usar `raise` de una
+    excepción interna para forzar el ROLLBACK antes de retornar el error.
+
+    NOTA: usa TransactionTestCase (no TestCase) porque el bug solo se manifiesta
+    cuando transaction.atomic() en la vista crea una transacción TOP-LEVEL (como
+    en producción). Con TestCase, la vista crearía un SAVEPOINT dentro de la
+    transacción envolvente del test, y el RELEASE SAVEPOINT no haría COMMIT real.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.prod = crear_producto("001", "Vainilla")
+
+    def _crear_grupo_ingreso(self, codigos_y_estados):
+        """
+        Crea baldes + GrupoMovimiento + RegistroMovimiento con balde_id FK.
+        codigos_y_estados: lista de (codigo_barras, is_activo).
+        Los baldes se crean en orden para que la iteración del ORM sea predecible.
+        Retorna (grupo_id, [balde1, balde2, ...]).
+        """
+        grupo_id = 1
+        baldes = []
+
+        for codigo, activo in codigos_y_estados:
+            b = StockBalde.objects.create(
+                producto=self.prod, peso=4.5,
+                codigo_barras=codigo, is_activo=activo,
+            )
+            baldes.append(b)
+
+        GrupoMovimiento.objects.create(
+            grupo_id=grupo_id, tipo="ingreso",
+            total_peso=4.5 * len(baldes), cantidad_items=len(baldes),
+        )
+        for balde in baldes:
+            RegistroMovimiento.objects.create(
+                grupo_id=grupo_id, producto=self.prod, peso=4.5,
+                tipo="ingreso", codigo_barras=balde.codigo_barras,
+                balde=balde,  # FK directo → activa el path con check is_activo
+            )
+        return grupo_id, baldes
+
+    def test_BUGB_anular_ingreso_con_primer_balde_retirado_no_borra_los_demas(self):
+        """
+        Bug B: grupo de 3 baldes. El INACTIVO tiene el id MÁS BAJO (creado primero).
+        SQLite itera en orden DESCENDENTE de id para este queryset (sin ORDER BY +
+        select_related), por lo que los baldes ACTIVOS (ids altos) son procesados PRIMERO.
+
+        Secuencia con el bug:
+          - Iteración 1: b3 (active, id=mayor) → balde3.delete()
+          - Iteración 2: b2 (active, id=medio) → balde2.delete()
+          - Iteración 3: b1 (inactive, id=menor) → return 400 dentro del atomic
+        COMMIT: b2 y b3 quedan borrados. Correcto: rollback → los 3 baldes existen.
+        """
+        grupo_id, (b1, b2, b3) = self._crear_grupo_ingreso([
+            ("2000100045001", False),  # INACTIVO — id=mínimo → iterado ÚLTIMO (desc.)
+            ("2000100045002", True),   # activo — id=medio
+            ("2000100045003", True),   # activo — id=máximo → iterado PRIMERO (desc.)
+        ])
+
+        resp = self.client.delete(f"/eliminar_movimiento/{grupo_id}/")
+
+        self.assertNotEqual(resp.status_code, 200,
+            "Debe rechazar la anulación porque el 1er balde está inactivo")
+
+        # Con el bug: b2 y b3 borrados (commit del return-en-atomic) → count == 1
+        # Sin el bug: rollback completo → count == 3
+        self.assertEqual(
+            StockBalde.objects.count(), 3,
+            "Bug B: b2 y b3 no deben borrarse si la anulación del grupo falló"
+        )
+
+        # Los RM no deben borrarse (movs.delete() nunca se ejecutó)
+        self.assertEqual(
+            RegistroMovimiento.objects.filter(grupo_id=grupo_id).count(), 3,
+            "Bug B: los RegistroMovimiento no deben borrarse si la anulación falló"
+        )
+        self.assertTrue(
+            GrupoMovimiento.objects.filter(grupo_id=grupo_id).exists(),
+            "Bug B: el GrupoMovimiento no debe borrarse si la anulación falló"
+        )
+
+    def test_BUGB_anular_ingreso_caso_minimo_inactivo_primero_activo_segundo(self):
+        """
+        Bug B (caso mínimo): 2 baldes.
+        - b1 INACTIVO (id=bajo) → procesado ÚLTIMO en iteración descendente.
+        - b2 ACTIVO (id=alto) → procesado PRIMERO → balde2.delete()
+        Después: b2.is_activo → False en b1 → return 400 → COMMIT de la eliminación de b2.
+        Correcto: rollback → b2 no debe borrarse.
+        """
+        grupo_id, (b1, b2) = self._crear_grupo_ingreso([
+            ("2000100045001", False),  # INACTIVO — id=bajo → procesado ÚLTIMO
+            ("2000100045002", True),   # activo — id=alto → procesado PRIMERO → delete()
+        ])
+
+        resp = self.client.delete(f"/eliminar_movimiento/{grupo_id}/")
+
+        self.assertNotEqual(resp.status_code, 200,
+            "Debe rechazar la anulación porque el 1er balde ya fue retirado")
+        # Con el bug: b2 fue borrado (commit del return-en-atomic) → count == 1
+        # Sin el bug: rollback → count == 2
+        self.assertEqual(
+            StockBalde.objects.count(), 2,
+            "Bug B: balde2 no debe ser borrado si la anulación del grupo falló"
+        )
+
+    def test_BUGB_anulacion_exitosa_sin_baldes_inactivos_sigue_funcionando(self):
+        """
+        Regresión: cuando todos los baldes están activos, la anulación debe
+        completarse correctamente (sin el bug). Este test debe PASAR siempre.
+        """
+        grupo_id, (b1, b2) = self._crear_grupo_ingreso([
+            ("2000100045001", True),
+            ("2000100045002", True),
+        ])
+
+        resp = self.client.delete(f"/eliminar_movimiento/{grupo_id}/")
+
+        self.assertEqual(resp.status_code, 200,
+            "La anulación debe ser exitosa cuando todos los baldes están activos")
+        self.assertEqual(StockBalde.objects.count(), 0,
+            "Los baldes deben borrarse cuando la anulación es exitosa")
+        self.assertFalse(
+            RegistroMovimiento.objects.filter(grupo_id=grupo_id).exists(),
+            "Los RM deben borrarse cuando la anulación es exitosa"
+        )
+        self.assertFalse(
+            GrupoMovimiento.objects.filter(grupo_id=grupo_id).exists(),
+            "El GrupoMovimiento debe borrarse cuando la anulación es exitosa"
+        )
+
+
+# ─── 7. BUG-1 y BUG-2 — Race conditions en confirmar_retiro ─────────────────
+
+class TestRetiroRaceCondition(TransactionTestCase):
+    """
+    BUG-1: El balde se selecciona FUERA del bloque transaction.atomic() y sin
+    select_for_update(). Si otro request retira el mismo balde entre la lectura
+    y la escritura, el view sigue adelante y crea un RegistroMovimiento fantasma.
+
+    BUG-2: El nuevo_grupo_id se calcula con MAX() FUERA del atomic, sin
+    select_for_update(). Dos requests concurrentes pueden leer el mismo MAX y
+    usar el mismo grupo_id, pisando el GrupoMovimiento del otro.
+
+    Los tests simulan la race condition de forma determinista usando
+    patch(transaction.Atomic.__enter__): el mock "inyecta" la acción concurrente
+    en el instante exacto entre la lectura pre-atómica y la escritura atómica.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.prod = crear_producto("001", "Vainilla")
+        self.boca = BocaSalida.objects.create(nombre="Local Norte")
+
+    def test_BUG1_retiro_concurrente_mismo_balde_devuelve_error_y_no_crea_rm(self):
+        """
+        Escenario: el balde está activo cuando el pre-check lo valida (fuera del
+        atomic), pero otro proceso lo retira justo antes de que este request entre
+        al atomic.
+
+        Bug: el view no re-lee el balde dentro del atomic → guarda el objeto Python
+        obsoleto y crea un RegistroMovimiento para un balde que ya está inactivo.
+        Fix: dentro del atomic, select_for_update() re-lee el balde; si está
+        inactivo → raise _ErrorRetiro(409) → rollback → 0 RM creados.
+        """
+        balde = crear_balde(self.prod, 4.5, "2000100045001")
+
+        original_enter = transaction.Atomic.__enter__
+        intercepted = [False]
+
+        def inject_concurrent_retiro(atomic_self):
+            if not intercepted[0]:
+                intercepted[0] = True
+                # Simula: otro request retira el balde justo antes de que este
+                # request entre al bloque atomic
+                StockBalde.objects.filter(pk=balde.pk).update(
+                    is_activo=False,
+                    fecha_retiro=timezone.now(),
+                )
+            return original_enter(atomic_self)
+
+        with patch.object(transaction.Atomic, "__enter__", inject_concurrent_retiro):
+            resp = post_json(self.client, "/api/confirmar_retiro/", {
+                "destino": "Local Norte",
+                "productos": [{"plu": "001", "codigo_barras": "2000100045001"}],
+            })
+
+        # Código buggy → 200 (crea RM fantasma, no detecta el retiro concurrente)
+        # Fix correcto → 409 (re-lee con select_for_update, detecta inactividad)
+        self.assertNotEqual(
+            resp.status_code, 200,
+            "BUG-1: el view retornó 200 aunque el balde fue retirado concurrentemente. "
+            "Debe re-verificarse con select_for_update dentro del atomic.",
+        )
+        self.assertEqual(
+            RegistroMovimiento.objects.filter(tipo="salida").count(), 0,
+            "BUG-1: no debe existir ningún RM de salida si el retiro concurrente fue detectado.",
+        )
+
+    def test_BUG2_grupo_id_fuera_del_atomic_colisiona_con_request_concurrente(self):
+        """
+        Escenario: el grupo_id se calcula con MAX() fuera del atomic. Un request
+        concurrente (inyectado en el mock) ya usó ese grupo_id antes de que este
+        request entre al atomic.
+
+        Bug: el view usa el grupo_id calculado antes de la inyección (grupo_id=1),
+        que ya fue tomado por el request concurrente → misma clave en GrupoMovimiento.
+        Fix: el grupo_id se calcula dentro del atomic con select_for_update,
+        ve el RM inyectado con grupo_id=1 → calcula grupo_id=2.
+        """
+        balde = crear_balde(self.prod, 4.5, "2000100045001")
+        prod2 = crear_producto("002", "Chocolate")   # para el RM inyectado
+
+        original_enter = transaction.Atomic.__enter__
+        intercepted = [False]
+
+        def inject_concurrent_grupo(atomic_self):
+            if not intercepted[0]:
+                intercepted[0] = True
+                # Simula: request concurrente ya escribió con grupo_id=1
+                # (el mismo valor que el código buggy calculó fuera del atomic)
+                RegistroMovimiento.objects.create(
+                    grupo_id=1,
+                    producto=prod2,
+                    peso=3.0,
+                    tipo="salida",
+                    boca_salida="Local Norte",
+                    codigo_barras="2000200030001",
+                )
+            return original_enter(atomic_self)
+
+        with patch.object(transaction.Atomic, "__enter__", inject_concurrent_grupo):
+            resp = post_json(self.client, "/api/confirmar_retiro/", {
+                "destino": "Local Norte",
+                "productos": [{"plu": "001", "codigo_barras": "2000100045001"}],
+            })
+
+        self.assertEqual(resp.status_code, 200,
+            f"El retiro debe completarse exitosamente. Respuesta: {resp.json()}")
+
+        grupo_id_obtenido = resp.json().get("grupo_id")
+
+        # Código buggy → grupo_id=1 (colisiona con el inyectado, _actualizar_total_grupo
+        #   agrega el RM inyectado en la cuenta y genera totales incorrectos)
+        # Fix correcto → grupo_id=2 (calculado dentro del atomic, ve MAX=1 → +1=2)
+        self.assertEqual(
+            grupo_id_obtenido, 2,
+            f"BUG-2: el view usó grupo_id={grupo_id_obtenido} en vez de 2. "
+            "El MAX(grupo_id) debe calcularse con select_for_update dentro del atomic "
+            "para evitar colisiones con requests concurrentes.",
+        )
+
+        # El GrupoMovimiento con grupo_id=2 debe tener solo 1 ítem (no contaminado)
+        gm = GrupoMovimiento.objects.get(grupo_id=grupo_id_obtenido)
+        self.assertEqual(
+            gm.cantidad_items, 1,
+            "El GrupoMovimiento del retiro debe tener 1 ítem, "
+            "no 2 (contaminado por el RM del request concurrente).",
+        )
+
+    def test_BUG1_retiro_balde_inactivo_secuencial_sigue_rechazando(self):
+        """
+        Regresión: un balde ya inactivo en modo secuencial (sin concurrencia)
+        debe seguir siendo rechazado con 400. Esta ruta no depende del race condition.
+        """
+        crear_balde(self.prod, 4.5, "2000100045001", activo=False)
+
+        resp = post_json(self.client, "/api/confirmar_retiro/", {
+            "destino": "Local Norte",
+            "productos": [{"plu": "001", "codigo_barras": "2000100045001"}],
+        })
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(RegistroMovimiento.objects.count(), 0)
+
+    def test_BUG1_retiro_exitoso_sin_concurrencia_sigue_funcionando(self):
+        """
+        Regresión: retiro normal (sin concurrencia) debe seguir retornando 200
+        y creando exactamente 1 RM y 1 GrupoMovimiento.
+        """
+        crear_balde(self.prod, 4.5, "2000100045001")
+
+        resp = post_json(self.client, "/api/confirmar_retiro/", {
+            "destino": "Local Norte",
+            "productos": [{"plu": "001", "codigo_barras": "2000100045001"}],
+        })
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(RegistroMovimiento.objects.filter(tipo="salida").count(), 1)
+        grupo_id = resp.json()["grupo_id"]
+        gm = GrupoMovimiento.objects.get(grupo_id=grupo_id)
+        self.assertEqual(gm.cantidad_items, 1)
+        self.assertAlmostEqual(float(gm.total_peso), 4.5, places=1)
