@@ -128,6 +128,7 @@ imports:
     <a href="#_collections_abc">_collections_abc</a>
  &#8226;   <a href="#_weakrefset">_weakrefset</a>
  &#8226;   <a href="#abc">abc</a>
+ &#8226;   <a href="#app_inventario.models">app_inventario.models</a>
  &#8226;   <a href="#app_inventario.utils.backups">app_inventario.utils.backups</a>
  &#8226;   <a href="#codecs">codecs</a>
  &#8226;   <a href="#collections">collections</a>
@@ -135,6 +136,8 @@ imports:
  &#8226;   <a href="#copyreg">copyreg</a>
  &#8226;   <a href="#django">django</a>
  &#8226;   <a href="#django.core.management">django.core.management</a>
+ &#8226;   <a href="#django.utils">django.utils</a>
+ &#8226;   <a href="#django.utils.timezone">django.utils.timezone</a>
  &#8226;   <a href="#encodings">encodings</a>
  &#8226;   <a href="#encodings.aliases">encodings.aliases</a>
  &#8226;   <a href="#encodings.ascii">encodings.ascii</a>
@@ -537,6 +540,7 @@ imported by:
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
     <a href="#compressor.parser.lxml">compressor.parser.lxml</a>
+ &#8226;   <a href="#openpyxl.xml">openpyxl.xml</a>
  &#8226;   <a href="#openpyxl.xml.functions">openpyxl.xml.functions</a>
  &#8226;   <a href="#pandas.io.formats.xml">pandas.io.formats.xml</a>
  &#8226;   <a href="#pandas.io.html">pandas.io.html</a>
@@ -551,8 +555,7 @@ imported by:
   <a target="code" href="" type="text/plain"><tt>'lxml.html'</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
-    <a href="#compressor.parser.lxml">compressor.parser.lxml</a>
- &#8226;   <a href="#pandas.io.html">pandas.io.html</a>
+    <a href="#pandas.io.html">pandas.io.html</a>
 
   </div>
 
@@ -5414,6 +5417,8 @@ imported by:
  &#8226;   <a href="#app_inventario.migrations.0016_alter_grupomovimiento_tipo_and_more">app_inventario.migrations.0016_alter_grupomovimiento_tipo_and_more</a>
  &#8226;   <a href="#app_inventario.migrations.0017_conciliacionboca">app_inventario.migrations.0017_conciliacionboca</a>
  &#8226;   <a href="#app_inventario.migrations.0018_configuracionsistema">app_inventario.migrations.0018_configuracionsistema</a>
+ &#8226;   <a href="#app_inventario.migrations.0019_registromovimiento_balde">app_inventario.migrations.0019_registromovimiento_balde</a>
+ &#8226;   <a href="#app_inventario.migrations.0020_productofijo_is_activo">app_inventario.migrations.0020_productofijo_is_activo</a>
  &#8226;   <a href="#django">django</a>
 
   </div>
@@ -5767,6 +5772,45 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="app_inventario.migrations.0019_registromovimiento_balde"></a>
+  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/app_inventario/migrations/0019_registromovimiento_balde.py" type="text/plain"><tt>app_inventario.migrations.0019_registromovimiento_balde</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#app_inventario.migrations">app_inventario.migrations</a>
+ &#8226;   <a href="#django.db">django.db</a>
+ &#8226;   <a href="#django.db.migrations">django.db.migrations</a>
+ &#8226;   <a href="#django.db.models">django.db.models</a>
+ &#8226;   <a href="#django.db.models.deletion">django.db.models.deletion</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#django">django</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="app_inventario.migrations.0020_productofijo_is_activo"></a>
+  <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/app_inventario/migrations/0020_productofijo_is_activo.py" type="text/plain"><tt>app_inventario.migrations.0020_productofijo_is_activo</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#app_inventario.migrations">app_inventario.migrations</a>
+ &#8226;   <a href="#django.db">django.db</a>
+ &#8226;   <a href="#django.db.migrations">django.db.migrations</a>
+ &#8226;   <a href="#django.db.models">django.db.models</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#django">django</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="app_inventario.models"></a>
   <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/stock_control/app_inventario/models.py" type="text/plain"><tt>app_inventario.models</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -5784,6 +5828,7 @@ imported by:
  &#8226;   <a href="#app_inventario.utils.task">app_inventario.utils.task</a>
  &#8226;   <a href="#app_inventario.views">app_inventario.views</a>
  &#8226;   <a href="#django">django</a>
+ &#8226;   <a href="#run.py">run.py</a>
 
   </div>
 
@@ -10861,12 +10906,12 @@ imported by:
 <span class="moduletype">SourceModule</span>  <div class="import">
 imports:
     <a href="#'lxml.etree'">'lxml.etree'</a>
- &#8226;   <a href="#'lxml.html'">'lxml.html'</a>
  &#8226;   <a href="#compressor.exceptions">compressor.exceptions</a>
  &#8226;   <a href="#compressor.parser">compressor.parser</a>
  &#8226;   <a href="#django.core.exceptions">django.core.exceptions</a>
  &#8226;   <a href="#django.utils.encoding">django.utils.encoding</a>
  &#8226;   <a href="#django.utils.functional">django.utils.functional</a>
+ &#8226;   <a href="#lxml">lxml</a>
 
   </div>
   <div class="import">
@@ -12926,6 +12971,8 @@ imports:
  &#8226;   <a href="#app_inventario.migrations.0016_alter_grupomovimiento_tipo_and_more">app_inventario.migrations.0016_alter_grupomovimiento_tipo_and_more</a>
  &#8226;   <a href="#app_inventario.migrations.0017_conciliacionboca">app_inventario.migrations.0017_conciliacionboca</a>
  &#8226;   <a href="#app_inventario.migrations.0018_configuracionsistema">app_inventario.migrations.0018_configuracionsistema</a>
+ &#8226;   <a href="#app_inventario.migrations.0019_registromovimiento_balde">app_inventario.migrations.0019_registromovimiento_balde</a>
+ &#8226;   <a href="#app_inventario.migrations.0020_productofijo_is_activo">app_inventario.migrations.0020_productofijo_is_activo</a>
  &#8226;   <a href="#app_inventario.models">app_inventario.models</a>
  &#8226;   <a href="#app_inventario.signals">app_inventario.signals</a>
  &#8226;   <a href="#app_inventario.tests">app_inventario.tests</a>
@@ -28069,6 +28116,8 @@ imported by:
  &#8226;   <a href="#app_inventario.migrations.0016_alter_grupomovimiento_tipo_and_more">app_inventario.migrations.0016_alter_grupomovimiento_tipo_and_more</a>
  &#8226;   <a href="#app_inventario.migrations.0017_conciliacionboca">app_inventario.migrations.0017_conciliacionboca</a>
  &#8226;   <a href="#app_inventario.migrations.0018_configuracionsistema">app_inventario.migrations.0018_configuracionsistema</a>
+ &#8226;   <a href="#app_inventario.migrations.0019_registromovimiento_balde">app_inventario.migrations.0019_registromovimiento_balde</a>
+ &#8226;   <a href="#app_inventario.migrations.0020_productofijo_is_activo">app_inventario.migrations.0020_productofijo_is_activo</a>
  &#8226;   <a href="#app_inventario.models">app_inventario.models</a>
  &#8226;   <a href="#app_inventario.signals">app_inventario.signals</a>
  &#8226;   <a href="#app_inventario.views">app_inventario.views</a>
@@ -29772,6 +29821,8 @@ imported by:
  &#8226;   <a href="#app_inventario.migrations.0016_alter_grupomovimiento_tipo_and_more">app_inventario.migrations.0016_alter_grupomovimiento_tipo_and_more</a>
  &#8226;   <a href="#app_inventario.migrations.0017_conciliacionboca">app_inventario.migrations.0017_conciliacionboca</a>
  &#8226;   <a href="#app_inventario.migrations.0018_configuracionsistema">app_inventario.migrations.0018_configuracionsistema</a>
+ &#8226;   <a href="#app_inventario.migrations.0019_registromovimiento_balde">app_inventario.migrations.0019_registromovimiento_balde</a>
+ &#8226;   <a href="#app_inventario.migrations.0020_productofijo_is_activo">app_inventario.migrations.0020_productofijo_is_activo</a>
  &#8226;   <a href="#django">django</a>
  &#8226;   <a href="#django.contrib.admin.migrations.0001_initial">django.contrib.admin.migrations.0001_initial</a>
  &#8226;   <a href="#django.contrib.admin.migrations.0002_logentry_remove_auto_add">django.contrib.admin.migrations.0002_logentry_remove_auto_add</a>
@@ -30371,6 +30422,8 @@ imported by:
  &#8226;   <a href="#app_inventario.migrations.0016_alter_grupomovimiento_tipo_and_more">app_inventario.migrations.0016_alter_grupomovimiento_tipo_and_more</a>
  &#8226;   <a href="#app_inventario.migrations.0017_conciliacionboca">app_inventario.migrations.0017_conciliacionboca</a>
  &#8226;   <a href="#app_inventario.migrations.0018_configuracionsistema">app_inventario.migrations.0018_configuracionsistema</a>
+ &#8226;   <a href="#app_inventario.migrations.0019_registromovimiento_balde">app_inventario.migrations.0019_registromovimiento_balde</a>
+ &#8226;   <a href="#app_inventario.migrations.0020_productofijo_is_activo">app_inventario.migrations.0020_productofijo_is_activo</a>
  &#8226;   <a href="#app_inventario.models">app_inventario.models</a>
  &#8226;   <a href="#app_inventario.services.printing">app_inventario.services.printing</a>
  &#8226;   <a href="#app_inventario.utils.task">app_inventario.utils.task</a>
@@ -30836,6 +30889,7 @@ imported by:
  &#8226;   <a href="#app_inventario.migrations.0004_movimiento_detallemovimiento">app_inventario.migrations.0004_movimiento_detallemovimiento</a>
  &#8226;   <a href="#app_inventario.migrations.0007_rename_boca_salida_registromovimiento_origen_and_more">app_inventario.migrations.0007_rename_boca_salida_registromovimiento_origen_and_more</a>
  &#8226;   <a href="#app_inventario.migrations.0017_conciliacionboca">app_inventario.migrations.0017_conciliacionboca</a>
+ &#8226;   <a href="#app_inventario.migrations.0019_registromovimiento_balde">app_inventario.migrations.0019_registromovimiento_balde</a>
  &#8226;   <a href="#django">django</a>
  &#8226;   <a href="#django.contrib.admin.utils">django.contrib.admin.utils</a>
  &#8226;   <a href="#django.contrib.contenttypes.management.commands.remove_stale_contenttypes">django.contrib.contenttypes.management.commands.remove_stale_contenttypes</a>
@@ -34523,6 +34577,7 @@ imported by:
  &#8226;   <a href="#django.views.debug">django.views.debug</a>
  &#8226;   <a href="#django.views.decorators.http">django.views.decorators.http</a>
  &#8226;   <a href="#django.views.generic.dates">django.views.generic.dates</a>
+ &#8226;   <a href="#run.py">run.py</a>
 
   </div>
 
@@ -35850,6 +35905,7 @@ imported by:
  &#8226;   <a href="#django.views.debug">django.views.debug</a>
  &#8226;   <a href="#django.views.decorators.http">django.views.decorators.http</a>
  &#8226;   <a href="#django.views.generic.dates">django.views.generic.dates</a>
+ &#8226;   <a href="#run.py">run.py</a>
 
   </div>
 
@@ -43811,8 +43867,8 @@ imported by:
   <a target="code" href="" type="text/plain"><tt>lxml</tt></a>
 <span class="moduletype">MissingModule</span>  <div class="import">
 imported by:
-    <a href="#compressor.tests.test_parsers">compressor.tests.test_parsers</a>
- &#8226;   <a href="#openpyxl.xml">openpyxl.xml</a>
+    <a href="#compressor.parser.lxml">compressor.parser.lxml</a>
+ &#8226;   <a href="#compressor.tests.test_parsers">compressor.tests.test_parsers</a>
  &#8226;   <a href="#pandas.io.xml">pandas.io.xml</a>
 
   </div>
@@ -56508,8 +56564,8 @@ imported by:
   <a target="code" href="///C:/Users/franc/Proyectos2024/Gesti%C3%B3n%20de%20Stock%20de%20Helados/venv/Lib/site-packages/openpyxl/xml/__init__.py" type="text/plain"><tt>openpyxl.xml</tt></a>
 <span class="moduletype">Package</span>  <div class="import">
 imports:
-    <a href="#defusedxml">defusedxml</a>
- &#8226;   <a href="#lxml">lxml</a>
+    <a href="#'lxml.etree'">'lxml.etree'</a>
+ &#8226;   <a href="#defusedxml">defusedxml</a>
  &#8226;   <a href="#openpyxl">openpyxl</a>
  &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#warnings">warnings</a>
