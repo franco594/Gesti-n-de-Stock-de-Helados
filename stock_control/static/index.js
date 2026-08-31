@@ -94,20 +94,42 @@ function setDisabled(el, disabled) {
   el.disabled = !!disabled;
 }
 
-async function getJSON(url) {
-  const res = await fetch(url);
-  try { return await res.json(); } 
-  catch { return { error: true, status: res.status }; }
+// UX-12: timeout via AbortController; _status añadido en respuestas no-2xx
+async function getJSON(url, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    const data = await res.json();
+    if (!res.ok) return { ...data, _status: res.status };
+    return data;
+  } catch (e) {
+    if (e.name === "AbortError") return { error: "Tiempo de espera agotado. El servidor no respondió.", _status: 408 };
+    return { error: e.message, _status: 0 };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
-async function postJSON(url, bodyObj) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(bodyObj ?? {}),
-  });
-  try { return await res.json(); } 
-  catch { return { error: true, status: res.status }; }
+async function postJSON(url, bodyObj, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(bodyObj ?? {}),
+      signal: controller.signal,
+    });
+    const data = await res.json();
+    if (!res.ok) return { ...data, _status: res.status };
+    return data;
+  } catch (e) {
+    if (e.name === "AbortError") return { error: "Tiempo de espera agotado. El servidor no respondió.", _status: 408 };
+    return { error: e.message, _status: 0 };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /********************************
@@ -413,6 +435,9 @@ function desactivarInputEscaneo() {
   codigoScanner.blur();
 }
 
+// UX-3: lock evita doble-procesamiento si el lector dispara el mismo código dos veces rápido
+let scanLocked = false;
+
 if (codigoScanner) {
   codigoScanner.addEventListener("keydown", async (event) => {
     if (!modalAbierta && !modoDevolucion) {
@@ -421,15 +446,21 @@ if (codigoScanner) {
     }
     if (event.key === "Enter") {
       event.preventDefault();
+      if (scanLocked) return;                          // guard: evita re-entrada durante el await
       const codigo = codigoScanner.value.trim();
+      codigoScanner.value = "";                        // limpiar ANTES del await (UX-3)
       if (codigo.length === 13 && !isNaN(Number(codigo))) {
         console.log("📡 Código escaneado:", codigo);
-        if (modoDevolucion) {
-          await procesarCodigoDevolucion(codigo);
-        } else {
-          await procesarCodigoEscaneado(codigo);
+        scanLocked = true;
+        try {
+          if (modoDevolucion) {
+            await procesarCodigoDevolucion(codigo);
+          } else {
+            await procesarCodigoEscaneado(codigo);
+          }
+        } finally {
+          scanLocked = false;
         }
-        codigoScanner.value = "";
       } else {
         console.warn("⚠️ Código inválido:", codigo);
         Toast.warning("Código de barras inválido");
@@ -600,7 +631,7 @@ function actualizarListaEscaneados(modalTipo, lista) {
 
   for (const producto of lista) {
     const li = document.createElement("li");
-    li.textContent = `Balde: ${producto.nombre}, Peso: ${producto.peso}g, Código: ${producto.codigo_barras}`;
+    li.textContent = `🧊 ${producto.nombre} · ${producto.peso} kg · ${producto.codigo_barras}`;  // UX-1: unidad kg
 
     const btn = document.createElement("button");
     btn.classList.add("btnEliminar");
@@ -686,43 +717,7 @@ async function actualizarTotales() {
   await actualizarTablaStock();
 }
 
-async function actualizarTablas() {
-  console.log("🔄 Actualizando tabla general de stock...");
-  const tablaStock = ensureEl(SELECTORS.stockTable);
-  if (!tablaStock) return;
-  try {
-    const data = await getJSON(API.obtenerStock);
-    if (!Array.isArray(data?.stock)) {
-      console.error("❌ Respuesta sin 'stock' válido.");
-      return;
-    }
-    const encabezado = `
-      <thead>
-        <tr>
-          <th>Producto</th>
-          <th>Cantidad de Baldes</th>
-        </tr>
-      </thead>`;
-
-    let body = "<tbody>";
-    if (data.stock.length === 0) {
-      body += `
-        <tr>
-          <td colspan="2" style="text-align:center; font-style:italic; color:gray;">No hay productos en stock.</td>
-        </tr>`;
-    } else {
-      for (const item of data.stock) {
-        const rowClass = item.cantidad < item.stock_minimo ? "resaltar-bajo-stock" : "";
-        body += `<tr class="${rowClass}"><td>${item.nombre}</td><td>${item.cantidad}</td></tr>`;
-      }
-    }
-    body += "</tbody>";
-    tablaStock.innerHTML = encabezado + body;
-    console.log("✅ Tabla de stock actualizada.");
-  } catch (e) {
-    console.error("❌ Error al actualizar la tabla de stock:", e);
-  }
-}
+// UX-19: actualizarTablas() era un duplicado de actualizarTablaStock() — eliminada.
 
 // Actualizar actualizarTablasGrupos() con skeletons
 async function actualizarTablasGrupos() {
@@ -839,25 +834,31 @@ async function procesarCodigoEscaneado(codigo) {
 }
 
 async function confirmarAgregarProductos() {
-  console.log("📢 Intentando confirmar productos. Lista actual:", productosEscaneados);
-  if (!productosEscaneados || productosEscaneados.length === 0) {
-    Toast.warning("No hay productos escaneados para agregar");
-    return;
-  }
-  const boca = byId("input-boca-ingresar")?.value?.trim();
-  if (!boca) {
-    Toast.warning("Por favor, seleccioná un origen");
-    return;
-  }
-  const payload = {
-    origen: boca,
-    productos: productosEscaneados.map(p => ({
-      plu: p.plu,
-      peso: p.peso,
-      codigo_barras: p.codigo_barras
-    }))
-  };
+  // UX-2: evitar doble-submit
+  const btn = byId("btn-confirmar-ingresar");
+  if (btn?.disabled) return;
+  if (btn) btn.disabled = true;
+
   try {
+    console.log("📢 Intentando confirmar productos. Lista actual:", productosEscaneados);
+    if (!productosEscaneados || productosEscaneados.length === 0) {
+      Toast.warning("No hay productos escaneados para agregar");
+      return;
+    }
+    const boca = byId("input-boca-ingresar")?.value?.trim();
+    if (!boca) {
+      Toast.warning("Por favor, seleccioná un origen");
+      return;
+    }
+    const payload = {
+      origen: boca,
+      productos: productosEscaneados.map(p => ({
+        plu: p.plu,
+        peso: p.peso,
+        codigo_barras: p.codigo_barras
+      }))
+    };
+
     const res = await fetch(API.confirmarIngreso, {
       method: "POST",
       headers: {"Content-Type":"application/json"},
@@ -868,7 +869,7 @@ async function confirmarAgregarProductos() {
       const data409 = await res.json();
 
       if (data409?.se_puede_forzar) {
-        const fecha = data409.fecha_ingreso 
+        const fecha = data409.fecha_ingreso
           ? new Date(data409.fecha_ingreso).toLocaleString("es-AR")
           : "-";
 
@@ -906,61 +907,91 @@ async function confirmarAgregarProductos() {
   } catch (e) {
     console.error("⚠️ Error al agregar productos:", e);
     Toast.error("No se pudo agregar los productos");
+  } finally {
+    if (btn) btn.disabled = false;   // siempre restaurar
   }
 }
 
 async function confirmarAgregarProductosConForzar() {
-  const boca = byId("input-boca-ingresar")?.value?.trim();
-  const payload = {
-    origen: boca,
-    force: true,
-    productos: productosEscaneados.map(p => ({
-      plu: p.plu,
-      peso: p.peso,
-      codigo_barras: p.codigo_barras
-    }))
-  };
+  // UX-2 + UX-4: deshabilitar botón y verificar res.ok
+  const btn = byId("btnForzarDuplicado");
+  if (btn?.disabled) return;
+  if (btn) btn.disabled = true;
 
-  const res = await fetch(API.confirmarIngreso, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify(payload)
-  });
+  try {
+    const boca = byId("input-boca-ingresar")?.value?.trim();
+    const payload = {
+      origen: boca,
+      force: true,
+      productos: productosEscaneados.map(p => ({
+        plu: p.plu,
+        peso: p.peso,
+        codigo_barras: p.codigo_barras
+      }))
+    };
 
-  const data = await res.json();
-  Toast.success(data.message ?? "Productos agregados");
-  cerrarModal("ingresar");
-  productosEscaneados = [];
-  actualizarTablaStock(); // actualiza tabla + totales juntos
-  //actualizarTablasGrupos();
-  location.reload();
+    const res = await fetch(API.confirmarIngreso, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) {                    // UX-4: ya no muestra éxito en caso de error
+      Toast.error(data.error ?? data.message ?? "Error al confirmar el ingreso");
+      return;
+    }
+
+    Toast.success(data.message ?? "Productos agregados");
+    cerrarModal("ingresar");
+    productosEscaneados = [];
+    actualizarTablaStock(); // actualiza tabla + totales juntos
+    //actualizarTablasGrupos();
+    location.reload();
+  } catch (e) {
+    console.error("⚠️ Error al forzar ingreso:", e);
+    Toast.error("Error al confirmar el ingreso forzado");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function confirmarRetirarProductos() {
-  const ok = await validarStockParaRetiro();
-  const faltantes = Array.from(faltantesSet).join("\n");
-  if (!ok) {
-    Toast.error(`No hay stock para: ${faltantes}`);
-    return;
-  }
-  if (!productosEscaneados?.length) {
-    Toast.warning("No hay productos escaneados para retirar");
-    return;
-  }
-  const boca = byId("input-boca-retirar")?.value?.trim();
-  if (!boca) {
-    Toast.warning("Por favor, seleccioná una boca de salida");
-    return;
-  }
-  const payload = {
-    destino: boca,
-    productos: productosEscaneados.map(p => ({
-      plu: p.plu,
-      codigo_barras: p.codigo_barras
-    }))
-  };
+  // UX-2: evitar doble-submit
+  const btn = byId("btn-confirmar-retirar");
+  if (btn?.disabled) return;
+  if (btn) btn.disabled = true;
+
   try {
+    const ok = await validarStockParaRetiro();
+    const faltantes = Array.from(faltantesSet).join("\n");
+    if (!ok) {
+      Toast.error(`No hay stock para: ${faltantes}`);
+      return;
+    }
+    if (!productosEscaneados?.length) {
+      Toast.warning("No hay productos escaneados para retirar");
+      return;
+    }
+    const boca = byId("input-boca-retirar")?.value?.trim();
+    if (!boca) {
+      Toast.warning("Por favor, seleccioná una boca de salida");
+      return;
+    }
+    const payload = {
+      destino: boca,
+      productos: productosEscaneados.map(p => ({
+        plu: p.plu,
+        codigo_barras: p.codigo_barras
+      }))
+    };
     const data = await postJSON(API.confirmarRetiro, payload);
+    // UX-6: 409 = retiro concurrente — mensaje accionable
+    if (data?._status === 409) {
+      Toast.warning("⚠️ Un balde fue retirado por otro operario. Actualizá la lista antes de reintentar.");
+      actualizarTablaStock();
+      return;
+    }
     if (data?.error) {
       console.error("❌ Error al retirar productos:", data.error);
       Toast.error(data.error ?? "No se pudo retirar el producto");
@@ -977,6 +1008,8 @@ async function confirmarRetirarProductos() {
   } catch (e) {
     console.error("❌ Error al retirar productos:", e);
     Toast.error("Error al retirar productos");
+  } finally {
+    if (btn) btn.disabled = false;  // siempre restaurar
   }
 }
 
@@ -1146,7 +1179,8 @@ async function abrirModalCrearProducto() {
 }
 
 async function eliminarProducto(plu) {
-  if (!confirm("¿Eliminar el producto permanentemente?")) return;
+  // UX-5: ConfirmDialog en lugar de confirm() nativo
+  if (!await ConfirmDialog.danger("¿Eliminar el producto permanentemente? Esta acción no se puede deshacer.", "Eliminar producto")) return;
 
   try {
     const data = await postJSON("/api/eliminar_producto/", { plu });
@@ -1190,12 +1224,12 @@ async function editarProducto(plu, nombreActual, minimoActual) {
 }
 
 async function togglePluActivo(plu, activoActual) {
+  // UX-5: ConfirmDialog en lugar de confirm() nativo
   const accion = activoActual ? "desactivar" : "activar";
-  if (!confirm(`¿${accion.charAt(0).toUpperCase() + accion.slice(1)} el PLU ${plu}?\n\n` +
-    (activoActual
-      ? "El sabor dejará de aparecer en la impresión de stock."
-      : "El sabor volverá a aparecer en la impresión de stock (aunque tenga 0 baldes).")))
-    return;
+  const mensaje = activoActual
+    ? `¿Desactivar el PLU ${plu}? El sabor dejará de aparecer en la impresión de stock.`
+    : `¿Activar el PLU ${plu}? El sabor volverá a aparecer en la impresión de stock (aunque tenga 0 baldes).`;
+  if (!await ConfirmDialog.warning(mensaje, `${accion.charAt(0).toUpperCase() + accion.slice(1)} PLU`)) return;
 
   try {
     const data = await postJSON("/api/toggle_plu_activo/", { plu });
@@ -1421,47 +1455,93 @@ async function checkForUpdate() {
   }
 }
 
+// BUG-3 fix: usa CSS tokens (var(--color-*)) en lugar de colores hardcodeados
 function _mostrarToastActualizacion(version, downloadUrl, notes) {
   if (document.getElementById("update-toast")) return;
   const toast = document.createElement("div");
   toast.id = "update-toast";
-  toast.style.cssText = [
-    "position:fixed", "bottom:24px", "left:50%", "transform:translateX(-50%)",
-    "background:#1a73e8", "color:#fff", "padding:14px 18px", "border-radius:12px",
-    "z-index:10000", "box-shadow:0 4px 20px rgba(0,0,0,.35)",
-    "display:flex", "align-items:center", "gap:12px", "font-size:.9rem",
-    "max-width:90vw",
+  Object.assign(toast.style, {
+    position:      "fixed",
+    bottom:        "24px",
+    left:          "50%",
+    transform:     "translateX(-50%)",
+    background:    "var(--color-primary)",
+    color:         "#fff",
+    padding:       "14px 20px",
+    borderRadius:  "var(--radius-md)",
+    zIndex:        "10000",
+    boxShadow:     "var(--shadow-lg)",
+    display:       "flex",
+    alignItems:    "center",
+    gap:           "14px",
+    fontSize:      ".9rem",
+    fontFamily:    "inherit",
+    maxWidth:      "90vw",
+    whiteSpace:    "nowrap",
+  });
+
+  const btnStyle = [
+    "background:#fff",
+    "color:var(--color-primary)",
+    "border:none",
+    "border-radius:var(--radius-sm)",
+    "padding:6px 14px",
+    "cursor:pointer",
+    "font-weight:700",
+    "font-family:inherit",
+    "font-size:.85rem",
   ].join(";");
+
+  const notesHtml = notes
+    ? `<span style="font-size:.8rem;opacity:.8;max-width:260px;white-space:normal;"> — ${notes.split("\n")[0]}</span>`
+    : "";
+
   toast.innerHTML = `
-    <span>🆕 Nueva versión <strong>v${version}</strong> disponible</span>
-    <button id="btn-aplicar-update" style="background:#fff;color:#1a73e8;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;font-weight:600;">Actualizar</button>
-    <button onclick="document.getElementById('update-toast').remove()" style="background:transparent;color:#fff;border:none;cursor:pointer;font-size:1.3rem;line-height:1;">×</button>
+    <span>🆕 Nueva versión <strong>v${version}</strong> disponible${notesHtml}</span>
+    <button id="btn-aplicar-update" style="${btnStyle}">Actualizar</button>
+    <button id="btn-cerrar-update" style="background:transparent;color:#fff;border:none;cursor:pointer;font-size:1.4rem;line-height:1;padding:0 4px;font-family:inherit;">×</button>
   `;
   document.body.appendChild(toast);
   document.getElementById("btn-aplicar-update").addEventListener("click", () =>
     _aplicarActualizacion(downloadUrl)
   );
+  document.getElementById("btn-cerrar-update").addEventListener("click", () =>
+    document.getElementById("update-toast")?.remove()
+  );
 }
 
+// BUG-2 fix: AbortController con timeout de 5 minutos (descarga de exe pesado)
 async function _aplicarActualizacion(downloadUrl) {
   const btn = document.getElementById("btn-aplicar-update");
   if (btn) { btn.disabled = true; btn.textContent = "Descargando…"; }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 300_000); // 5 min
+
   try {
     const res = await fetch("/api/apply-update/", {
-      method: "POST",
+      method:  "POST",
       headers: { "Content-Type": "application/json", "X-CSRFToken": window.CSRF_TOKEN },
-      body: JSON.stringify({ download_url: downloadUrl }),
+      body:    JSON.stringify({ download_url: downloadUrl }),
+      signal:  controller.signal,
     });
     const data = await res.json();
     if (data.success) {
+      document.getElementById("update-toast")?.remove();
       Toast.success("✅ Actualización descargada. La app se cerrará y reabrirá automáticamente en unos segundos.");
     } else {
       Toast.error("❌ Error al actualizar: " + (data.error || "desconocido"));
       if (btn) { btn.disabled = false; btn.textContent = "Reintentar"; }
     }
   } catch (e) {
-    Toast.error("❌ Error al actualizar: " + e.message);
+    if (e.name === "AbortError") {
+      Toast.error("❌ La descarga tardó demasiado. Verificá la conexión e intentá de nuevo.");
+    } else {
+      Toast.error("❌ Error al actualizar: " + e.message);
+    }
     if (btn) { btn.disabled = false; btn.textContent = "Reintentar"; }
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -1530,12 +1610,18 @@ async function procesarCodigoDevolucion(codigo) {
 }
 
 async function confirmarDevolucion() {
-  const productos = await fetch(API.obtenerTemporales).then(r => r.json()).then(d => d.productos || []);
-  if (!productos.length) { Toast.error("No hay baldes en la lista."); return; }
+  // UX-2: evitar doble-submit
+  const btn = byId("btn-confirmar-devolucion");
+  if (btn?.disabled) return;
+  if (btn) btn.disabled = true;
 
-  const origen = byId("input-boca-devolucion")?.value || "";
-  if (!origen) { Toast.error("Seleccioná el local de origen."); return; }
   try {
+    const productos = await fetch(API.obtenerTemporales).then(r => r.json()).then(d => d.productos || []);
+    if (!productos.length) { Toast.error("No hay baldes en la lista."); return; }
+
+    const origen = byId("input-boca-devolucion")?.value || "";
+    if (!origen) { Toast.error("Seleccioná el local de origen."); return; }
+
     const res = await fetch("/api/confirmar_devolucion/", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRFToken": window.CSRF_TOKEN },
@@ -1549,6 +1635,8 @@ async function confirmarDevolucion() {
     location.reload();
   } catch (e) {
     Toast.error("Error al confirmar devolución: " + e.message);
+  } finally {
+    if (btn) btn.disabled = false;  // siempre restaurar
   }
 }
 
@@ -1660,7 +1748,8 @@ async function confirmarCreacionBoca() {
 window.confirmarCreacionBoca = confirmarCreacionBoca;
 
 async function eliminarBocaDesdeModal(nombre) {
-  if (!confirm(`¿Eliminar "${nombre}"?`)) return;
+  // UX-5: ConfirmDialog en lugar de confirm() nativo
+  if (!await ConfirmDialog.danger(`¿Eliminar "${nombre}"? Esta acción no se puede deshacer.`, "Eliminar")) return;
   const endpoint = tipoActualCrear === "retirar" ? API.eliminarBoca : API.eliminarOrigen;
   try {
     const data = await postJSON(endpoint, { nombre });

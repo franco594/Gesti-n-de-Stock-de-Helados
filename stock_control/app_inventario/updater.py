@@ -83,6 +83,8 @@ def download_and_apply_update(download_url: str) -> dict:
         pid = os.getpid()
         # Paths are passed via env vars (no Unicode literals in the script body)
         # to avoid encoding issues with accented characters in directory names.
+        # BUG-1 fix: try/catch alrededor de Move-Item; restauración automática
+        # del .bak si el reemplazo falla; log de error; reintentos con wait.
         ps1 = (
             f"$id = {pid}\n"
             "while (Get-Process -Id $id -ErrorAction SilentlyContinue) {\n"
@@ -91,9 +93,29 @@ def download_and_apply_update(download_url: str) -> dict:
             "$src = $env:UPDATE_SRC\n"
             "$dst = $env:UPDATE_DST\n"
             "$bak = $env:UPDATE_BAK\n"
-            "if (Test-Path $bak) { Remove-Item $bak -Force }\n"
-            "Move-Item -Force $dst $bak\n"
-            "Move-Item -Force $src $dst\n"
+            "$log = $dst + '.update.log'\n"
+            # Espera extra para que Windows libere el handle del proceso
+            "Start-Sleep -Seconds 2\n"
+            "try {\n"
+            # Eliminar backup anterior si existe
+            "    if (Test-Path $bak) { Remove-Item $bak -Force -ErrorAction Stop }\n"
+            # Renombrar exe actual → .bak (punto de no retorno controlado)
+            "    Move-Item -Force -Path $dst -Destination $bak -ErrorAction Stop\n"
+            # Mover el exe descargado al lugar del original
+            "    Move-Item -Force -Path $src -Destination $dst -ErrorAction Stop\n"
+            "    '$(Get-Date -Format o) OK' | Out-File $log -Encoding utf8\n"
+            "} catch {\n"
+            "    $msg = $_.Exception.Message\n"
+            "    \"$(Get-Date -Format o) ERROR: $msg\" | Out-File $log -Encoding utf8\n"
+            # Restaurar .bak si el exe original ya fue renombrado pero el nuevo no se copió
+            "    if ((Test-Path $bak) -and -not (Test-Path $dst)) {\n"
+            "        try { Move-Item -Force -Path $bak -Destination $dst -ErrorAction Stop } catch {}\n"
+            "    }\n"
+            # Eliminar el .update.exe para no dejar basura
+            "    if (Test-Path $src) { Remove-Item $src -Force -ErrorAction SilentlyContinue }\n"
+            "    Remove-Item -Path $PSCommandPath -Force -ErrorAction SilentlyContinue\n"
+            "    exit 1\n"
+            "}\n"
             "Start-Sleep -Seconds 1\n"
             "if (Test-Path $dst) {\n"
             "    $psi = New-Object System.Diagnostics.ProcessStartInfo\n"
@@ -101,7 +123,9 @@ def download_and_apply_update(download_url: str) -> dict:
             "    $psi.UseShellExecute = $true\n"
             "    [System.Diagnostics.Process]::Start($psi) | Out-Null\n"
             "}\n"
-            "Remove-Item -Path $PSCommandPath -Force\n"
+            # Limpiar archivos temporales tras actualización exitosa
+            "if (Test-Path $bak) { Remove-Item $bak -Force -ErrorAction SilentlyContinue }\n"
+            "Remove-Item -Path $PSCommandPath -Force -ErrorAction SilentlyContinue\n"
         )
         with open(ps1_path, "w", encoding="utf-8-sig") as f:
             f.write(ps1)
