@@ -235,14 +235,16 @@ def print_grupo_movimiento(grupo_id: int, copias: int = 1):
 # ==========================
 
 def print_stock_total():
+    # Incluye todos los PLUs activos, incluso los que tienen 0 baldes en cámara.
+    # PLUs inactivos (sabores discontinuados) no aparecen.
     base = (
         ProductoFijo.objects
+        .filter(is_activo=True)
         .annotate(
             cant=Count("stockbalde", filter=Q(stockbalde__is_activo=True)),
             kg=Sum("stockbalde__peso", filter=Q(stockbalde__is_activo=True)),
             plu_int=Cast("plu", IntegerField()),
         )
-        .filter(cant__gt=0)
     )
 
     helados       = base.filter(plu_int__gte=1,   plu_int__lte=88).order_by("nombre")
@@ -269,6 +271,10 @@ def print_stock_total():
 
     def imprimir_seccion(titulo, qs):
         nonlocal total_baldes, total_kilos
+        prods = list(qs)
+        if not prods:
+            return 0, 0.0
+
         p.set(align="center", font="b", bold=True)
         p.textln(titulo)
         p.set(align="left", font="a", bold=False)
@@ -276,7 +282,7 @@ def print_stock_total():
 
         sec_baldes = 0
         sec_kilos  = 0.0
-        for prod in qs:
+        for prod in prods:
             cant = int(prod.cant or 0)
             kg   = float(prod.kg or 0)
             sec_baldes   += cant

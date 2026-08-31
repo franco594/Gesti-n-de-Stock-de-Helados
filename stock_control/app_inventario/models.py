@@ -5,7 +5,10 @@ class ProductoFijo(models.Model):
     plu = models.CharField(max_length=3, primary_key=True)
     nombre = models.CharField(max_length=255, db_index=True)
     stock_minimo = models.IntegerField(default=5)
-    
+    # True = PLU en uso (aparece en impresión de stock aunque tenga 0 baldes)
+    # False = PLU inactivo (sabor discontinuado, no aparece en reportes de impresión)
+    is_activo = models.BooleanField(default=True, db_index=True, verbose_name='Activo')
+
     class Meta:
         db_table = 'app_inventario_productofijo'
         ordering = ['nombre']

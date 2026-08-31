@@ -1,7 +1,9 @@
 from django.urls import path
 from app_inventario.views import (
     # Home / stock
-    api_actualizar_producto, api_crear_producto, api_dashboard_metricas, api_eliminar_producto, api_listar_productos, dashboard, exportar_productos_excel, imprimir_stock_total, index, cargar_productos_excel, importar_productos,
+    api_actualizar_producto, api_crear_producto, api_dashboard_metricas, api_eliminar_producto,
+    api_listar_productos, api_toggle_plu_activo,
+    dashboard, exportar_productos_excel, imprimir_stock_total, index, cargar_productos_excel, importar_productos,
     obtener_stock, api_stock_detallado, stock_detallado,
     actualizar_stock_minimo,
 
@@ -53,6 +55,7 @@ urlpatterns = [
     path("api/crear_producto/", api_crear_producto, name="api_crear_producto"),
     path("api/actualizar_producto/", api_actualizar_producto, name="api_actualizar_producto"),  # 👈 NUEVA
     path("api/eliminar_producto/", api_eliminar_producto, name="api_eliminar_producto"),
+    path("api/toggle_plu_activo/", api_toggle_plu_activo, name="api_toggle_plu_activo"),
     path('api/obtener_stock/', obtener_stock, name='obtener_stock'),
     path('api/stock_detallado/', api_stock_detallado, name="api_stock_detallado"),
     path('stock/detallado/', stock_detallado, name="stock_detallado"),

@@ -115,10 +115,10 @@ def api_listar_productos(request):
 
     data = [
         {
-            # si querés un identificador genérico, podés usar "pk"
-            "plu": p.plu,
-            "nombre": p.nombre,
+            "plu":          p.plu,
+            "nombre":       p.nombre,
             "stock_minimo": p.stock_minimo,
+            "is_activo":    p.is_activo,
         }
         for p in productos
     ]
@@ -234,6 +234,36 @@ def api_actualizar_producto(request):
         {"success": True, "message": "Producto actualizado correctamente"},
         status=200
     )
+
+@csrf_exempt
+def api_toggle_plu_activo(request):
+    """POST {"plu": "001"} — activa/desactiva un PLU.
+    PLUs inactivos no aparecen en la impresión de stock."""
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+
+    plu = (data.get("plu") or "").strip()
+    if not plu:
+        return JsonResponse({"error": "Falta 'plu'"}, status=400)
+
+    try:
+        p = ProductoFijo.objects.get(plu=plu)
+    except ProductoFijo.DoesNotExist:
+        return JsonResponse({"error": f"PLU {plu} no encontrado"}, status=404)
+
+    p.is_activo = not p.is_activo
+    p.save(update_fields=["is_activo"])
+    estado = "activado" if p.is_activo else "desactivado"
+    return JsonResponse({
+        "success": True,
+        "is_activo": p.is_activo,
+        "plu": plu,
+        "message": f"PLU {plu} ({p.nombre}) {estado} correctamente.",
+    })
 
 # ---  FIN API CRUD PRODUCTOS
 

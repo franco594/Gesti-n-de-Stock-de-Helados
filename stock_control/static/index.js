@@ -1097,10 +1097,19 @@ async function abrirAdminProductos() {
 
     (data.productos || []).forEach(p => {
       const tr = document.createElement("tr");
+      const activo = p.is_activo !== false; // true por defecto si el campo no viene
+      tr.style.opacity = activo ? "1" : "0.5";
       tr.innerHTML = `
         <td>${p.plu}</td>
         <td>${p.nombre}</td>
         <td>${p.stock_minimo}</td>
+        <td style="text-align:center;">
+          <button onclick="togglePluActivo('${p.plu}', ${activo})"
+                  title="${activo ? 'Desactivar PLU (ocultar del stock impreso)' : 'Activar PLU (mostrar en stock impreso)'}"
+                  style="font-size:1.2rem;background:none;border:none;cursor:pointer;padding:2px 6px;">
+            ${activo ? '✅' : '⛔'}
+          </button>
+        </td>
         <td>
           <button onclick="editarProducto('${p.plu}', '${p.nombre.replace(/'/g, "\\'")}', '${p.stock_minimo}')" class="btn-edit">✏️</button>
           <button onclick="eliminarProducto('${p.plu}')" class="btn-delete">🗑️</button>
@@ -1177,6 +1186,27 @@ async function editarProducto(plu, nombreActual, minimoActual) {
     }
   } catch (e) {
     Toast.error("Error al actualizar producto");
+  }
+}
+
+async function togglePluActivo(plu, activoActual) {
+  const accion = activoActual ? "desactivar" : "activar";
+  if (!confirm(`¿${accion.charAt(0).toUpperCase() + accion.slice(1)} el PLU ${plu}?\n\n` +
+    (activoActual
+      ? "El sabor dejará de aparecer en la impresión de stock."
+      : "El sabor volverá a aparecer en la impresión de stock (aunque tenga 0 baldes).")))
+    return;
+
+  try {
+    const data = await postJSON("/api/toggle_plu_activo/", { plu });
+    if (data.success) {
+      Toast.success(data.message || `PLU ${plu} ${data.is_activo ? "activado" : "desactivado"}`);
+      abrirAdminProductos();
+    } else {
+      Toast.error(data.error || "Error al cambiar estado del PLU");
+    }
+  } catch (e) {
+    Toast.error("Error de conexión");
   }
 }
 
@@ -1540,6 +1570,7 @@ Object.assign(window, {
   abrirModalCrearProducto,
   eliminarProducto,
   editarProducto,
+  togglePluActivo,
   cerrarModalAdminProductos,
   // Devolución
   abrirModalDevolucion,
