@@ -636,16 +636,19 @@ def _parse_dt_local(s: str | None, is_end: bool = False):
     if not s:
         return None
     s = s.strip()
-    # Primero intentamos datetime local
-    dt = parse_datetime(s)
-    if dt:
-        return dt
-    # Luego solo fecha
+    # Fix Bug #3: parse_datetime("2024-01-15") retorna datetime a medianoche aunque
+    # no haya componente de hora, por lo que el bloque is_end nunca se alcanzaba.
+    # Solución: solo usar parse_datetime si el string contiene hora (T o :).
+    if "T" in s or ":" in s:
+        dt = parse_datetime(s)
+        if dt:
+            return dt
+    # Para fechas sin hora, aplicar inicio/fin del día según is_end.
     d = parse_date(s)
     if d:
         if is_end:
-            return datetime.combine(d, datetime.time(23, 59, 59, 999999))
-        return datetime.combine(d, datetime.time(0, 0, 0))
+            return datetime.combine(d, time(23, 59, 59, 999999))
+        return datetime.combine(d, time(0, 0, 0))
     return None
 
 
@@ -1242,11 +1245,18 @@ def api_editar_item_movimiento(request):
                     balde.peso = nuevo_peso
                     balde.save(update_fields=["producto", "peso"])
             elif registro.codigo_barras:
-                # Fallback histórico: actualizar el balde activo con ese barcode
-                StockBalde.objects.filter(
-                    codigo_barras=registro.codigo_barras,
-                    is_activo=True,
-                ).update(producto=producto, peso=nuevo_peso)
+                # Fix Bug #8: actualizar SOLO el balde más antiguo activo (FIFO),
+                # no todos los que compartan el mismo barcode.
+                balde_fallback = (
+                    StockBalde.objects
+                    .filter(codigo_barras=registro.codigo_barras, is_activo=True)
+                    .order_by("timestamp", "id")
+                    .first()
+                )
+                if balde_fallback:
+                    balde_fallback.producto = producto
+                    balde_fallback.peso = nuevo_peso
+                    balde_fallback.save(update_fields=["producto", "peso"])
         # Para salidas: el balde ya está INACTIVO (retirado). No tocar StockBalde,
         # solo corregir el RegistroMovimiento para trazabilidad del movimiento.
 
@@ -1474,10 +1484,51 @@ def confirmar_codigos(request):
 
     ingresados = []
 
+    # ── Fix Bug #1: separar validación de escritura ────────────────────────────
+    # Fase 1 (pre-validación, fuera de transacción): si algún producto es inválido
+    # se rechaza todo ANTES de tocar la BD → no quedan baldes huérfanos.
+    validados = []
+    for p in productos:
+        plu = (p or {}).get("plu")
+        peso = (p or {}).get("peso")
+        codigo_barras = (p or {}).get("codigo_barras") or (p or {}).get("codigo")
+
+        if not plu:
+            return JsonResponse({"error": "Producto sin PLU"}, status=400)
+        if peso in (None, "", 0):
+            return JsonResponse({"error": f"Producto {plu} sin peso"}, status=400)
+
+        codigo_str = str(codigo_barras or "")
+        if len(codigo_str) != 13 or not codigo_str.isdigit():
+            return JsonResponse(
+                {"error": "Cada balde debe incluir 'codigo_barras' de 13 dígitos"},
+                status=400,
+            )
+
+        try:
+            producto_obj = ProductoFijo.objects.get(plu=plu)
+        except ProductoFijo.DoesNotExist:
+            return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
+
+        validados.append({
+            "producto": producto_obj,
+            "peso": float(peso),
+            "codigo": codigo_str,
+        })
+
+    # Excepción local para salir limpiamente del bloque atómico al detectar duplicado.
+    # `raise` dentro de `with transaction.atomic()` garantiza el rollback antes de que
+    # el except exterior devuelva la respuesta 409.
+    class _DuplicadoDetectado(Exception):
+        def __init__(self, data, status_code=409):
+            self.data = data
+            self.status_code = status_code
+
+    # Fase 2 (transacción): solo escrituras + chequeo de duplicados con lock
     try:
         with transaction.atomic():
             # ✅ Serializar la generación del grupo_id para evitar carreras
-            # Bloquea la fila más “alta” de grupo_id momentáneamente.
+            # Bloquea la fila más "alta" de grupo_id momentáneamente.
             ultimo = (
                 RegistroMovimiento.objects
                 .select_for_update()
@@ -1488,29 +1539,10 @@ def confirmar_codigos(request):
             ultimo_grupo = ultimo or 0
             nuevo_grupo_id = ultimo_grupo + 1
 
-            for p in productos:
-                plu = (p or {}).get("plu")
-                peso = (p or {}).get("peso")
-                codigo_barras = (p or {}).get("codigo_barras") or (p or {}).get("codigo")
-
-                # Validaciones
-                if not plu:
-                    return JsonResponse({"error": "Producto sin PLU"}, status=400)
-                if peso in (None, "", 0):
-                    return JsonResponse({"error": f"Producto {plu} sin peso"}, status=400)
-
-                codigo_str = str(codigo_barras or "")
-                if len(codigo_str) != 13 or not codigo_str.isdigit():
-                    return JsonResponse(
-                        {"error": "Cada balde debe incluir 'codigo_barras' de 13 dígitos"},
-                        status=400
-                    )
-
-                # Producto
-                try:
-                    producto_obj = ProductoFijo.objects.get(plu=plu)
-                except ProductoFijo.DoesNotExist:
-                    return JsonResponse({"error": f"Producto con PLU {plu} no encontrado"}, status=404)
+            for item in validados:
+                producto_obj = item["producto"]
+                peso_f = item["peso"]
+                codigo_str = item["codigo"]
 
                 # ✅ Anti-carrera: bloqueamos cualquier balde existente con ese código
                 # Si otro request está tratando el mismo código, uno va a esperar al otro.
@@ -1526,7 +1558,8 @@ def confirmar_codigos(request):
                         .values("producto__nombre", "peso", "fecha_retiro", "timestamp")
                         .first()
                     )
-                    return JsonResponse(
+                    # raise → rollback automático del atomic block
+                    raise _DuplicadoDetectado(
                         {
                             "status": "duplicado_detectado",
                             "codigo_barras": codigo_str,
@@ -1537,15 +1570,15 @@ def confirmar_codigos(request):
                                 if ultimo_dup and ultimo_dup.get("timestamp") else None,
                             "mensaje": f"⚠️ Este balde con código <b>{codigo_str}</b> "
                                        f"ya se encuentra <b>ACTIVO</b> en el stock.<br><br>",
-                            "se_puede_forzar": True
+                            "se_puede_forzar": True,
                         },
-                        status=409
+                        status_code=409,
                     )
 
                 # ✅ Crear balde activo
                 balde = StockBalde.objects.create(
                     producto=producto_obj,
-                    peso=float(peso),
+                    peso=peso_f,
                     codigo_barras=codigo_str,
                     is_activo=True,
                     fecha_retiro=None,
@@ -1555,7 +1588,7 @@ def confirmar_codigos(request):
                 RegistroMovimiento.objects.create(
                     grupo_id=nuevo_grupo_id,
                     producto=producto_obj,
-                    peso=float(peso),
+                    peso=peso_f,
                     tipo="ingreso",
                     origen=origen,
                     boca_salida=origen,  # compatibilidad con layouts existentes
@@ -1581,6 +1614,8 @@ def confirmar_codigos(request):
                 request.session["processed_txn_ids"] = processed[-50:]
                 request.session.modified = True
 
+    except _DuplicadoDetectado as exc:
+        return JsonResponse(exc.data, status=exc.status_code)
     except Exception as e:
         return JsonResponse({"error": f"Error al confirmar ingreso: {e}"}, status=500)
 
