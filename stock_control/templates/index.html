@@ -8,9 +8,7 @@
     {% compress css %}
     <link rel="stylesheet" href="{% static 'style.css' %}">
     {% endcompress %}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'fonts.css' %}">
     <script>
         // Helper CSRF disponible globalmente
         function getCookie(name) {
@@ -382,7 +380,7 @@
     </div>
 
     {% compress js %}
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
+    <script src="{% static 'socket.io.min.js' %}"></script>
     {% endcompress %}
     {% compress js %}
     <script src="{% static 'cache_system.js' %}"></script>
