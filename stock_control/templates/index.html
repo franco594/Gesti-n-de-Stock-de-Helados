@@ -582,18 +582,64 @@
             <div id="chipsExistentes" class="bocas-container"></div>
         </div>
     </div>
-    <!-- Modal Devolución -->
+    <!-- Modal Devolución (wizard 3 pasos) -->
     <div id="modal-devolucion" class="modal" style="display:none;">
         <div class="modal-content" id="modal-content-devolucion">
-            <h2>Productos Escaneados: <span id="contadorDevolucion" style="background:#f59e0b;color:white;padding:8px 16px;border-radius:20px;font-weight:bold;font-size:0.8em;">0</span></h2>
-            <ul id="listaEscaneadosDevolucion"></ul>
-            <div class="modal-buttons">
-                <button onclick="confirmarDevolucion()">Devolver</button>
-                <button onclick="cerrarModalDevolucion()">Cancelar</button>
+
+            <!-- Indicador de paso -->
+            <div class="dev-wizard-header">
+                <div class="dev-wizard-steps">
+                    <div class="dev-wizard-step active" id="dev-step-dot-1">
+                        <span class="dev-step-num">1</span>
+                        <span class="dev-step-label">Escanear</span>
+                    </div>
+                    <div class="dev-wizard-line"></div>
+                    <div class="dev-wizard-step" id="dev-step-dot-2">
+                        <span class="dev-step-num">2</span>
+                        <span class="dev-step-label">Origen</span>
+                    </div>
+                    <div class="dev-wizard-line"></div>
+                    <div class="dev-wizard-step" id="dev-step-dot-3">
+                        <span class="dev-step-num">3</span>
+                        <span class="dev-step-label">Destino</span>
+                    </div>
+                </div>
             </div>
-            <div id="contenedor-input-devolucion"></div>
-            <div id="contenedor-boca-devolucion"></div>
-            <div id="contenedor-sin-etiqueta"></div>
+
+            <!-- Paso 1: Escanear baldes -->
+            <div id="dev-step-1" class="dev-step">
+                <h2>Baldes a devolver: <span id="contadorDevolucion" style="background:#f59e0b;color:white;padding:8px 16px;border-radius:20px;font-weight:bold;font-size:0.8em;">0</span></h2>
+                <div id="contenedor-input-devolucion"></div>
+                <ul id="listaEscaneadosDevolucion"></ul>
+                <div id="contenedor-sin-etiqueta"></div>
+                <div class="modal-buttons">
+                    <button id="btn-dev-siguiente" onclick="devWizardSiguiente()">Devolver →</button>
+                    <button onclick="cerrarModalDevolucion()">Cancelar</button>
+                </div>
+            </div>
+
+            <!-- Paso 2: Seleccionar origen -->
+            <div id="dev-step-2" class="dev-step" style="display:none;">
+                <h2>¿De dónde vienen los baldes?</h2>
+                <div id="bocas-container-origen" class="bocas-container"></div>
+                <input type="hidden" id="input-boca-devolucion" value="">
+                <div class="modal-buttons">
+                    <button id="btn-dev-aceptar-origen" onclick="devWizardAceptarOrigen()">Aceptar →</button>
+                    <button onclick="devWizardVolver(1)">← Volver</button>
+                </div>
+            </div>
+
+            <!-- Paso 3: Seleccionar destino -->
+            <div id="dev-step-3" class="dev-step" style="display:none;">
+                <h2>¿A dónde van los baldes?</h2>
+                <div id="bocas-container-destino" class="bocas-container"></div>
+                <input type="hidden" id="input-boca-devolucion-destino" value="">
+                <div class="modal-buttons">
+                    <button id="btn-dev-confirmar" onclick="confirmarDevolucion()">Confirmar</button>
+                    <button onclick="devWizardVolver(2)">← Volver</button>
+                </div>
+            </div>
+
         </div>
     </div>
 

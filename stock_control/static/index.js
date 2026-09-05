@@ -1672,8 +1672,8 @@ let itemsManuales  = [];  // baldes agregados sin escanear (etiqueta perdida): [
 
 async function abrirModalDevolucion() {
   modoDevolucion = true;
-  pesosEditados = {};   // resetear pesos editados al abrir
-  itemsManuales = [];   // resetear items manuales al abrir
+  pesosEditados = {};
+  itemsManuales = [];
   await fetch(API.reiniciarLista, { method: "POST", headers: { "X-CSRFToken": window.CSRF_TOKEN } });
   actualizarListaEscaneados("devolucion", []);
 
@@ -1684,6 +1684,10 @@ async function abrirModalDevolucion() {
 
   await _cargarBocasDevolucion();
   await _inicializarFormManual();
+
+  // Siempre arrancar en paso 1
+  _devWizardIrPaso(1);
+
   byId("modal-devolucion").style.display = "flex";
   activarInputEscaneo();
 }
@@ -1697,55 +1701,99 @@ function cerrarModalDevolucion() {
   byId("modal-devolucion").style.display = "none";
 }
 
+// ── Wizard de devolución ─────────────────────────────────────────────────────
+
+let _devBocas = [];   // lista de bocas cargada una vez al abrir
+
 async function _cargarBocasDevolucion() {
-  const cont = byId("contenedor-boca-devolucion");
-  if (!cont) return;
+  _devBocas = [];
   try {
     const data = await getJSON(API.obtenerBocas);
-    const lista = (data?.lista || []).map(n => String(n).trim());
-    if (!lista.length) {
-      cont.innerHTML = '<p style="color:#888;font-size:.9em;">No hay bocas de salida cargadas.</p>';
-      return;
-    }
-
-    const bocaBtns = (tipo) => lista.map(nombre =>
-      `<button class="boca-btn" data-nombre="${nombre}" onclick="seleccionarBoca('${nombre.replace(/'/g, "\\'")}', '${tipo}')">📍 ${nombre}</button>`
-    ).join("");
-
-    cont.innerHTML = `
-      <div class="dev-boca-section">
-        <label>De dónde viene el balde:</label>
-        <div id="bocas-container-devolucion" class="bocas-container">
-          ${bocaBtns("devolucion")}
-        </div>
-        <input type="hidden" id="input-boca-devolucion" value="">
-      </div>
-
-      <div class="dev-boca-section">
-        <label>¿Redirigir a otro local? <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label>
-        <div id="bocas-container-devolucion-destino" class="bocas-container">
-          <button class="boca-btn deposito-btn destino-seleccionada"
-            data-nombre="" onclick="seleccionarBocaDestino('')">
-            🏭 Queda en depósito
-          </button>
-          ${lista.map(nombre =>
-            `<button class="boca-btn" data-nombre="${nombre}" onclick="seleccionarBocaDestino('${nombre.replace(/'/g, "\\'")}')">📍 ${nombre}</button>`
-          ).join("")}
-        </div>
-        <input type="hidden" id="input-boca-devolucion-destino" value="">
-      </div>
-    `;
+    _devBocas = (data?.lista || []).map(n => String(n).trim());
   } catch (e) {
-    console.error("Error cargando bocas de salida:", e);
+    console.error("Error cargando bocas:", e);
+  }
+
+  // ── Paso 2: origen ──────────────────────────────────────────────────────
+  const contOrigen = byId("bocas-container-origen");
+  if (contOrigen) {
+    if (!_devBocas.length) {
+      contOrigen.innerHTML = '<p style="color:#888;font-size:.9em;">No hay bocas de salida cargadas.</p>';
+    } else {
+      contOrigen.innerHTML = _devBocas.map(nombre =>
+        `<button class="boca-btn" data-nombre="${nombre}"
+          onclick="seleccionarBocaOrigen('${nombre.replace(/'/g, "\\'")}')">📍 ${nombre}</button>`
+      ).join("");
+    }
+  }
+
+  // ── Paso 3: destino (depósito preseleccionado) ──────────────────────────
+  const contDestino = byId("bocas-container-destino");
+  if (contDestino) {
+    contDestino.innerHTML = `
+      <button class="boca-btn deposito-btn destino-seleccionada" data-nombre=""
+        onclick="seleccionarBocaDestino('')">🏭 Queda en depósito</button>
+      ${_devBocas.map(nombre =>
+        `<button class="boca-btn" data-nombre="${nombre}"
+          onclick="seleccionarBocaDestino('${nombre.replace(/'/g, "\\'")}')">📍 ${nombre}</button>`
+      ).join("")}
+    `;
+    // Inicializar hidden con depósito
+    const hidden = byId("input-boca-devolucion-destino");
+    if (hidden) hidden.value = "";
   }
 }
 
+/** Navega a un paso del wizard (1, 2 o 3) y actualiza los indicadores. */
+function _devWizardIrPaso(paso) {
+  [1, 2, 3].forEach(n => {
+    const stepEl  = byId(`dev-step-${n}`);
+    const dotEl   = byId(`dev-step-dot-${n}`);
+    if (stepEl) stepEl.style.display = n === paso ? "" : "none";
+    if (dotEl) {
+      dotEl.classList.toggle("active",    n === paso);
+      dotEl.classList.toggle("completed", n < paso);
+    }
+  });
+  // En paso 1 activar input de escaneo; en otros, desactivarlo
+  if (paso === 1) activarInputEscaneo();
+  else            desactivarInputEscaneo();
+}
+
+/** Paso 1 → 2: valida que haya al menos un balde. */
+function devWizardSiguiente() {
+  const total = (productosEscaneados?.length || 0) + itemsManuales.length;
+  if (!total) { Toast.warning("Escaneá o agregá al menos un balde."); return; }
+  _devWizardIrPaso(2);
+}
+
+/** Paso 2 → 3: valida que se haya elegido origen. */
+function devWizardAceptarOrigen() {
+  const origen = byId("input-boca-devolucion")?.value || "";
+  if (!origen) { Toast.warning("Seleccioná el local de origen."); return; }
+  _devWizardIrPaso(3);
+}
+
+/** Volver al paso anterior. */
+function devWizardVolver(paso) {
+  _devWizardIrPaso(paso);
+}
+
+function seleccionarBocaOrigen(nombre) {
+  const cont = byId("bocas-container-origen");
+  if (!cont) return;
+  cont.querySelectorAll(".boca-btn").forEach(b => b.classList.remove("seleccionada"));
+  cont.querySelector(`.boca-btn[data-nombre="${CSS.escape(nombre)}"]`)?.classList.add("seleccionada");
+  const hidden = byId("input-boca-devolucion");
+  if (hidden) hidden.value = nombre;
+}
+window.seleccionarBocaOrigen = seleccionarBocaOrigen;
+
 function seleccionarBocaDestino(nombre) {
-  const cont = byId("bocas-container-devolucion-destino");
+  const cont = byId("bocas-container-destino");
   if (!cont) return;
   cont.querySelectorAll(".boca-btn").forEach(b => b.classList.remove("destino-seleccionada"));
-  const btn = cont.querySelector(`.boca-btn[data-nombre="${CSS.escape(nombre)}"]`);
-  btn?.classList.add("destino-seleccionada");
+  cont.querySelector(`.boca-btn[data-nombre="${CSS.escape(nombre)}"]`)?.classList.add("destino-seleccionada");
   const hidden = byId("input-boca-devolucion-destino");
   if (hidden) hidden.value = nombre;
 }
@@ -1948,10 +1996,13 @@ Object.assign(window, {
   editarProducto,
   togglePluActivo,
   cerrarModalAdminProductos,
-  // Devolución
+  // Devolución wizard
   abrirModalDevolucion,
   cerrarModalDevolucion,
   confirmarDevolucion,
+  devWizardSiguiente,
+  devWizardAceptarOrigen,
+  devWizardVolver,
 });
 
 function seleccionarBoca(nombre, tipo) {
