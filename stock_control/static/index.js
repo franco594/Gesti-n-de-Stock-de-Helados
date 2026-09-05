@@ -611,10 +611,7 @@ function actualizarListaEscaneados(modalTipo, lista) {
     return;
   }
 
-  // Para devolución, combinar items escaneados + items manuales (sin etiqueta)
-  const listaCompleta = modalTipo === "devolucion"
-    ? [...(Array.isArray(lista) ? lista : []), ...itemsManuales]
-    : (Array.isArray(lista) ? lista : []);
+  const listaCompleta = Array.isArray(lista) ? lista : [];
 
   const cantidad = listaCompleta.length;
   const contadorId = modalTipo === "retirar" ? "contadorRetiro" : modalTipo === "devolucion" ? "contadorDevolucion" : "contadorIngreso";
@@ -648,28 +645,18 @@ function actualizarListaEscaneados(modalTipo, lista) {
       header.className = "dev-card-header";
 
       const nombreDiv = document.createElement("div");
-      if (producto.sinEtiqueta) {
-        nombreDiv.innerHTML =
-          `<span class="dev-card-badge-sin-etiqueta">SIN ETIQUETA</span>` +
-          `<span class="dev-card-nombre">🧊 ${producto.nombre}</span>`;
-      } else {
-        nombreDiv.innerHTML =
-          `<span class="dev-card-nombre">🧊 ${producto.nombre}</span>` +
-          `<div class="dev-card-codigo">${producto.codigo_barras}</div>`;
-      }
+      nombreDiv.innerHTML =
+        `<span class="dev-card-nombre">🧊 ${producto.nombre}</span>` +
+        `<div class="dev-card-codigo">${producto.codigo_barras}</div>`;
 
       const btnElim = document.createElement("button");
       btnElim.classList.add("btnEliminar");
       btnElim.textContent = "✕";
       btnElim.title = "Quitar de la lista";
-      if (producto.sinEtiqueta) {
-        btnElim.addEventListener("click", () => _eliminarItemManual(producto.codigo_barras));
-      } else {
-        btnElim.addEventListener("click", () => {
-          delete pesosEditados[producto.codigo_barras];
-          eliminarProductoEscaneado(producto.codigo_barras, modalTipo);
-        });
-      }
+      btnElim.addEventListener("click", () => {
+        delete pesosEditados[producto.codigo_barras];
+        eliminarProductoEscaneado(producto.codigo_barras, modalTipo);
+      });
 
       header.appendChild(nombreDiv);
       header.appendChild(btnElim);
@@ -1667,13 +1654,11 @@ window.checkForUpdate = checkForUpdate;
  * Devolución de baldes                    *
  *******************************************/
 let modoDevolucion = false;
-let pesosEditados  = {};  // { codigo_barras: pesoReal } — peso ingresado por el operario en devoluciones parciales
-let itemsManuales  = [];  // baldes agregados sin escanear (etiqueta perdida): [{ plu, nombre, peso, codigo_barras, sinEtiqueta:true }]
+let pesosEditados  = {};  // { codigo_barras: pesoReal } — peso editado por el operario en devoluciones parciales
 
 async function abrirModalDevolucion() {
   modoDevolucion = true;
   pesosEditados = {};
-  itemsManuales = [];
   await fetch(API.reiniciarLista, { method: "POST", headers: { "X-CSRFToken": window.CSRF_TOKEN } });
   actualizarListaEscaneados("devolucion", []);
 
@@ -1683,7 +1668,6 @@ async function abrirModalDevolucion() {
   }
 
   await _cargarBocasDevolucion();
-  await _inicializarFormManual();
 
   // Siempre arrancar en paso 1
   _devWizardIrPaso(1);
@@ -1694,8 +1678,7 @@ async function abrirModalDevolucion() {
 
 function cerrarModalDevolucion() {
   modoDevolucion = false;
-  pesosEditados = {};   // limpiar pesos editados al cerrar
-  itemsManuales = [];   // limpiar items manuales al cerrar
+  pesosEditados = {};
   desactivarInputEscaneo();
   if (codigoScanner) codigoScanner.style.visibility = "hidden";
   byId("modal-devolucion").style.display = "none";
@@ -1760,10 +1743,9 @@ function _devWizardIrPaso(paso) {
   else            desactivarInputEscaneo();
 }
 
-/** Paso 1 → 2: valida que haya al menos un balde. */
+/** Paso 1 → 2: valida que haya al menos un balde escaneado. */
 function devWizardSiguiente() {
-  const total = (productosEscaneados?.length || 0) + itemsManuales.length;
-  if (!total) { Toast.warning("Escaneá o agregá al menos un balde."); return; }
+  if (!productosEscaneados?.length) { Toast.warning("Escaneá al menos un balde."); return; }
   _devWizardIrPaso(2);
 }
 
@@ -1799,117 +1781,6 @@ function seleccionarBocaDestino(nombre) {
 }
 window.seleccionarBocaDestino = seleccionarBocaDestino;
 
-// ── Formulario "Sin etiqueta" ────────────────────────────────────────────────
-
-/** Genera un código de barras sintético de 13 dígitos para baldes sin etiqueta.
- *  Prefijo "99" (no usado por ningún EAN-13 de producto real) + 9 dígitos del
- *  timestamp + 2 dígitos aleatorios → colisión prácticamente imposible. */
-function _generarCodigoSinEtiqueta() {
-  const ts   = String(Date.now()).slice(-9);
-  const rand = String(Math.floor(Math.random() * 100)).padStart(2, "0");
-  return "99" + ts + rand;
-}
-
-/** Carga el listado de productos activos y construye el formulario manual
- *  dentro de #contenedor-sin-etiqueta. */
-async function _inicializarFormManual() {
-  const cont = byId("contenedor-sin-etiqueta");
-  if (!cont) return;
-
-  let productos = [];
-  try {
-    const data = await getJSON(API.listarProductos);
-    productos = (data?.productos || []).filter(p => p.is_activo !== false);
-  } catch (_) {}
-
-  const opcionesHtml = productos.length
-    ? productos.map(p =>
-        `<option value="${p.plu}" data-nombre="${p.nombre.replace(/"/g, '&quot;')}">${p.nombre}</option>`
-      ).join("")
-    : `<option value="">No hay productos disponibles</option>`;
-
-  cont.innerHTML = `
-    <div style="margin-top:12px;border-top:1px solid var(--color-border);padding-top:10px;text-align:center;">
-      <button type="button" id="btn-toggle-manual"
-        style="background:transparent;color:var(--color-primary);border:1.5px dashed var(--color-primary);border-radius:var(--radius-sm);padding:6px 16px;font-size:.85rem;font-family:inherit;cursor:pointer;margin:0;font-weight:600;">
-        🏷️ Sin etiqueta — Agregar manualmente
-      </button>
-      <div id="form-manual-devolucion" style="display:none;margin-top:10px;background:var(--color-surface2);border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:12px;text-align:left;">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
-          <div style="flex:1;min-width:150px;">
-            <label style="font-size:.82rem;font-weight:600;color:var(--color-text-2);display:block;margin-bottom:4px;">Producto</label>
-            <select id="select-producto-manual"
-              style="width:100%;padding:8px;border:1.5px solid var(--color-border);border-radius:var(--radius-sm);font-family:inherit;font-size:.9rem;background:var(--color-surface);color:var(--color-text);">
-              <option value="">— Seleccionar —</option>
-              ${opcionesHtml}
-            </select>
-          </div>
-          <div>
-            <label style="font-size:.82rem;font-weight:600;color:var(--color-text-2);display:block;margin-bottom:4px;">Peso (kg)</label>
-            <input type="number" id="input-peso-manual" min="0.1" step="0.1" placeholder="0.0"
-              style="width:85px;padding:8px;border:1.5px solid var(--color-border);border-radius:var(--radius-sm);font-family:inherit;font-size:.9rem;max-width:none;">
-          </div>
-          <button type="button" id="btn-agregar-manual"
-            style="background:var(--color-primary);color:#fff;border:none;border-radius:var(--radius-sm);padding:8px 16px;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;margin:0;white-space:nowrap;">
-            + Agregar
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  byId("btn-toggle-manual").addEventListener("click", toggleFormManual);
-  byId("btn-agregar-manual").addEventListener("click", agregarItemManual);
-}
-
-function toggleFormManual() {
-  const form = byId("form-manual-devolucion");
-  if (!form) return;
-  const abierto = form.style.display !== "none";
-  form.style.display = abierto ? "none" : "block";
-  if (!abierto) byId("select-producto-manual")?.focus();
-}
-
-function agregarItemManual() {
-  const selectEl = byId("select-producto-manual");
-  const pesoEl   = byId("input-peso-manual");
-  if (!selectEl || !pesoEl) return;
-
-  const plu    = selectEl.value;
-  const nombre = selectEl.selectedOptions[0]?.dataset?.nombre || selectEl.selectedOptions[0]?.text || "";
-  const peso   = parseFloat(pesoEl.value);
-
-  if (!plu)               { Toast.warning("Seleccioná un producto."); return; }
-  if (isNaN(peso) || peso <= 0) { Toast.warning("Ingresá un peso válido mayor a 0."); return; }
-
-  const codigo = _generarCodigoSinEtiqueta();
-  itemsManuales.push({ plu, nombre, peso, codigo_barras: codigo, sinEtiqueta: true });
-  pesosEditados[codigo] = peso;
-
-  // Limpiar inputs del form
-  pesoEl.value   = "";
-  selectEl.value = "";
-
-  // Re-renderizar la lista combinada
-  fetch(API.obtenerTemporales)
-    .then(r => r.json())
-    .then(d => actualizarListaEscaneados("devolucion", d.productos || []))
-    .catch(() => actualizarListaEscaneados("devolucion", []));
-
-  Toast.success(`${nombre} agregado sin etiqueta`);
-}
-
-function _eliminarItemManual(codigo) {
-  itemsManuales = itemsManuales.filter(i => i.codigo_barras !== codigo);
-  delete pesosEditados[codigo];
-  fetch(API.obtenerTemporales)
-    .then(r => r.json())
-    .then(d => actualizarListaEscaneados("devolucion", d.productos || []))
-    .catch(() => actualizarListaEscaneados("devolucion", []));
-}
-
-// ── Fin formulario "Sin etiqueta" ────────────────────────────────────────────
-
 // Llamada desde el scanner cuando el modal de devolución está abierto
 async function procesarCodigoDevolucion(codigo) {
   try {
@@ -1930,7 +1801,7 @@ async function confirmarDevolucion() {
   try {
     const productosEscaneados = await fetch(API.obtenerTemporales).then(r => r.json()).then(d => d.productos || []);
 
-    if (!productosEscaneados.length && !itemsManuales.length) {
+    if (!productosEscaneados.length) {
       Toast.error("No hay baldes en la lista.");
       return;
     }
@@ -1939,17 +1810,11 @@ async function confirmarDevolucion() {
     const destino = byId("input-boca-devolucion-destino")?.value || "";
     if (!origen) { Toast.error("Seleccioná el local de origen."); return; }
 
-    // Combinar escaneados (con pesos editados) + manuales (sin etiqueta)
-    const productosFinales = [
-      ...productosEscaneados.map(p => ({
-        ...p,
-        peso: pesosEditados[p.codigo_barras] != null ? pesosEditados[p.codigo_barras] : p.peso,
-      })),
-      ...itemsManuales.map(p => ({
-        ...p,
-        peso: pesosEditados[p.codigo_barras] != null ? pesosEditados[p.codigo_barras] : p.peso,
-      })),
-    ];
+    // Aplicar pesos editados por el operario (devoluciones parciales)
+    const productosFinales = productosEscaneados.map(p => ({
+      ...p,
+      peso: pesosEditados[p.codigo_barras] != null ? pesosEditados[p.codigo_barras] : p.peso,
+    }));
 
     // Validar que ningún peso sea 0 o negativo
     const pesoInvalido = productosFinales.find(p => !p.peso || p.peso <= 0);
