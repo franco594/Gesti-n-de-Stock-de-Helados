@@ -637,18 +637,46 @@ function actualizarListaEscaneados(modalTipo, lista) {
     const li = document.createElement("li");
 
     if (modalTipo === "devolucion") {
-      // ── Card táctil — cada balde es una tarjeta independiente ────────────
+      // ── Fila única táctil ─────────────────────────────────────────────────
       li.classList.add("dev-card");
 
-      // Cabecera: nombre + botón eliminar
-      const header = document.createElement("div");
-      header.className = "dev-card-header";
+      // Nombre
+      const nombreSpan = document.createElement("span");
+      nombreSpan.className = "dev-card-nombre";
+      nombreSpan.textContent = `🧊 ${producto.nombre}`;
 
-      const nombreDiv = document.createElement("div");
-      nombreDiv.innerHTML =
-        `<span class="dev-card-nombre">🧊 ${producto.nombre}</span>` +
-        `<div class="dev-card-codigo">${producto.codigo_barras}</div>`;
+      // Input de peso
+      const pesoActualVal = pesosEditados[producto.codigo_barras] ?? producto.peso;
+      const esModificadoInit = Math.abs(pesoActualVal - producto.peso) > 0.001;
 
+      const pesoInput = document.createElement("input");
+      pesoInput.type  = "number";
+      pesoInput.min   = "0.1";
+      pesoInput.step  = "0.1";
+      pesoInput.value = pesoActualVal;
+      pesoInput.className = "dev-card-peso-input" + (esModificadoInit ? " modificado" : "");
+      pesoInput.title = `Peso original: ${producto.peso} kg`;
+
+      const kgSpan = document.createElement("span");
+      kgSpan.className = "dev-card-peso-kg" + (esModificadoInit ? " modificado" : "");
+      kgSpan.textContent = "kg";
+
+      pesoInput.addEventListener("input", () => {
+        const val = parseFloat(pesoInput.value);
+        if (!isNaN(val) && val > 0) {
+          pesosEditados[producto.codigo_barras] = val;
+          const mod = Math.abs(val - producto.peso) > 0.001;
+          pesoInput.classList.toggle("modificado", mod);
+          kgSpan.classList.toggle("modificado", mod);
+        }
+      });
+      pesoInput.addEventListener("blur", () => {
+        const val = parseFloat(pesoInput.value);
+        if (isNaN(val) || val <= 0)
+          pesoInput.value = pesosEditados[producto.codigo_barras] ?? producto.peso;
+      });
+
+      // Botón eliminar
       const btnElim = document.createElement("button");
       btnElim.classList.add("btnEliminar");
       btnElim.textContent = "✕";
@@ -658,69 +686,10 @@ function actualizarListaEscaneados(modalTipo, lista) {
         eliminarProductoEscaneado(producto.codigo_barras, modalTipo);
       });
 
-      header.appendChild(nombreDiv);
-      header.appendChild(btnElim);
-
-      // Fila de peso editable (input grande, táctil)
-      const pesoActualVal = pesosEditados[producto.codigo_barras] ?? producto.peso;
-      const esModificadoInit = Math.abs(pesoActualVal - producto.peso) > 0.001;
-
-      const pesoRow = document.createElement("div");
-      pesoRow.className = "dev-card-peso-row";
-
-      const pesoLbl = document.createElement("span");
-      pesoLbl.className = "dev-card-peso-label";
-      pesoLbl.textContent = "Peso al devolver:";
-
-      const pesoWrap = document.createElement("div");
-      pesoWrap.className = "dev-card-peso-wrap";
-
-      const pesoInput = document.createElement("input");
-      pesoInput.type = "number";
-      pesoInput.min = "0.1";
-      pesoInput.step = "0.1";
-      pesoInput.value = pesoActualVal;
-      pesoInput.className = "dev-card-peso-input" + (esModificadoInit ? " modificado" : "");
-      pesoInput.title = `Peso original: ${producto.peso} kg`;
-
-      const kgSpan = document.createElement("span");
-      kgSpan.className = "dev-card-peso-kg" + (esModificadoInit ? " modificado" : "");
-      kgSpan.textContent = "kg";
-
-      const _actualizarClaseModificado = (val) => {
-        const mod = Math.abs(val - producto.peso) > 0.001;
-        pesoInput.classList.toggle("modificado", mod);
-        kgSpan.classList.toggle("modificado", mod);
-      };
-
-      pesoInput.addEventListener("input", () => {
-        const val = parseFloat(pesoInput.value);
-        if (!isNaN(val) && val > 0) {
-          pesosEditados[producto.codigo_barras] = val;
-          _actualizarClaseModificado(val);
-        }
-      });
-      pesoInput.addEventListener("blur", () => {
-        const val = parseFloat(pesoInput.value);
-        if (isNaN(val) || val <= 0)
-          pesoInput.value = pesosEditados[producto.codigo_barras] ?? producto.peso;
-      });
-
-      pesoWrap.appendChild(pesoInput);
-      pesoWrap.appendChild(kgSpan);
-      pesoRow.appendChild(pesoLbl);
-      pesoRow.appendChild(pesoWrap);
-
-      // Nota de peso original (visible solo si fue modificado)
-      if (esModificadoInit) {
-        const nota = document.createElement("div");
-        nota.className = "dev-card-peso-original";
-        nota.textContent = `Original: ${producto.peso} kg`;
-        pesoRow.appendChild(nota);
-      }
-
-      li.appendChild(header);
-      li.appendChild(pesoRow);
+      li.appendChild(nombreSpan);
+      li.appendChild(pesoInput);
+      li.appendChild(kgSpan);
+      li.appendChild(btnElim);
 
     } else {
       // Ingreso / retiro: renderizado original
