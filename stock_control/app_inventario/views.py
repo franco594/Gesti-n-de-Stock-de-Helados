@@ -308,7 +308,7 @@ def _actualizar_total_grupo(grupo_id, tipo, origen=None, destino_nombre=None):
         defaults={
             'tipo': tipo,
             'origen': origen if tipo in ('ingreso', 'devolucion') else None,
-            'destino': destino_obj if tipo == 'salida' else None,
+            'destino': destino_obj if tipo in ('salida', 'retiro') else None,
             'total_peso': total,
             'cantidad_items': cant,
         }
@@ -1927,6 +1927,7 @@ def confirmar_devolucion(request):
             if destino and baldes_creados:
                 grupo_id_retiro = nuevo_grupo_id + 1
                 ahora = timezone.now()
+                destino_obj_retiro = BocaSalida.objects.filter(nombre=destino).first()
                 for balde_dev in baldes_creados:
                     balde_dev.is_activo    = False
                     balde_dev.fecha_retiro = ahora
@@ -1936,7 +1937,8 @@ def confirmar_devolucion(request):
                         producto    = balde_dev.producto,
                         peso        = balde_dev.peso,
                         tipo        = "retiro",
-                        boca_salida = destino,
+                        destino     = destino_obj_retiro,   # FK — usado por el historial
+                        boca_salida = destino,              # string — usado por filtros/reportes
                         codigo_barras = balde_dev.codigo_barras,
                         balde       = balde_dev,
                     )

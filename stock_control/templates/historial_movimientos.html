@@ -193,7 +193,7 @@
                                     <strong>↩ Re-ingreso</strong>
                                     {% if grupo.origen %}
                                         <span class="movement-location">desde {{ grupo.origen }} -
-                    {{ grupo.fecha|date:"d/m/Y H:i" }} - </span>
+                    {{ grupo.timestamp|date:"d/m/Y H:i" }} - </span>
                                     {% endif %}
                                 {% else %}
                                     <strong>Retiro</strong>
@@ -205,7 +205,7 @@
                             </div>
                             <div class="movement-meta">
                                 <span class="movement-id">Grupo #{{ grupo.grupo_id }}</span>
-                                <span class="movement-date">{{ grupo.fecha|date:"d/m/Y H:i" }}</span>
+                                <span class="movement-date">{{ grupo.timestamp|date:"d/m/Y H:i" }}</span>
                             </div>
                         </div>
                     </div>
