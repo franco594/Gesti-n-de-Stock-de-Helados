@@ -643,7 +643,8 @@ function actualizarListaEscaneados(modalTipo, lista) {
       // Nombre
       const nombreSpan = document.createElement("span");
       nombreSpan.className = "dev-card-nombre";
-      nombreSpan.textContent = `🧊 ${producto.nombre}`;
+      nombreSpan.innerHTML =
+        `🧊 ${producto.nombre} <span class="dev-card-codigo">${producto.codigo_barras}</span>`;
 
       // Input de peso
       const pesoActualVal = pesosEditados[producto.codigo_barras] ?? producto.peso;

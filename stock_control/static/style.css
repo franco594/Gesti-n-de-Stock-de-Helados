@@ -3760,6 +3760,16 @@ canvas {
   min-width: 0;
 }
 
+.dev-card-codigo {
+  font-size: .72rem;
+  font-weight: 400;
+  color: var(--color-text-2);
+  font-family: monospace;
+  letter-spacing: .03em;
+  margin-left: 6px;
+  opacity: .75;
+}
+
 /* Input de peso táctil */
 input.dev-card-peso-input {
   width: 80px !important;
