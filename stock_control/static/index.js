@@ -1786,7 +1786,9 @@ async function procesarCodigoDevolucion(codigo) {
   try {
     const data = await postJSON(API.procesarCodigo, { codigo });
     if (data?.error) { Toast.error(data.error); return; }
-    actualizarListaEscaneados("devolucion", data.productos_temporales || []);
+    // Actualizar la variable global para que devWizardSiguiente la vea
+    productosEscaneados = data.productos_temporales || [];
+    actualizarListaEscaneados("devolucion", productosEscaneados);
   } catch (e) {
     Toast.error("Error al procesar código: " + e.message);
   }
