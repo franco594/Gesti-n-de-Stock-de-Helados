@@ -629,18 +629,107 @@ function actualizarListaEscaneados(modalTipo, lista) {
     return;
   }
 
+  // Limpiar hint previo si existe
+  document.getElementById("devolucion-peso-hint")?.remove();
+
   for (const producto of lista) {
     const li = document.createElement("li");
-    li.textContent = `🧊 ${producto.nombre} · ${producto.peso} kg · ${producto.codigo_barras}`;  // UX-1: unidad kg
 
-    const btn = document.createElement("button");
-    btn.classList.add("btnEliminar");
-    btn.textContent = "✕";
-    btn.style.cursor = "pointer";
-    btn.addEventListener("click", () => eliminarProductoEscaneado(producto.codigo_barras, modalTipo));
+    if (modalTipo === "devolucion") {
+      // Devolución: peso editable para capturar baldes parcialmente consumidos
+      li.style.cssText = "flex-wrap:wrap; align-items:center; gap:8px;";
 
-    li.appendChild(btn);
+      // Nombre + código
+      const infoSpan = document.createElement("span");
+      infoSpan.style.cssText = "flex:1; min-width:140px;";
+      infoSpan.textContent = `🧊 ${producto.nombre} · ${producto.codigo_barras}`;
+
+      // Grupo del peso
+      const pesoGroup = document.createElement("span");
+      pesoGroup.style.cssText = "display:flex; align-items:center; gap:5px; font-size:.9rem;";
+
+      const pesoLbl = document.createElement("span");
+      pesoLbl.textContent = "Peso:";
+      pesoLbl.style.color = "var(--color-text-2)";
+
+      const pesoActualVal = pesosEditados[producto.codigo_barras] ?? producto.peso;
+
+      const pesoInput = document.createElement("input");
+      pesoInput.type = "number";
+      pesoInput.min = "0.1";
+      pesoInput.step = "0.1";
+      pesoInput.value = pesoActualVal;
+      pesoInput.title = `Peso original del balde: ${producto.peso} kg`;
+      pesoInput.style.cssText = "width:70px; padding:4px 6px; font-size:.9rem; text-align:right; max-width:none;";
+
+      const kgSpan = document.createElement("span");
+      kgSpan.textContent = "kg";
+
+      // Indicador visual si el peso fue modificado (naranja = parcial)
+      const _actualizarEstiloModificado = (val) => {
+        const esModificado = Math.abs(val - producto.peso) > 0.001;
+        pesoInput.style.borderColor   = esModificado ? "var(--color-warning)" : "";
+        pesoInput.style.boxShadow     = esModificado ? "0 0 0 3px rgba(217,119,6,.15)" : "";
+        kgSpan.style.color            = esModificado ? "var(--color-warning)" : "";
+        kgSpan.title                  = esModificado ? `Original: ${producto.peso} kg` : "";
+      };
+
+      pesoInput.addEventListener("input", () => {
+        const val = parseFloat(pesoInput.value);
+        if (!isNaN(val) && val > 0) {
+          pesosEditados[producto.codigo_barras] = val;
+          _actualizarEstiloModificado(val);
+        }
+      });
+      // Evitar que quede vacío o en 0 al perder foco
+      pesoInput.addEventListener("blur", () => {
+        const val = parseFloat(pesoInput.value);
+        if (isNaN(val) || val <= 0) {
+          pesoInput.value = pesosEditados[producto.codigo_barras] ?? producto.peso;
+        }
+      });
+
+      // Aplicar estilo inicial si ya había sido editado (re-render después de nuevo scan)
+      _actualizarEstiloModificado(pesoActualVal);
+
+      pesoGroup.appendChild(pesoLbl);
+      pesoGroup.appendChild(pesoInput);
+      pesoGroup.appendChild(kgSpan);
+
+      const btnElim = document.createElement("button");
+      btnElim.classList.add("btnEliminar");
+      btnElim.textContent = "✕";
+      btnElim.addEventListener("click", () => {
+        delete pesosEditados[producto.codigo_barras];
+        eliminarProductoEscaneado(producto.codigo_barras, modalTipo);
+      });
+
+      li.appendChild(infoSpan);
+      li.appendChild(pesoGroup);
+      li.appendChild(btnElim);
+
+    } else {
+      // Ingreso / retiro: renderizado original
+      li.textContent = `🧊 ${producto.nombre} · ${producto.peso} kg · ${producto.codigo_barras}`;  // UX-1: unidad kg
+
+      const btn = document.createElement("button");
+      btn.classList.add("btnEliminar");
+      btn.textContent = "✕";
+      btn.style.cursor = "pointer";
+      btn.addEventListener("click", () => eliminarProductoEscaneado(producto.codigo_barras, modalTipo));
+      li.appendChild(btn);
+    }
+
     listaEl.appendChild(li);
+  }
+
+  // Hint de peso editable (solo en devolución y si hay items)
+  if (modalTipo === "devolucion" && lista.length > 0) {
+    const hint = document.createElement("p");
+    hint.id = "devolucion-peso-hint";
+    hint.style.cssText = "font-size:.8rem; color:var(--color-text-muted); margin:6px 4px 0; text-align:center;";
+    hint.textContent = "💡 Modificá el peso si el balde volvió parcialmente consumido";
+    listaEl.insertAdjacentElement("afterend", hint);
   }
 
   if (modalTipo === "retirar") {
@@ -1551,9 +1640,11 @@ window.checkForUpdate = checkForUpdate;
  * Devolución de baldes                    *
  *******************************************/
 let modoDevolucion = false;
+let pesosEditados = {};   // { codigo_barras: pesoReal } — peso ingresado por el operario en devoluciones parciales
 
 async function abrirModalDevolucion() {
   modoDevolucion = true;
+  pesosEditados = {};   // resetear pesos editados al abrir
   await fetch(API.reiniciarLista, { method: "POST", headers: { "X-CSRFToken": window.CSRF_TOKEN } });
   actualizarListaEscaneados("devolucion", []);
 
@@ -1569,6 +1660,7 @@ async function abrirModalDevolucion() {
 
 function cerrarModalDevolucion() {
   modoDevolucion = false;
+  pesosEditados = {};   // limpiar pesos editados al cerrar
   desactivarInputEscaneo();
   if (codigoScanner) codigoScanner.style.visibility = "hidden";
   byId("modal-devolucion").style.display = "none";
@@ -1622,10 +1714,23 @@ async function confirmarDevolucion() {
     const origen = byId("input-boca-devolucion")?.value || "";
     if (!origen) { Toast.error("Seleccioná el local de origen."); return; }
 
+    // Aplicar pesos editados por el operario (devolución parcial con balanza)
+    const productosFinales = productos.map(p => ({
+      ...p,
+      peso: pesosEditados[p.codigo_barras] != null ? pesosEditados[p.codigo_barras] : p.peso,
+    }));
+
+    // Validar que ningún peso editado sea 0 o negativo
+    const pesoInvalido = productosFinales.find(p => !p.peso || p.peso <= 0);
+    if (pesoInvalido) {
+      Toast.error(`Peso inválido para "${pesoInvalido.nombre}". Ingresá un valor mayor a 0.`);
+      return;
+    }
+
     const res = await fetch("/api/confirmar_devolucion/", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRFToken": window.CSRF_TOKEN },
-      body: JSON.stringify({ productos, origen }),
+      body: JSON.stringify({ productos: productosFinales, origen }),
     });
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.error || "Error desconocido");
