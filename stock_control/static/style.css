@@ -3732,4 +3732,164 @@ canvas {
     }
 }
 
+/* ============================================================
+   DEVOLUCIÓN — cards táctiles (pantalla touch)
+   ============================================================ */
+
+/* <li> convertido en card cuando está en el modal de devolución */
+.dev-card {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+  padding: 16px !important;
+  border-left: 3px solid #d97706;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+  margin: 0 0 8px;
+}
+
+.dev-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.dev-card-nombre {
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.dev-card-badge-sin-etiqueta {
+  display: inline-block;
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
+  border-radius: 4px;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.dev-card-codigo {
+  font-size: .78rem;
+  color: #8895b8;
+  margin-top: 2px;
+  font-family: monospace;
+  letter-spacing: .04em;
+}
+
+.dev-card-peso-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dev-card-peso-label {
+  font-size: .88rem;
+  font-weight: 600;
+  color: #4a5578;
+  white-space: nowrap;
+}
+
+.dev-card-peso-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Input grande y táctil para el peso */
+input.dev-card-peso-input {
+  width: 95px !important;
+  height: 52px !important;
+  font-size: 1.4rem !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+  padding: 8px !important;
+  border: 2px solid #dde3f5 !important;
+  border-radius: 8px !important;
+  max-width: none !important;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+input.dev-card-peso-input:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15) !important;
+  outline: none;
+}
+
+input.dev-card-peso-input.modificado {
+  border-color: #d97706 !important;
+  box-shadow: 0 0 0 3px rgba(217,119,6,.15) !important;
+}
+
+.dev-card-peso-kg {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #4a5578;
+  transition: color .2s;
+}
+
+.dev-card-peso-kg.modificado { color: #d97706; }
+
+.dev-card-peso-original {
+  font-size: .78rem;
+  color: #8895b8;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Botón eliminar en card — target táctil grande */
+.dev-card .btnEliminar {
+  min-width: 44px !important;
+  min-height: 44px !important;
+  font-size: 1.2rem !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 8px !important;
+}
+
+/* Secciones de bocas en modal devolución */
+.dev-boca-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #dde3f5;
+}
+
+.dev-boca-section > label {
+  display: block;
+  font-size: .82rem;
+  font-weight: 700;
+  color: #4a5578;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+/* Boca de destino seleccionada — verde (éxito) */
+.boca-btn.destino-seleccionada {
+  background-color: #16a34a;
+  border-color: #16a34a;
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 0 0 3px rgba(22,163,74,.2);
+}
+
+/* Opción "Queda en depósito" con borde punteado */
+.boca-btn.deposito-btn {
+  border-style: dashed;
+}
+
+.boca-btn.deposito-btn.seleccionada,
+.boca-btn.deposito-btn.destino-seleccionada {
+  border-style: solid;
+}
+
 

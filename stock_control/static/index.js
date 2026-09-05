@@ -640,89 +640,100 @@ function actualizarListaEscaneados(modalTipo, lista) {
     const li = document.createElement("li");
 
     if (modalTipo === "devolucion") {
-      // Devolución: peso editable para capturar baldes parcialmente consumidos
-      li.style.cssText = "flex-wrap:wrap; align-items:center; gap:8px;";
+      // ── Card táctil — cada balde es una tarjeta independiente ────────────
+      li.classList.add("dev-card");
 
-      // Nombre + código (badge especial para items sin etiqueta)
-      const infoSpan = document.createElement("span");
-      infoSpan.style.cssText = "flex:1; min-width:140px;";
+      // Cabecera: nombre + botón eliminar
+      const header = document.createElement("div");
+      header.className = "dev-card-header";
+
+      const nombreDiv = document.createElement("div");
       if (producto.sinEtiqueta) {
-        infoSpan.innerHTML =
-          `<span style="background:var(--color-warning-bg);color:var(--color-warning);border:1px solid var(--color-warning-bd);border-radius:4px;font-size:.75rem;font-weight:700;padding:1px 5px;margin-right:5px;">SIN ETIQUETA</span>` +
-          `🧊 ${producto.nombre}`;
+        nombreDiv.innerHTML =
+          `<span class="dev-card-badge-sin-etiqueta">SIN ETIQUETA</span>` +
+          `<span class="dev-card-nombre">🧊 ${producto.nombre}</span>`;
       } else {
-        infoSpan.textContent = `🧊 ${producto.nombre} · ${producto.codigo_barras}`;
+        nombreDiv.innerHTML =
+          `<span class="dev-card-nombre">🧊 ${producto.nombre}</span>` +
+          `<div class="dev-card-codigo">${producto.codigo_barras}</div>`;
       }
-
-      // Grupo del peso
-      const pesoGroup = document.createElement("span");
-      pesoGroup.style.cssText = "display:flex; align-items:center; gap:5px; font-size:.9rem;";
-
-      const pesoLbl = document.createElement("span");
-      pesoLbl.textContent = "Peso:";
-      pesoLbl.style.color = "var(--color-text-2)";
-
-      const pesoActualVal = pesosEditados[producto.codigo_barras] ?? producto.peso;
-
-      const pesoInput = document.createElement("input");
-      pesoInput.type = "number";
-      pesoInput.min = "0.1";
-      pesoInput.step = "0.1";
-      pesoInput.value = pesoActualVal;
-      pesoInput.title = `Peso original del balde: ${producto.peso} kg`;
-      pesoInput.style.cssText = "width:70px; padding:4px 6px; font-size:.9rem; text-align:right; max-width:none;";
-
-      const kgSpan = document.createElement("span");
-      kgSpan.textContent = "kg";
-
-      // Indicador visual si el peso fue modificado (naranja = parcial)
-      const _actualizarEstiloModificado = (val) => {
-        const esModificado = Math.abs(val - producto.peso) > 0.001;
-        pesoInput.style.borderColor   = esModificado ? "var(--color-warning)" : "";
-        pesoInput.style.boxShadow     = esModificado ? "0 0 0 3px rgba(217,119,6,.15)" : "";
-        kgSpan.style.color            = esModificado ? "var(--color-warning)" : "";
-        kgSpan.title                  = esModificado ? `Original: ${producto.peso} kg` : "";
-      };
-
-      pesoInput.addEventListener("input", () => {
-        const val = parseFloat(pesoInput.value);
-        if (!isNaN(val) && val > 0) {
-          pesosEditados[producto.codigo_barras] = val;
-          _actualizarEstiloModificado(val);
-        }
-      });
-      // Evitar que quede vacío o en 0 al perder foco
-      pesoInput.addEventListener("blur", () => {
-        const val = parseFloat(pesoInput.value);
-        if (isNaN(val) || val <= 0) {
-          pesoInput.value = pesosEditados[producto.codigo_barras] ?? producto.peso;
-        }
-      });
-
-      // Aplicar estilo inicial si ya había sido editado (re-render después de nuevo scan)
-      _actualizarEstiloModificado(pesoActualVal);
-
-      pesoGroup.appendChild(pesoLbl);
-      pesoGroup.appendChild(pesoInput);
-      pesoGroup.appendChild(kgSpan);
 
       const btnElim = document.createElement("button");
       btnElim.classList.add("btnEliminar");
       btnElim.textContent = "✕";
+      btnElim.title = "Quitar de la lista";
       if (producto.sinEtiqueta) {
-        // Items manuales: solo se eliminan del array local
         btnElim.addEventListener("click", () => _eliminarItemManual(producto.codigo_barras));
       } else {
-        // Items escaneados: se eliminan de la sesión del servidor
         btnElim.addEventListener("click", () => {
           delete pesosEditados[producto.codigo_barras];
           eliminarProductoEscaneado(producto.codigo_barras, modalTipo);
         });
       }
 
-      li.appendChild(infoSpan);
-      li.appendChild(pesoGroup);
-      li.appendChild(btnElim);
+      header.appendChild(nombreDiv);
+      header.appendChild(btnElim);
+
+      // Fila de peso editable (input grande, táctil)
+      const pesoActualVal = pesosEditados[producto.codigo_barras] ?? producto.peso;
+      const esModificadoInit = Math.abs(pesoActualVal - producto.peso) > 0.001;
+
+      const pesoRow = document.createElement("div");
+      pesoRow.className = "dev-card-peso-row";
+
+      const pesoLbl = document.createElement("span");
+      pesoLbl.className = "dev-card-peso-label";
+      pesoLbl.textContent = "Peso al devolver:";
+
+      const pesoWrap = document.createElement("div");
+      pesoWrap.className = "dev-card-peso-wrap";
+
+      const pesoInput = document.createElement("input");
+      pesoInput.type = "number";
+      pesoInput.min = "0.1";
+      pesoInput.step = "0.1";
+      pesoInput.value = pesoActualVal;
+      pesoInput.className = "dev-card-peso-input" + (esModificadoInit ? " modificado" : "");
+      pesoInput.title = `Peso original: ${producto.peso} kg`;
+
+      const kgSpan = document.createElement("span");
+      kgSpan.className = "dev-card-peso-kg" + (esModificadoInit ? " modificado" : "");
+      kgSpan.textContent = "kg";
+
+      const _actualizarClaseModificado = (val) => {
+        const mod = Math.abs(val - producto.peso) > 0.001;
+        pesoInput.classList.toggle("modificado", mod);
+        kgSpan.classList.toggle("modificado", mod);
+      };
+
+      pesoInput.addEventListener("input", () => {
+        const val = parseFloat(pesoInput.value);
+        if (!isNaN(val) && val > 0) {
+          pesosEditados[producto.codigo_barras] = val;
+          _actualizarClaseModificado(val);
+        }
+      });
+      pesoInput.addEventListener("blur", () => {
+        const val = parseFloat(pesoInput.value);
+        if (isNaN(val) || val <= 0)
+          pesoInput.value = pesosEditados[producto.codigo_barras] ?? producto.peso;
+      });
+
+      pesoWrap.appendChild(pesoInput);
+      pesoWrap.appendChild(kgSpan);
+      pesoRow.appendChild(pesoLbl);
+      pesoRow.appendChild(pesoWrap);
+
+      // Nota de peso original (visible solo si fue modificado)
+      if (esModificadoInit) {
+        const nota = document.createElement("div");
+        nota.className = "dev-card-peso-original";
+        nota.textContent = `Original: ${producto.peso} kg`;
+        pesoRow.appendChild(nota);
+      }
+
+      li.appendChild(header);
+      li.appendChild(pesoRow);
 
     } else {
       // Ingreso / retiro: renderizado original
@@ -1696,19 +1707,49 @@ async function _cargarBocasDevolucion() {
       cont.innerHTML = '<p style="color:#888;font-size:.9em;">No hay bocas de salida cargadas.</p>';
       return;
     }
+
+    const bocaBtns = (tipo) => lista.map(nombre =>
+      `<button class="boca-btn" data-nombre="${nombre}" onclick="seleccionarBoca('${nombre.replace(/'/g, "\\'")}', '${tipo}')">📍 ${nombre}</button>`
+    ).join("");
+
     cont.innerHTML = `
-      <label>Boca de salida de origen:</label>
-      <div id="bocas-container-devolucion" class="bocas-container">
-        ${lista.map(nombre =>
-          `<button class="boca-btn" data-nombre="${nombre}" onclick="seleccionarBoca('${nombre.replace(/'/g, "\\'")}', 'devolucion')">📍 ${nombre}</button>`
-        ).join("")}
+      <div class="dev-boca-section">
+        <label>De dónde viene el balde:</label>
+        <div id="bocas-container-devolucion" class="bocas-container">
+          ${bocaBtns("devolucion")}
+        </div>
+        <input type="hidden" id="input-boca-devolucion" value="">
       </div>
-      <input type="hidden" id="input-boca-devolucion" value="">
+
+      <div class="dev-boca-section">
+        <label>¿Redirigir a otro local? <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label>
+        <div id="bocas-container-devolucion-destino" class="bocas-container">
+          <button class="boca-btn deposito-btn destino-seleccionada"
+            data-nombre="" onclick="seleccionarBocaDestino('')">
+            🏭 Queda en depósito
+          </button>
+          ${lista.map(nombre =>
+            `<button class="boca-btn" data-nombre="${nombre}" onclick="seleccionarBocaDestino('${nombre.replace(/'/g, "\\'")}')">📍 ${nombre}</button>`
+          ).join("")}
+        </div>
+        <input type="hidden" id="input-boca-devolucion-destino" value="">
+      </div>
     `;
   } catch (e) {
     console.error("Error cargando bocas de salida:", e);
   }
 }
+
+function seleccionarBocaDestino(nombre) {
+  const cont = byId("bocas-container-devolucion-destino");
+  if (!cont) return;
+  cont.querySelectorAll(".boca-btn").forEach(b => b.classList.remove("destino-seleccionada"));
+  const btn = cont.querySelector(`.boca-btn[data-nombre="${CSS.escape(nombre)}"]`);
+  btn?.classList.add("destino-seleccionada");
+  const hidden = byId("input-boca-devolucion-destino");
+  if (hidden) hidden.value = nombre;
+}
+window.seleccionarBocaDestino = seleccionarBocaDestino;
 
 // ── Formulario "Sin etiqueta" ────────────────────────────────────────────────
 
@@ -1846,7 +1887,8 @@ async function confirmarDevolucion() {
       return;
     }
 
-    const origen = byId("input-boca-devolucion")?.value || "";
+    const origen  = byId("input-boca-devolucion")?.value || "";
+    const destino = byId("input-boca-devolucion-destino")?.value || "";
     if (!origen) { Toast.error("Seleccioná el local de origen."); return; }
 
     // Combinar escaneados (con pesos editados) + manuales (sin etiqueta)
@@ -1871,7 +1913,7 @@ async function confirmarDevolucion() {
     const res = await fetch("/api/confirmar_devolucion/", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRFToken": window.CSRF_TOKEN },
-      body: JSON.stringify({ productos: productosFinales, origen }),
+      body: JSON.stringify({ productos: productosFinales, origen, destino: destino || null }),
     });
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.error || "Error desconocido");

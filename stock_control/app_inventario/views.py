@@ -1830,7 +1830,8 @@ def confirmar_devolucion(request):
         return JsonResponse({"error": "Formato JSON inválido"}, status=400)
 
     productos = data.get("productos", []) or request.session.get("productos_temporales", [])
-    origen = (data.get("origen") or "").strip()
+    origen  = (data.get("origen")  or "").strip()
+    destino = (data.get("destino") or "").strip()   # boca destino para redirigir (opcional)
 
     if not productos:
         return JsonResponse({"error": "No hay baldes para devolver"}, status=400)
@@ -1875,6 +1876,7 @@ def confirmar_devolucion(request):
 
     # Fase 2 (transacción): solo escrituras + chequeo de doble-devolución con lock.
     devueltos = []
+    grupo_id_retiro = None
     try:
         with transaction.atomic():
             ultimo = (
@@ -1885,6 +1887,8 @@ def confirmar_devolucion(request):
                 .first()
             )
             nuevo_grupo_id = (ultimo or 0) + 1
+
+            baldes_creados = []   # para el retiro encadenado si hay destino
 
             for item in validados_dev:
                 producto_obj = item["producto"]
@@ -1915,8 +1919,28 @@ def confirmar_devolucion(request):
                     balde=balde_dev,
                 )
                 devueltos.append(producto_obj.nombre)
+                baldes_creados.append(balde_dev)
 
             _actualizar_total_grupo(nuevo_grupo_id, tipo="devolucion", origen=origen)
+
+            # ── Redirigir: si hay destino, crear retiro encadenado ────────────
+            if destino and baldes_creados:
+                grupo_id_retiro = nuevo_grupo_id + 1
+                ahora = timezone.now()
+                for balde_dev in baldes_creados:
+                    balde_dev.is_activo    = False
+                    balde_dev.fecha_retiro = ahora
+                    balde_dev.save(update_fields=["is_activo", "fecha_retiro"])
+                    RegistroMovimiento.objects.create(
+                        grupo_id    = grupo_id_retiro,
+                        producto    = balde_dev.producto,
+                        peso        = balde_dev.peso,
+                        tipo        = "retiro",
+                        boca_salida = destino,
+                        codigo_barras = balde_dev.codigo_barras,
+                        balde       = balde_dev,
+                    )
+                _actualizar_total_grupo(grupo_id_retiro, tipo="retiro", boca_salida=destino)
 
             request.session["productos_temporales"] = []
             request.session.modified = True
@@ -1926,11 +1950,20 @@ def confirmar_devolucion(request):
     except Exception as e:
         return JsonResponse({"error": f"Error al procesar devolución: {e}"}, status=500)
 
+    if destino and grupo_id_retiro:
+        msg = (
+            f"{len(devueltos)} balde(s) devuelto(s) desde {origen} "
+            f"y redirigido(s) a {destino}."
+        )
+    else:
+        msg = f"Devolución registrada: {len(devueltos)} balde(s) reingresado(s)."
+
     return JsonResponse({
-        "success": True,
-        "grupo_id": nuevo_grupo_id,
-        "cantidad": len(devueltos),
-        "message": f"Devolución registrada: {len(devueltos)} balde(s) reingresado(s).",
+        "success":        True,
+        "grupo_id":       nuevo_grupo_id,
+        "grupo_id_retiro": grupo_id_retiro,
+        "cantidad":       len(devueltos),
+        "message":        msg,
     })
 
 
