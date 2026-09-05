@@ -989,12 +989,26 @@ def detalle_movimiento(request, grupo_id: int):
         if agg["destino_any"]:
             destino = BocaSalida.objects.filter(pk=agg["destino_any"]).first()
 
+    # Para devoluciones con retiro encadenado, buscar el destino en grupo_id+1
+    destino_retiro = None
+    if tipo == "devolucion":
+        balde_ids = [i.balde_id for i in items if i.balde_id]
+        if balde_ids:
+            retiro_rm = (RegistroMovimiento.objects
+                         .filter(grupo_id=grupo_id + 1, balde_id__in=balde_ids, tipo="retiro")
+                         .select_related("destino")
+                         .first())
+            if retiro_rm:
+                destino_retiro = (retiro_rm.boca_salida
+                                  or (retiro_rm.destino.nombre if retiro_rm.destino else None))
+
     if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.GET.get("format") == "json":
         return JsonResponse({
             "grupo_id": grupo_id,
             "tipo": tipo,
             "origen": origen,
             "destino": destino.nombre if destino else None,
+            "destino_retiro": destino_retiro,
             "total_peso": round(float(total_peso), 2),
             "cantidad_items": int(cantidad_items),
             "items": [
@@ -1014,6 +1028,7 @@ def detalle_movimiento(request, grupo_id: int):
         "tipo": tipo,
         "origen": origen,
         "destino": destino,
+        "destino_retiro": destino_retiro,
         "total_peso": total_peso,
         "cantidad_items": cantidad_items,
         "items": items,

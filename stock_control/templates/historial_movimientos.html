@@ -463,6 +463,9 @@
                     ${(esIngreso || esDevolucion)
                         ? `· <strong>${esDevolucion ? "Re-ingreso desde" : "Origen"}:</strong> ${data.origen ?? "-"}`
                         : `· <strong>Destino:</strong> ${data.destino ?? "-"}`}
+                    ${esDevolucion && data.destino_retiro
+                        ? `· <strong>Redirigido a:</strong> ${data.destino_retiro}`
+                        : ""}
                 `;
 
                 const detalleLista = document.getElementById("detalleLista");
