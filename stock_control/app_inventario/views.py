@@ -1940,7 +1940,7 @@ def confirmar_devolucion(request):
                         codigo_barras = balde_dev.codigo_barras,
                         balde       = balde_dev,
                     )
-                _actualizar_total_grupo(grupo_id_retiro, tipo="retiro", boca_salida=destino)
+                _actualizar_total_grupo(grupo_id_retiro, tipo="retiro", destino_nombre=destino)
 
             request.session["productos_temporales"] = []
             request.session.modified = True
