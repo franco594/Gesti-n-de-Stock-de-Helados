@@ -995,7 +995,9 @@ def detalle_movimiento(request, grupo_id: int):
         balde_ids = [i.balde_id for i in items if i.balde_id]
         if balde_ids:
             retiro_rm = (RegistroMovimiento.objects
-                         .filter(grupo_id=grupo_id + 1, balde_id__in=balde_ids, tipo="retiro")
+                         # tipo__in: "retiro" = datos históricos, "salida" = post fix BUG-1
+                         .filter(grupo_id=grupo_id + 1, balde_id__in=balde_ids,
+                                 tipo__in=["retiro", "salida"])
                          .select_related("destino")
                          .first())
             if retiro_rm:
@@ -1910,9 +1912,12 @@ def confirmar_devolucion(request):
                 peso_f       = item["peso"]
                 codigo_str   = item["codigo"]
 
-                # Doble-devolución: debe verificarse dentro del atomic para evitar
-                # carreras entre requests concurrentes.
-                if StockBalde.objects.filter(codigo_barras=codigo_str, is_activo=True).exists():
+                # Doble-devolución: select_for_update() serializa requests concurrentes
+                # con el mismo código — sin él dos requests simultáneas pasarían el
+                # check y crearían dos StockBalde activos con el mismo código.
+                if StockBalde.objects.select_for_update().filter(
+                    codigo_barras=codigo_str, is_activo=True
+                ).exists():
                     raise _ErrorDevolucion(
                         {"error": f"El balde con código {codigo_str} ya está en stock activo."},
                         status_code=409,
@@ -1951,13 +1956,13 @@ def confirmar_devolucion(request):
                         grupo_id    = grupo_id_retiro,
                         producto    = balde_dev.producto,
                         peso        = balde_dev.peso,
-                        tipo        = "retiro",
+                        tipo        = "salida",             # "salida" es el tipo válido para egresos
                         destino     = destino_obj_retiro,   # FK — usado por el historial
                         boca_salida = destino,              # string — usado por filtros/reportes
                         codigo_barras = balde_dev.codigo_barras,
                         balde       = balde_dev,
                     )
-                _actualizar_total_grupo(grupo_id_retiro, tipo="retiro", destino_nombre=destino)
+                _actualizar_total_grupo(grupo_id_retiro, tipo="salida", destino_nombre=destino)
 
             request.session["productos_temporales"] = []
             request.session.modified = True
@@ -2677,9 +2682,9 @@ def api_dashboard_metricas(request):
             )
             .order_by('-cantidad')[:5]
         )
-        # kg devueltos desde cada boca en el mismo período
+        # kg devueltos desde cada boca en el mismo período (BUG-8: case-insensitive)
         dev_map = {
-            row['origen']: float(row['kg_dev'] or 0)
+            row['origen'].lower(): float(row['kg_dev'] or 0)
             for row in (
                 RegistroMovimiento.objects
                 .filter(mov_plu_q, tipo='devolucion', timestamp__gte=hace_30_dias)
@@ -2693,8 +2698,8 @@ def api_dashboard_metricas(request):
                 'boca_salida': d['boca_salida'],
                 'cantidad':    d['cantidad'],
                 'kg_total':    float(d['kg_total'] or 0),
-                'kg_devuelto': round(dev_map.get(d['boca_salida'], 0), 3),
-                'kg_neto':     round(float(d['kg_total'] or 0) - dev_map.get(d['boca_salida'], 0), 3),
+                'kg_devuelto': round(dev_map.get((d['boca_salida'] or '').lower(), 0), 3),
+                'kg_neto':     round(float(d['kg_total'] or 0) - dev_map.get((d['boca_salida'] or '').lower(), 0), 3),
                 'kg_helados':  round(float(d['kg_helados'] or 0), 3),
                 'kg_tortas':   round(float(d['kg_tortas'] or 0), 3),
                 'kg_gastro':   round(float(d['kg_gastro'] or 0), 3),
@@ -2864,7 +2869,9 @@ def api_conciliacion_datos(request):
 
     plu_helados, plu_tortas, plu_gastro = _plu_listas_categoria()
     retiros_map = {
-        r["boca_salida"]: {
+        # Clave en minúsculas para comparación case-insensitive (BUG-8)
+        # tipo__in incluye "retiro" para retrocompatibilidad con datos anteriores al fix BUG-1
+        r["boca_salida"].lower(): {
             "kg":         float(r["kg"] or 0),
             "kg_helados": float(r["kg_helados"] or 0),
             "kg_tortas":  float(r["kg_tortas"] or 0),
@@ -2872,7 +2879,7 @@ def api_conciliacion_datos(request):
         }
         for r in (
             RegistroMovimiento.objects
-            .filter(tipo="salida", timestamp__year=year, timestamp__month=month)
+            .filter(tipo__in=["salida", "retiro"], timestamp__year=year, timestamp__month=month)
             .exclude(boca_salida__isnull=True).exclude(boca_salida="")
             .values("boca_salida")
             .annotate(
@@ -2885,7 +2892,7 @@ def api_conciliacion_datos(request):
     }
 
     dev_map = {
-        r["origen"]: float(r["kg"] or 0)
+        r["origen"].lower(): float(r["kg"] or 0)
         for r in (
             RegistroMovimiento.objects
             .filter(tipo="devolucion", timestamp__year=year, timestamp__month=month)
@@ -2902,12 +2909,12 @@ def api_conciliacion_datos(request):
 
     resultado = []
     for boca in bocas:
-        retiro_data  = retiros_map.get(boca.nombre, {})
+        retiro_data  = retiros_map.get(boca.nombre.lower(), {})
         kg_recibidos = retiro_data.get("kg", 0.0)
         kg_helados   = retiro_data.get("kg_helados", 0.0)
         kg_tortas    = retiro_data.get("kg_tortas", 0.0)
         kg_gastro    = retiro_data.get("kg_gastro", 0.0)
-        kg_devueltos = dev_map.get(boca.nombre, 0.0)
+        kg_devueltos = dev_map.get(boca.nombre.lower(), 0.0)
         kg_neto = kg_recibidos - kg_devueltos
         conc = conc_map.get(boca.pk)
         stock_inicial = float(conc.stock_inicial) if conc else 0.0
@@ -2994,7 +3001,9 @@ def api_conciliacion_exportar(request):
 
     plu_helados, plu_tortas, plu_gastro = _plu_listas_categoria()
     retiros_map = {
-        r["boca_salida"]: {
+        # Clave en minúsculas para comparación case-insensitive (BUG-8)
+        # tipo__in incluye "retiro" para retrocompatibilidad con datos anteriores al fix BUG-1
+        r["boca_salida"].lower(): {
             "kg":         float(r["kg"] or 0),
             "kg_helados": float(r["kg_helados"] or 0),
             "kg_tortas":  float(r["kg_tortas"] or 0),
@@ -3002,7 +3011,7 @@ def api_conciliacion_exportar(request):
         }
         for r in (
             RegistroMovimiento.objects
-            .filter(tipo="salida", timestamp__year=year, timestamp__month=month)
+            .filter(tipo__in=["salida", "retiro"], timestamp__year=year, timestamp__month=month)
             .exclude(boca_salida__isnull=True).exclude(boca_salida="")
             .values("boca_salida")
             .annotate(
@@ -3015,7 +3024,7 @@ def api_conciliacion_exportar(request):
     }
 
     dev_map = {
-        r["origen"]: float(r["kg"] or 0)
+        r["origen"].lower(): float(r["kg"] or 0)
         for r in (
             RegistroMovimiento.objects
             .filter(tipo="devolucion", timestamp__year=year, timestamp__month=month)
@@ -3032,12 +3041,12 @@ def api_conciliacion_exportar(request):
 
     rows = []
     for boca in bocas:
-        retiro_data  = retiros_map.get(boca.nombre, {})
+        retiro_data  = retiros_map.get(boca.nombre.lower(), {})
         kg_recibidos = retiro_data.get("kg", 0.0)
         kg_helados   = retiro_data.get("kg_helados", 0.0)
         kg_tortas    = retiro_data.get("kg_tortas", 0.0)
         kg_gastro    = retiro_data.get("kg_gastro", 0.0)
-        kg_devueltos = dev_map.get(boca.nombre, 0.0)
+        kg_devueltos = dev_map.get(boca.nombre.lower(), 0.0)
         kg_neto = kg_recibidos - kg_devueltos
         conc = conc_map.get(boca.pk)
         stock_inicial = float(conc.stock_inicial) if conc else 0.0

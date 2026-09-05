@@ -853,7 +853,7 @@ class TestDevolucionStock(TestCase):
       5. Con destino (redirección)→ balde inactivo (retirado), destino correcto
       6. Parcial con destino      → peso editado en ambos movimientos
       7. GrupoMovimiento devol.   → tipo="devolucion", origen correcto
-      8. GrupoMovimiento retiro   → tipo="retiro", destino correcto, grupo_id+1
+      8. GrupoMovimiento retiro   → tipo="salida", destino correcto, grupo_id+1
       9. Sin origen válido        → igual funciona (origen es informativo)
     """
 
@@ -990,8 +990,10 @@ class TestDevolucionStock(TestCase):
         self.assertEqual(
             RegistroMovimiento.objects.filter(tipo="devolucion").count(), 1
         )
+        # BUG-1 fix: el retiro encadenado usa tipo="salida" (no "retiro")
+        # Hay 1 devolucion + 1 salida (el retiro encadenado)
         self.assertEqual(
-            RegistroMovimiento.objects.filter(tipo="retiro").count(), 1
+            RegistroMovimiento.objects.filter(tipo="salida").count(), 1
         )
 
     def test_devolucion_con_destino_grupo_retiro_es_consecutivo(self):
@@ -1006,7 +1008,8 @@ class TestDevolucionStock(TestCase):
     def test_devolucion_con_destino_boca_salida_correcta(self):
         """El RegistroMovimiento de retiro debe tener boca_salida='Local Sur'."""
         self._devolver([self._item()], destino="Local Sur")
-        rm_retiro = RegistroMovimiento.objects.filter(tipo="retiro").first()
+        # BUG-1 fix: el retiro encadenado usa tipo="salida"
+        rm_retiro = RegistroMovimiento.objects.filter(tipo="salida").first()
         self.assertIsNotNone(rm_retiro)
         self.assertEqual(rm_retiro.boca_salida, "Local Sur")
         self.assertIsNotNone(rm_retiro.destino,
@@ -1018,9 +1021,10 @@ class TestDevolucionStock(TestCase):
         resp = self._devolver([self._item()])  # sin destino
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(StockBalde.objects.filter(is_activo=True).count(), 1)
+        # BUG-1 fix: sin destino no debe crearse ningún "salida" extra (el retiro encadenado no ocurre)
         self.assertIsNone(
-            RegistroMovimiento.objects.filter(tipo="retiro").first(),
-            "Sin destino NO debe crearse un RegistroMovimiento de retiro"
+            RegistroMovimiento.objects.filter(tipo="salida").first(),
+            "Sin destino NO debe crearse un RegistroMovimiento de retiro/salida encadenado"
         )
 
     # 6 ── Parcial con destino ─────────────────────────────────────────────────
@@ -1037,7 +1041,8 @@ class TestDevolucionStock(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
 
-        rm_retiro = RegistroMovimiento.objects.filter(tipo="retiro").first()
+        # BUG-1 fix: el retiro encadenado usa tipo="salida"
+        rm_retiro = RegistroMovimiento.objects.filter(tipo="salida").first()
         self.assertIsNotNone(rm_retiro)
         self.assertAlmostEqual(float(rm_retiro.peso), 2.3, places=3,
             msg="El retiro encadenado debe usar el peso real devuelto")
@@ -1070,11 +1075,11 @@ class TestDevolucionStock(TestCase):
     # 8 ── GrupoMovimiento de retiro encadenado ────────────────────────────────
 
     def test_grupo_movimiento_retiro_destino_correcto(self):
-        """GrupoMovimiento del retiro tiene tipo='retiro' y FK destino correcto."""
+        """GrupoMovimiento del retiro tiene tipo='salida' (BUG-1 fix) y FK destino correcto."""
         resp = self._devolver([self._item()], destino="Local Sur")
         grupo_id_retiro = resp.json()["grupo_id_retiro"]
         gm = GrupoMovimiento.objects.get(grupo_id=grupo_id_retiro)
-        self.assertEqual(gm.tipo, "retiro")
+        self.assertEqual(gm.tipo, "salida")
         self.assertIsNotNone(gm.destino)
         self.assertEqual(gm.destino.nombre, "Local Sur")
 
