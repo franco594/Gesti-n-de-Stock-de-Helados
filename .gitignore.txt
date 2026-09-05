@@ -1,0 +1,24 @@
+# Entorno virtual
+stock_control/venv/
+
+# Builds de PyInstaller
+stock_control/dist/
+stock_control/build/
+*.spec
+
+# Base de datos
+*.sqlite3
+
+# Logs y backups
+stock_control/logs/
+stock_control/backups/
+
+# Archivos generados/temporales
+stock_control/__pycache__/
+stock_control/**/__pycache__/
+*.pyc
+*.pyo
+
+# Archivos de datos locales
+stock_control/uploads/
+stock_control/productos.xlsx
