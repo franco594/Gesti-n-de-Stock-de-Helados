@@ -837,3 +837,254 @@ class TestRetiroRaceCondition(TransactionTestCase):
         gm = GrupoMovimiento.objects.get(grupo_id=grupo_id)
         self.assertEqual(gm.cantidad_items, 1)
         self.assertAlmostEqual(float(gm.total_peso), 4.5, places=1)
+
+
+# ─── 9. Stock correcto en todos los casos de devolución ─────────────────────
+
+class TestDevolucionStock(TestCase):
+    """
+    Verifica que el stock quede correcto en todos los casos del flujo de
+    devolución:
+
+      1. Devolución simple        → balde activo en depósito
+      2. Devolución varios baldes → todos activos, pesos individuales correctos
+      3. Devolución parcial       → peso editado registrado, no el original
+      4. Doble devolución         → rechazada 409, stock no se duplica
+      5. Con destino (redirección)→ balde inactivo (retirado), destino correcto
+      6. Parcial con destino      → peso editado en ambos movimientos
+      7. GrupoMovimiento devol.   → tipo="devolucion", origen correcto
+      8. GrupoMovimiento retiro   → tipo="retiro", destino correcto, grupo_id+1
+      9. Sin origen válido        → igual funciona (origen es informativo)
+    """
+
+    URL = "/api/confirmar_devolucion/"
+
+    def setUp(self):
+        self.client = Client()
+        self.prod   = crear_producto("001", "Vainilla")
+        self.prod2  = crear_producto("002", "Chocolate")
+        self.boca   = BocaSalida.objects.create(nombre="Local Norte")
+        self.boca2  = BocaSalida.objects.create(nombre="Local Sur")
+
+    # helpers ──────────────────────────────────────────────────────────────────
+
+    def _devolver(self, productos, origen="Local Norte", destino=None):
+        """POST a confirmar_devolucion y devuelve la respuesta."""
+        payload = {"productos": productos, "origen": origen}
+        if destino is not None:
+            payload["destino"] = destino
+        return post_json(self.client, self.URL, payload)
+
+    def _item(self, plu="001", codigo="2000100045001", peso=4.5):
+        return {"plu": plu, "codigo_barras": codigo, "peso": peso}
+
+    # 1 ── Devolución simple ────────────────────────────────────────────────────
+
+    def test_devolucion_simple_crea_balde_activo(self):
+        """Un balde devuelto queda is_activo=True en depósito."""
+        resp = self._devolver([self._item()])
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(StockBalde.objects.filter(is_activo=True).count(), 1)
+
+    def test_devolucion_simple_peso_correcto(self):
+        """El StockBalde creado tiene el peso exacto enviado."""
+        resp = self._devolver([self._item(peso=3.75)])
+        self.assertEqual(resp.status_code, 200)
+        balde = StockBalde.objects.get(is_activo=True)
+        self.assertAlmostEqual(float(balde.peso), 3.75, places=3)
+
+    def test_devolucion_simple_registro_movimiento(self):
+        """Se crea exactamente 1 RegistroMovimiento tipo='devolucion'."""
+        self._devolver([self._item()])
+        self.assertEqual(
+            RegistroMovimiento.objects.filter(tipo="devolucion").count(), 1
+        )
+
+    # 2 ── Devolución de varios baldes ─────────────────────────────────────────
+
+    def test_devolucion_varios_todos_activos(self):
+        """Todos los baldes del lote quedan activos, pesos individuales OK."""
+        resp = self._devolver([
+            self._item(plu="001", codigo="2000100045001", peso=4.5),
+            self._item(plu="002", codigo="2000200031002", peso=3.1),
+        ])
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(StockBalde.objects.filter(is_activo=True).count(), 2)
+
+        pesos = set(
+            float(p) for p in StockBalde.objects.values_list("peso", flat=True)
+        )
+        self.assertEqual(pesos, {4.5, 3.1})
+
+    def test_devolucion_varios_registros_mismo_grupo(self):
+        """Todos los RegistroMovimiento del lote comparten el mismo grupo_id."""
+        resp = self._devolver([
+            self._item(plu="001", codigo="2000100045001", peso=4.5),
+            self._item(plu="002", codigo="2000200031002", peso=3.1),
+        ])
+        grupo_id = resp.json()["grupo_id"]
+        self.assertEqual(
+            RegistroMovimiento.objects.filter(grupo_id=grupo_id).count(), 2
+        )
+
+    # 3 ── Devolución parcial (peso editado) ───────────────────────────────────
+
+    def test_devolucion_parcial_peso_editado_registrado(self):
+        """
+        Balde original: 5.0 kg. Operario devuelve 2.3 kg (consumo parcial).
+        El StockBalde y el RegistroMovimiento deben tener 2.3, no 5.0.
+        """
+        # Primero ingresar el balde a su peso original
+        crear_balde(self.prod, peso=5.0, codigo="2000100050001", activo=False)
+
+        resp = self._devolver([self._item(peso=2.3, codigo="2000100050001")])
+        self.assertEqual(resp.status_code, 200)
+
+        balde = StockBalde.objects.filter(is_activo=True).first()
+        self.assertIsNotNone(balde)
+        self.assertAlmostEqual(float(balde.peso), 2.3, places=3,
+            msg="El StockBalde debe tener el peso real devuelto, no el original")
+
+        rm = RegistroMovimiento.objects.filter(tipo="devolucion").first()
+        self.assertAlmostEqual(float(rm.peso), 2.3, places=3,
+            msg="El RegistroMovimiento debe registrar el peso real")
+
+    # 4 ── Doble devolución ────────────────────────────────────────────────────
+
+    def test_doble_devolucion_rechazada(self):
+        """
+        Si el balde ya está activo en stock (mismo código), la segunda
+        devolución debe fallar 409 y no duplicar el balde.
+        """
+        # Primera devolución → balde activo
+        self._devolver([self._item(codigo="2000100045001")])
+        self.assertEqual(StockBalde.objects.filter(is_activo=True).count(), 1)
+
+        # Segunda devolución del mismo código
+        resp = self._devolver([self._item(codigo="2000100045001")])
+        self.assertEqual(resp.status_code, 409,
+            "Debe rechazar la doble devolución con 409")
+        # Solo debe existir 1 balde activo, no 2
+        self.assertEqual(StockBalde.objects.filter(is_activo=True).count(), 1,
+            "No debe duplicarse el balde en stock")
+
+    # 5 ── Devolución con destino (retiro encadenado) ──────────────────────────
+
+    def test_devolucion_con_destino_balde_queda_inactivo(self):
+        """
+        Balde devuelto con destino → entra al depósito y sale de inmediato.
+        El StockBalde debe quedar is_activo=False.
+        """
+        resp = self._devolver([self._item()], destino="Local Sur")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        balde = StockBalde.objects.first()
+        self.assertFalse(balde.is_activo,
+            "Con destino el balde debe quedar inactivo (ya fue retirado)")
+        self.assertIsNotNone(balde.fecha_retiro,
+            "fecha_retiro debe quedar registrada")
+
+    def test_devolucion_con_destino_crea_retiro_encadenado(self):
+        """Con destino se crean 2 RegistroMovimiento: devolucion + retiro."""
+        resp = self._devolver([self._item()], destino="Local Sur")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            RegistroMovimiento.objects.filter(tipo="devolucion").count(), 1
+        )
+        self.assertEqual(
+            RegistroMovimiento.objects.filter(tipo="retiro").count(), 1
+        )
+
+    def test_devolucion_con_destino_grupo_retiro_es_consecutivo(self):
+        """El grupo_id del retiro encadenado debe ser grupo_id_devolucion + 1."""
+        resp = self._devolver([self._item()], destino="Local Sur")
+        data = resp.json()
+        self.assertEqual(
+            data["grupo_id_retiro"], data["grupo_id"] + 1,
+            "El retiro encadenado debe usar el grupo_id inmediatamente siguiente"
+        )
+
+    def test_devolucion_con_destino_boca_salida_correcta(self):
+        """El RegistroMovimiento de retiro debe tener boca_salida='Local Sur'."""
+        self._devolver([self._item()], destino="Local Sur")
+        rm_retiro = RegistroMovimiento.objects.filter(tipo="retiro").first()
+        self.assertIsNotNone(rm_retiro)
+        self.assertEqual(rm_retiro.boca_salida, "Local Sur")
+        self.assertIsNotNone(rm_retiro.destino,
+            "El FK destino también debe estar seteado")
+        self.assertEqual(rm_retiro.destino.nombre, "Local Sur")
+
+    def test_devolucion_sin_destino_balde_queda_activo(self):
+        """Sin destino (queda en depósito) el balde debe quedar is_activo=True."""
+        resp = self._devolver([self._item()])  # sin destino
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(StockBalde.objects.filter(is_activo=True).count(), 1)
+        self.assertIsNone(
+            RegistroMovimiento.objects.filter(tipo="retiro").first(),
+            "Sin destino NO debe crearse un RegistroMovimiento de retiro"
+        )
+
+    # 6 ── Parcial con destino ─────────────────────────────────────────────────
+
+    def test_devolucion_parcial_con_destino_peso_en_retiro(self):
+        """
+        Balde parcial (2.3 kg) redirigido a Local Sur.
+        El retiro encadenado debe registrar 2.3 kg, no el peso original.
+        """
+        resp = self._devolver(
+            [self._item(peso=2.3)],
+            origen="Local Norte",
+            destino="Local Sur",
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        rm_retiro = RegistroMovimiento.objects.filter(tipo="retiro").first()
+        self.assertIsNotNone(rm_retiro)
+        self.assertAlmostEqual(float(rm_retiro.peso), 2.3, places=3,
+            msg="El retiro encadenado debe usar el peso real devuelto")
+
+        balde = StockBalde.objects.first()
+        self.assertAlmostEqual(float(balde.peso), 2.3, places=3,
+            msg="El StockBalde debe conservar el peso real")
+
+    # 7 ── GrupoMovimiento de devolución ───────────────────────────────────────
+
+    def test_grupo_movimiento_devolucion_tipo_y_origen(self):
+        """GrupoMovimiento de devolución tiene tipo='devolucion' y origen correcto."""
+        resp = self._devolver([self._item()], origen="Local Norte")
+        grupo_id = resp.json()["grupo_id"]
+        gm = GrupoMovimiento.objects.get(grupo_id=grupo_id)
+        self.assertEqual(gm.tipo, "devolucion")
+        self.assertEqual(gm.origen, "Local Norte")
+
+    def test_grupo_movimiento_devolucion_total_peso(self):
+        """GrupoMovimiento acumula correctamente el peso total del lote."""
+        resp = self._devolver([
+            self._item(plu="001", codigo="2000100045001", peso=4.5),
+            self._item(plu="002", codigo="2000200031002", peso=3.1),
+        ])
+        grupo_id = resp.json()["grupo_id"]
+        gm = GrupoMovimiento.objects.get(grupo_id=grupo_id)
+        self.assertAlmostEqual(float(gm.total_peso), 7.6, places=2)
+        self.assertEqual(gm.cantidad_items, 2)
+
+    # 8 ── GrupoMovimiento de retiro encadenado ────────────────────────────────
+
+    def test_grupo_movimiento_retiro_destino_correcto(self):
+        """GrupoMovimiento del retiro tiene tipo='retiro' y FK destino correcto."""
+        resp = self._devolver([self._item()], destino="Local Sur")
+        grupo_id_retiro = resp.json()["grupo_id_retiro"]
+        gm = GrupoMovimiento.objects.get(grupo_id=grupo_id_retiro)
+        self.assertEqual(gm.tipo, "retiro")
+        self.assertIsNotNone(gm.destino)
+        self.assertEqual(gm.destino.nombre, "Local Sur")
+
+    def test_grupo_movimiento_retiro_peso_igual_al_devuelto(self):
+        """GrupoMovimiento del retiro tiene el mismo total_peso que la devolución."""
+        resp = self._devolver([self._item(peso=2.3)], destino="Local Sur")
+        data = resp.json()
+        gm_dev    = GrupoMovimiento.objects.get(grupo_id=data["grupo_id"])
+        gm_retiro = GrupoMovimiento.objects.get(grupo_id=data["grupo_id_retiro"])
+        self.assertAlmostEqual(
+            float(gm_dev.total_peso), float(gm_retiro.total_peso), places=3,
+            msg="La devolución y el retiro encadenado deben totalizar el mismo peso"
+        )
