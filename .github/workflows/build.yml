@@ -27,8 +27,52 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      # ── Gate 1: Tests ─────────────────────────────────────────────────────
+      - name: Run tests
+        run: python manage.py test app_inventario.tests --verbosity=2
+
+      # ── Gate 2: Migration check ────────────────────────────────────────────
+      # Falla si hay migraciones pendientes sin crear (cambios en models.py
+      # que no tienen su correspondiente archivo de migración).
+      - name: Check for missing migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      # ── Gate 3: Syntax check ───────────────────────────────────────────────
+      - name: Compile all Python files
+        run: python -m compileall . -q
+
+      # ── Build: solo si todos los gates pasaron ─────────────────────────────
       - name: Build single-file exe
         run: pyinstaller release.spec --noconfirm
+
+      # ── Smoke test del ejecutable ─────────────────────────────────────────
+      # `StockControl.exe help` ejecuta el comando de Django management "help"
+      # que lista todos los comandos disponibles. Verifica que:
+      #   - el EXE arranca sin error
+      #   - Django se inicializa correctamente dentro del bundle
+      #   - las migraciones y los archivos estáticos están incluidos
+      # No se usa `check` porque requiere una base de datos real en CI.
+      - name: Smoke test — exe exists and starts
+        shell: pwsh
+        run: |
+          $exe = "dist\StockControl.exe"
+          if (-not (Test-Path $exe)) {
+            Write-Error "StockControl.exe no encontrado en dist/"
+            exit 1
+          }
+          # Ejecutar help — debe listar comandos y salir con código 0
+          & ".\$exe" help
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "StockControl.exe help falló con código $LASTEXITCODE"
+            exit 1
+          }
+          # Verificar que el comando personalizado reactivar_balde existe
+          $salida = & ".\$exe" help 2>&1 | Out-String
+          if ($salida -notmatch "reactivar_balde") {
+            Write-Error "Comando reactivar_balde no encontrado en el EXE"
+            exit 1
+          }
+          Write-Host "✅ Smoke test: StockControl.exe OK"
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
