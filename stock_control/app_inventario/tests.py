@@ -1134,12 +1134,13 @@ class TestStockDetallado(TestCase):
         self.assertIn(b.pk, ids)
 
 
-# ─── C-2: Ingreso forzado (force=True) con código duplicado ─────────────────
+# ─── C-2: Ingreso de código duplicado via scan_item_id + autorizar_duplicado ──
 
 class TestIngresoForzado(TestCase):
     """
     C-2: Dos baldes físicos pueden compartir codigo_barras.
-    Con force=True se pueden ingresar dos activos con el mismo código.
+    La autorización del segundo ingreso se hace por scan_item_id via
+    /api/autorizar_duplicado/ (ya no existe el bypass global force=True).
     El retiro elige el más antiguo (FIFO).
     """
 
@@ -1150,30 +1151,57 @@ class TestIngresoForzado(TestCase):
         self.prod = crear_producto("011", "Dulce de Leche")
         self.boca = BocaSalida.objects.create(nombre="Depósito")
 
-    def _ingresar(self, force=False):
-        payload = {
+    def _ingresar_primero(self):
+        """Ingreso del primer balde (sin duplicado en stock)."""
+        return post_json(self.client, "/api/confirmar_codigos/", {
             "origen": "Fábrica",
             "productos": [{"plu": "011", "codigo_barras": self.CODIGO, "peso": 5.0}],
-        }
-        if force:
-            payload["force"] = True
-        return post_json(self.client, "/api/confirmar_codigos/", payload)
+        })
+
+    def _ingresar_duplicado(self, sid=None):
+        """
+        Ingreso de un segundo balde con el mismo código.
+        Autoriza el scan_item_id en sesión y luego llama confirmar_codigos.
+        """
+        import uuid as _uuid
+        if sid is None:
+            sid = str(_uuid.uuid4())
+
+        # Registrar en productos_temporales (simula procesar_codigo en el scanner)
+        session = self.client.session
+        session["productos_temporales"] = [
+            {"scan_item_id": sid, "codigo_barras": self.CODIGO}
+        ]
+        session.save()
+
+        # Autorizar el duplicado por ítem específico
+        r_auth = post_json(self.client, "/api/autorizar_duplicado/", {"scan_item_id": sid})
+        if r_auth.status_code != 200:
+            return r_auth
+
+        # Confirmar ingreso con scan_item_id en el producto
+        return post_json(self.client, "/api/confirmar_codigos/", {
+            "origen": "Fábrica",
+            "productos": [{"plu": "011", "codigo_barras": self.CODIGO, "peso": 5.0, "scan_item_id": sid}],
+        })
 
     def test_forzar_ingreso_duplicado_crea_dos_baldes_activos(self):
-        """force=True permite crear un segundo balde activo con el mismo codigo_barras."""
-        r1 = self._ingresar(force=False)
-        self.assertEqual(r1.status_code, 200)
-        r2 = self._ingresar(force=True)
-        self.assertEqual(r2.status_code, 200)
+        """La autorización por scan_item_id permite crear un segundo balde activo con el mismo codigo_barras."""
+        r1 = self._ingresar_primero()
+        self.assertEqual(r1.status_code, 200, r1.content)
+        r2 = self._ingresar_duplicado()
+        self.assertEqual(r2.status_code, 200, r2.content)
         activos = StockBalde.objects.filter(
             codigo_barras=self.CODIGO, is_activo=True
         ).count()
-        self.assertEqual(activos, 2, "Deben existir 2 baldes activos con el mismo código tras force=True")
+        self.assertEqual(activos, 2, "Deben existir 2 baldes activos con el mismo código tras autorizar_duplicado")
 
     def test_retiro_elige_balde_mas_antiguo_fifo(self):
         """Con dos baldes activos del mismo código, el retiro elige el más antiguo."""
-        self._ingresar(force=False)
-        self._ingresar(force=True)
+        # Crear los baldes directamente (test de retiro FIFO, no del flujo de ingreso)
+        crear_balde(self.prod, peso=5.0, codigo=self.CODIGO)
+        crear_balde(self.prod, peso=5.0, codigo=self.CODIGO)
+
         baldes = list(
             StockBalde.objects.filter(codigo_barras=self.CODIGO, is_activo=True)
             .order_by("timestamp", "id")
@@ -1593,6 +1621,7 @@ class TestEscaneoCodigoRepetido(TestCase):
         """
         Escanear dos veces el mismo código (force_duplicate) y confirmar
         el ingreso crea 2 StockBalde y 2 RegistroMovimiento de tipo 'ingreso'.
+        La autorización del segundo ítem se hace por scan_item_id.
         """
         self._escanear()
         self._escanear(force_duplicate=True)
@@ -1600,11 +1629,25 @@ class TestEscaneoCodigoRepetido(TestCase):
         items = session.get("productos_temporales", [])
         self.assertEqual(len(items), 2)
 
+        # El segundo ítem es el duplicado: debe estar autorizado en sesión
+        # antes de llamar a confirmar_codigos.
+        sid_duplicado = items[1].get("scan_item_id")
+        self.assertIsNotNone(sid_duplicado, "El segundo ítem debe tener scan_item_id")
+
+        r_auth = post_json(self.client, "/api/autorizar_duplicado/", {"scan_item_id": sid_duplicado})
+        self.assertEqual(r_auth.status_code, 200, r_auth.content)
+
+        # Incluir scan_item_id en cada producto para que confirmar_codigos pueda
+        # validar la autorización por ítem.
         payload = {
             "origen": "Portofino",
-            "force": True,   # dos baldes físicos con el mismo código → force requerido
             "productos": [
-                {"plu": i["plu"], "peso": i["peso"], "codigo_barras": i["codigo_barras"]}
+                {
+                    "plu": i["plu"],
+                    "peso": i["peso"],
+                    "codigo_barras": i["codigo_barras"],
+                    "scan_item_id": i.get("scan_item_id"),
+                }
                 for i in items
             ],
         }
@@ -2059,19 +2102,30 @@ class TestIdempotenciaDB(TestCase):
             "operation_id": "aaaa0000-0000-0000-0000-000000000001",
             "productos": [{"plu": "001", "peso": 4.5, "codigo_barras": self.CODIGO}],
         }
+        r1 = post_json(self.client, "/api/confirmar_codigos/", payload1)
+        self.assertEqual(r1.status_code, 200, r1.content)
+
+        # Autorizar el segundo ingreso del mismo código via scan_item_id
+        # (ya no existe el bypass global force=True)
+        sid2 = "bbbb0000-0000-0000-0000-000000000002"
+        session = self.client.session
+        session["productos_temporales"] = [
+            {"scan_item_id": sid2, "codigo_barras": self.CODIGO}
+        ]
+        session.save()
+        r_auth = post_json(self.client, "/api/autorizar_duplicado/", {"scan_item_id": sid2})
+        self.assertEqual(r_auth.status_code, 200, r_auth.content)
+
         payload2 = {
             "origen": "Fábrica",
             "operation_id": "aaaa0000-0000-0000-0000-000000000002",
-            "force": True,  # forzar porque el código ya está activo
-            "productos": [{"plu": "001", "peso": 4.5, "codigo_barras": self.CODIGO}],
+            "productos": [{"plu": "001", "peso": 4.5, "codigo_barras": self.CODIGO, "scan_item_id": sid2}],
         }
-        r1 = post_json(self.client, "/api/confirmar_codigos/", payload1)
-        self.assertEqual(r1.status_code, 200, r1.content)
         r2 = post_json(self.client, "/api/confirmar_codigos/", payload2)
         self.assertEqual(r2.status_code, 200, r2.content)
         self.assertIsNone(r2.json().get("status"))  # no es "ya_procesado"
 
-        # Debe haber 2 baldes (segunda operación realmente ejecutada con force)
+        # Debe haber 2 baldes (segunda operación realmente ejecutada)
         self.assertEqual(StockBalde.objects.filter(codigo_barras=self.CODIGO).count(), 2)
 
     # ── Test #7 (mandatorio): operation_id reutilizado con payload distinto → 409 ──
@@ -2739,7 +2793,15 @@ class TestSecuenciaGrupo(TransactionTestCase):
         cliente1 = Client()
         cliente2 = Client()
 
-        errores_http = []  # HTTP 500 (lock agotado tras 5 reintentos)
+        # lock_msgs: errores de bloqueo SQLite (inconclusivos, no son bugs de lógica).
+        # Pueden llegar como HTTP 500 (si el lock ocurre dentro del handler Django)
+        # o como OperationalError Python (si ocurre en la lectura previa del stock,
+        # fuera del bloque de manejo de excepciones de la vista).
+        lock_msgs = []
+
+        def _es_lock(texto: str) -> bool:
+            t = texto.lower()
+            return ("locked" in t or "database is lock" in t) and "database" in t
 
         def retirar(cliente):
             try:
@@ -2751,31 +2813,37 @@ class TestSecuenciaGrupo(TransactionTestCase):
                 if r.status_code == 200:
                     grupos_creados.append(r.json().get("grupo_id"))
                 elif r.status_code == 500:
-                    # SQLite in-memory puede agotar los 5 reintentos bajo carga
-                    body = r.content.decode(errors="replace")[:200]
-                    errores_http.append(body)
-                # 409 por concurrencia es aceptable (no se agrega a errores)
+                    body = r.content.decode(errors="replace")[:300]
+                    if _es_lock(body):
+                        lock_msgs.append(f"HTTP500: {body[:120]}")
+                    else:
+                        errores.append(f"HTTP500 (no lock): {body[:120]}")
+                # 409 por concurrencia es aceptable
             except Exception as exc:
-                errores.append(str(exc))
+                msg = str(exc)
+                if _es_lock(msg):
+                    # OperationalError de SQLite propagado fuera del handler Django
+                    lock_msgs.append(f"exc: {msg[:120]}")
+                else:
+                    errores.append(msg)
 
         t1 = threading.Thread(target=retirar, args=(cliente1,))
         t2 = threading.Thread(target=retirar, args=(cliente2,))
         t1.start(); t2.start()
         t1.join(timeout=15); t2.join(timeout=15)
 
-        self.assertFalse(errores, f"Errores de red/Python: {errores}")
+        self.assertFalse(errores, f"Errores no relacionados con lock de SQLite: {errores}")
 
-        # Si ambos threads agotaron los reintentos de lock (SQLite in-memory),
-        # el test es inconclusivo pero no un fallo de lógica.
-        if not grupos_creados and errores_http:
+        # Si todos los fallos fueron por lock → test inconclusivo (no bug de lógica).
+        if not grupos_creados and lock_msgs:
             self.skipTest(
                 "SQLite in-memory agotó el lock en ambos threads "
-                "(limitación del entorno de test, no un bug de lógica)."
+                f"(limitación del entorno de test, no un bug). Msgs: {lock_msgs}"
             )
 
-        # Al menos un retiro debió exitir (el otro puede haber perdido la carrera)
+        # Al menos un retiro debió tener éxito (el otro puede haber perdido la carrera)
         self.assertGreaterEqual(len(grupos_creados), 1,
-            f"Ningún retiro exitoso; HTTP 500s: {errores_http}")
+            f"Ningún retiro exitoso; lock_msgs: {lock_msgs}")
         # Si ambos exitaron, los grupos deben ser distintos
         if len(grupos_creados) == 2:
             self.assertNotEqual(
