@@ -1521,6 +1521,7 @@ def buscar_detallado(request):
 @csrf_exempt
 def reiniciar_lista_temporal(request):
     request.session["productos_temporales"] = []
+    request.session["force_approved_ids"] = []
     request.session.modified = True
     return JsonResponse({"message": "Lista de productos escaneados reiniciada"})
 
@@ -2344,6 +2345,7 @@ def confirmar_devolucion(request):
                 _actualizar_total_grupo(grupo_id_retiro, tipo="salida", destino_nombre=destino)
 
             request.session["productos_temporales"] = []
+            request.session["force_approved_ids"] = []
             request.session.modified = True
 
             # ✅ Completar operación DENTRO del atomic (crash-safe).

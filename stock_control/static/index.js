@@ -2037,7 +2037,7 @@ async function confirmarDevolucion() {
     });
     if (!data.success) throw new Error(data.error || "Error desconocido");
     PendingOp.clear("devolucion");
-    Toast.success(data.message);
+    Toast.success(data.message || "La devolución ya había sido procesada correctamente");
     cerrarModalDevolucion();
     actualizarTablaStock();
   } catch (e) {
