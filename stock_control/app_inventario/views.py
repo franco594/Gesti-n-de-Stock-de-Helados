@@ -311,17 +311,35 @@ _UUID_RE = re.compile(
 )
 
 
+def _respuesta_de_operacion(op, incoming_hash: str):
+    """
+    Construye el JsonResponse de una operación ya completada.
+    Comparte lógica entre _check_idempotencia y _reclamar_operacion.
+    """
+    if op.payload_hash and op.payload_hash != incoming_hash:
+        return JsonResponse(
+            {"error": "operation_id reutilizado con payload distinto"}, status=409
+        )
+    try:
+        resp_data = json.loads(op.respuesta_json) if op.respuesta_json else {}
+    except (json.JSONDecodeError, TypeError):
+        resp_data = {}
+    resp_data["status"] = "ya_procesado"
+    resp_data["grupo_id"] = resp_data.get("grupo_id") or op.grupo_id
+    return JsonResponse(resp_data, status=op.status_code)
+
+
 def _check_idempotencia(operation_id: str, incoming_hash: str):
     """
-    Verifica si el operation_id ya fue procesado.
+    Fast-path FUERA del atomic: solo consulta operaciones 'completed'.
+    No es race-safe (dos requests pueden pasar), pero es eficiente para
+    el caso típico (retry después de éxito confirmado).
+    La protección real contra race conditions la provee _reclamar_operacion().
 
     Retorna:
-      None                  — no existe, continuar con la operación.
-      JsonResponse(200)     — ya_procesado con payload idéntico → devolver respuesta original.
-      JsonResponse(409)     — mismo UUID pero payload distinto → rechazar.
-
-    Solo considera 'completed' como procesado. Una operación 'processing'
-    probablemente quedó huérfana (crash); se permite reintentar.
+      None              — no existe como 'completed', continuar.
+      JsonResponse(200) — ya_procesado con payload idéntico.
+      JsonResponse(409) — mismo UUID pero payload distinto.
     """
     try:
         op = OperacionIdempotente.objects.get(
@@ -329,22 +347,48 @@ def _check_idempotencia(operation_id: str, incoming_hash: str):
         )
     except OperacionIdempotente.DoesNotExist:
         return None
+    return _respuesta_de_operacion(op, incoming_hash)
 
-    if op.payload_hash and op.payload_hash != incoming_hash:
-        return JsonResponse(
-            {"error": "operation_id reutilizado con payload distinto"},
-            status=409,
-        )
 
-    # Devolver la respuesta original almacenada
-    try:
-        resp_data = json.loads(op.respuesta_json) if op.respuesta_json else {}
-    except (json.JSONDecodeError, TypeError):
-        resp_data = {}
+def _reclamar_operacion(operation_id: str, tipo: str, incoming_hash: str):
+    """
+    Reclama atómicamente el operation_id al inicio de un transaction.atomic().
 
-    resp_data["status"] = "ya_procesado"
-    resp_data["grupo_id"] = resp_data.get("grupo_id") or op.grupo_id
-    return JsonResponse(resp_data, status=op.status_code)
+    DEBE llamarse DENTRO de un bloque transaction.atomic() activo.
+
+    Garantía: dos requests concurrentes no pueden ambos reclamar el mismo UUID.
+    - Primer request → get_or_create crea 'processing' (created=True) → retorna None.
+    - Segundo request concurrente → encuentra 'processing' (created=False) → 409.
+    - Retry post-éxito → encuentra 'completed' → devuelve respuesta original (200).
+    - Crash dentro del atomic → 'processing' se revierte con la transacción;
+      el siguiente retry crea un nuevo registro. Correcto.
+    - Crash post-commit → 'completed' quedó guardado; retry lo encuentra. Correcto.
+
+    Retorna:
+      None              — UUID reclamado exitosamente como 'processing'.
+      JsonResponse(200) — ya completado con mismo hash → devolver al cliente.
+      JsonResponse(409) — en proceso (concurrent) o payload distinto → rechazar.
+    """
+    obj, created = OperacionIdempotente.objects.get_or_create(
+        operation_id=operation_id,
+        defaults={
+            "tipo": tipo,
+            "estado": "processing",
+            "payload_hash": incoming_hash,
+        },
+    )
+
+    if created:
+        return None  # Reclamado exitosamente
+
+    if obj.estado == "completed":
+        return _respuesta_de_operacion(obj, incoming_hash)
+
+    # estado == 'processing': request concurrente en curso
+    return JsonResponse(
+        {"error": "Operación en proceso — reintentar en breve", "estado": "processing"},
+        status=409,
+    )
 
 
 def _reservar_grupo_id() -> int:
@@ -1605,6 +1649,16 @@ def autorizar_duplicado(request):
     if not scan_item_id:
         return JsonResponse({"error": "scan_item_id requerido"}, status=400)
 
+    # Validar que el scan_item_id pertenezca a un producto temporal de esta sesión.
+    # Evita que un request malicioso auto-autorice IDs arbitrarios.
+    temporales = request.session.get("productos_temporales", [])
+    ids_validos = {p.get("scan_item_id") for p in temporales if p.get("scan_item_id")}
+    if scan_item_id not in ids_validos:
+        return JsonResponse(
+            {"error": "scan_item_id no pertenece a un producto de esta sesión"},
+            status=403,
+        )
+
     approved = list(request.session.get("force_approved_ids", []))
     if scan_item_id not in approved:
         approved.append(scan_item_id)
@@ -1773,6 +1827,12 @@ def confirmar_codigos(request):
     # Fase 2 (transacción): solo escrituras + chequeo de duplicados con lock
     try:
         with transaction.atomic():
+            # ✅ Reclamar UUID atómicamente al inicio del atomic (race-safe).
+            if operation_id:
+                _reclaim = _reclamar_operacion(operation_id, "ingreso", incoming_hash)
+                if _reclaim is not None:
+                    return _reclaim
+
             # ✅ Generar grupo_id de forma segura con retry ante colisiones SQLite
             nuevo_grupo_id = _reservar_grupo_id()
 
@@ -1853,8 +1913,8 @@ def confirmar_codigos(request):
                 request.session["force_approved_ids"] = []
             request.session.modified = True
 
-            # ✅ Registrar operation_id DENTRO del atomic (crash-safe).
-            # Si el atomic hace rollback, este registro también se revierte.
+            # ✅ Completar operación DENTRO del atomic (crash-safe).
+            # filter().update() sobre el registro 'processing' creado por _reclamar_operacion().
             if operation_id:
                 _resp_ingreso = {
                     "success": True,
@@ -1862,17 +1922,14 @@ def confirmar_codigos(request):
                     "origen": origen,
                     "productos": list(ingresados),
                 }
-                OperacionIdempotente.objects.update_or_create(
-                    operation_id=operation_id,
-                    defaults={
-                        "tipo": "ingreso",
-                        "estado": "completed",
-                        "grupo_id": nuevo_grupo_id,
-                        "payload_hash": incoming_hash,
-                        "status_code": 200,
-                        "respuesta_json": json.dumps(_resp_ingreso, ensure_ascii=False),
-                        "fecha_fin": timezone.now(),
-                    },
+                OperacionIdempotente.objects.filter(
+                    operation_id=operation_id
+                ).update(
+                    estado="completed",
+                    grupo_id=nuevo_grupo_id,
+                    status_code=200,
+                    respuesta_json=json.dumps(_resp_ingreso, ensure_ascii=False),
+                    fecha_fin=timezone.now(),
                 )
 
     except _DuplicadoDetectado as exc:
@@ -2014,6 +2071,12 @@ def confirmar_retiro(request):
     nuevo_grupo_id = None
     try:
         with transaction.atomic():
+            # ✅ Reclamar UUID atómicamente al inicio del atomic (race-safe).
+            if operation_id:
+                _reclaim = _reclamar_operacion(operation_id, "retiro", incoming_hash)
+                if _reclaim is not None:
+                    return _reclaim
+
             # ✅ Generar grupo_id de forma segura con retry ante colisiones SQLite
             nuevo_grupo_id = _reservar_grupo_id()
 
@@ -2075,7 +2138,7 @@ def confirmar_retiro(request):
                 destino_nombre=destino_nombre,
             )
 
-            # ✅ Registrar operation_id DENTRO del atomic (crash-safe).
+            # ✅ Completar operación DENTRO del atomic (crash-safe).
             if operation_id:
                 _resp_retiro = {
                     "success": True,
@@ -2083,17 +2146,14 @@ def confirmar_retiro(request):
                     "destino": destino_nombre,
                     "productos": list(productos_retirados),
                 }
-                OperacionIdempotente.objects.update_or_create(
-                    operation_id=operation_id,
-                    defaults={
-                        "tipo": "retiro",
-                        "estado": "completed",
-                        "grupo_id": nuevo_grupo_id,
-                        "payload_hash": incoming_hash,
-                        "status_code": 200,
-                        "respuesta_json": json.dumps(_resp_retiro, ensure_ascii=False),
-                        "fecha_fin": timezone.now(),
-                    },
+                OperacionIdempotente.objects.filter(
+                    operation_id=operation_id
+                ).update(
+                    estado="completed",
+                    grupo_id=nuevo_grupo_id,
+                    status_code=200,
+                    respuesta_json=json.dumps(_resp_retiro, ensure_ascii=False),
+                    fecha_fin=timezone.now(),
                 )
 
     except _ErrorRetiro as exc:
@@ -2196,6 +2256,12 @@ def confirmar_devolucion(request):
     grupo_id_retiro = None  # se asigna dentro del atomic con _reservar_grupos
     try:
         with transaction.atomic():
+            # ✅ Reclamar UUID atómicamente al inicio del atomic (race-safe).
+            if operation_id:
+                _reclaim = _reclamar_operacion(operation_id, "devolucion", incoming_hash)
+                if _reclaim is not None:
+                    return _reclaim
+
             # Reservar grupo_ids atómicamente con SecuenciaGrupo.
             # Si hay destino (retiro encadenado) necesitamos 2 IDs; si no, 1.
             _ids = _reservar_grupos(2 if destino else 1)
@@ -2264,7 +2330,7 @@ def confirmar_devolucion(request):
             request.session["productos_temporales"] = []
             request.session.modified = True
 
-            # ✅ Registrar operation_id DENTRO del atomic (crash-safe).
+            # ✅ Completar operación DENTRO del atomic (crash-safe).
             if operation_id:
                 _resp_dev = {
                     "success": True,
@@ -2275,17 +2341,14 @@ def confirmar_devolucion(request):
                     "cantidad": len(devueltos),
                     "productos": list(devueltos),
                 }
-                OperacionIdempotente.objects.update_or_create(
-                    operation_id=operation_id,
-                    defaults={
-                        "tipo": "devolucion",
-                        "estado": "completed",
-                        "grupo_id": nuevo_grupo_id,
-                        "payload_hash": incoming_hash,
-                        "status_code": 200,
-                        "respuesta_json": json.dumps(_resp_dev, ensure_ascii=False),
-                        "fecha_fin": timezone.now(),
-                    },
+                OperacionIdempotente.objects.filter(
+                    operation_id=operation_id
+                ).update(
+                    estado="completed",
+                    grupo_id=nuevo_grupo_id,
+                    status_code=200,
+                    respuesta_json=json.dumps(_resp_dev, ensure_ascii=False),
+                    fecha_fin=timezone.now(),
                 )
 
     except _ErrorDevolucion as exc:

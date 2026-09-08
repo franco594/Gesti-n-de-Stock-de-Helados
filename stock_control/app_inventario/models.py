@@ -244,19 +244,31 @@ class OperacionIdempotente(models.Model):
 
     Cada confirmación de ingreso, retiro o devolución recibe del cliente
     un `operation_id` (UUID v4 generado en frontend con crypto.randomUUID()).
-    Antes de ejecutar la operación, el servidor verifica si ese ID ya existe
-    en esta tabla. Si existe, retorna el mismo grupo_id sin repetir la acción.
 
-    Esto garantiza que una confirmación accidental doble (doble clic, red lenta,
-    reload de página) no cree ni retire baldes duplicados.
+    Flujo de registro (dentro del transaction.atomic()):
+      1. Al inicio del atomic: crear con estado='processing'.
+      2. Al finalizar exitosamente: actualizar a estado='completed' con
+         la respuesta JSON completa y el status_code HTTP.
+      3. Si el atomic falla → rollback completo; el registro desaparece.
 
-    A diferencia de la solución anterior (lista en sesión Django), este registro
-    sobrevive reinicios del servidor y es atómico.
+    En un retry con el mismo operation_id:
+      - estado='completed' + mismo payload_hash → devolver respuesta_json almacenada
+      - estado='completed' + payload_hash distinto → 409
+      - estado='processing' → la transacción anterior probablemente falló (SQLite);
+        se considera inexistente y se procesa normalmente.
+
+    Garantía: si el proceso cae entre el COMMIT y el retorno de la view,
+    el registro SIGUE en la DB (ya está committed), así que un retry
+    devuelve la respuesta original sin repetir la operación.
     """
     TIPO_CHOICES = [
         ("ingreso", "Ingreso"),
         ("retiro", "Retiro"),
         ("devolucion", "Devolución"),
+    ]
+    ESTADO_CHOICES = [
+        ("processing", "En proceso"),
+        ("completed", "Completado"),
     ]
 
     operation_id = models.CharField(
@@ -266,6 +278,10 @@ class OperacionIdempotente(models.Model):
         help_text="UUID v4 generado por el cliente (crypto.randomUUID())",
     )
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
+    estado = models.CharField(
+        max_length=12, choices=ESTADO_CHOICES, default="processing",
+        help_text="'processing' al iniciar; 'completed' al terminar exitosamente.",
+    )
     grupo_id = models.IntegerField(
         null=True, blank=True,
         help_text="grupo_id del GrupoMovimiento creado; null si la operación no creó uno",
@@ -274,7 +290,19 @@ class OperacionIdempotente(models.Model):
         max_length=64, blank=True, default="",
         help_text="SHA-256 del payload original (hex). Detecta replays con payload distinto.",
     )
+    status_code = models.SmallIntegerField(
+        default=200,
+        help_text="Código HTTP de la respuesta original (200, 400, 409, etc.)",
+    )
+    respuesta_json = models.TextField(
+        blank=True, default="",
+        help_text="JSON completo de la respuesta original. Se devuelve en retries.",
+    )
     timestamp = models.DateTimeField(auto_now_add=True)
+    fecha_fin = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Momento en que la operación fue marcada como completada.",
+    )
 
     class Meta:
         db_table = 'app_inventario_operacionidempotente'
@@ -282,4 +310,4 @@ class OperacionIdempotente(models.Model):
         verbose_name_plural = 'Operaciones Idempotentes'
 
     def __str__(self):
-        return f"{self.operation_id} [{self.tipo}] → grupo {self.grupo_id}"
+        return f"{self.operation_id} [{self.tipo}/{self.estado}] → grupo {self.grupo_id}"
