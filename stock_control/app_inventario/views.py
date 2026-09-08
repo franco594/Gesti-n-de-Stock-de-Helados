@@ -36,10 +36,12 @@ from django.db.models.functions import Cast
 
 
 
+from django.db.models import F
+
 from .models import (
     BocaSalida, OrigenIngreso, ProductoFijo,
     RegistroMovimiento, GrupoMovimiento, StockBalde, ConciliacionBoca,
-    ConfiguracionSistema, OperacionIdempotente,
+    ConfiguracionSistema, OperacionIdempotente, SecuenciaGrupo,
 )
 
 _CONFIG_DEFAULTS = {
@@ -309,33 +311,69 @@ def _payload_hash(payload: dict) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def _siguiente_grupo_id() -> int:
+def _reservar_grupo_id() -> int:
     """
-    Genera el próximo grupo_id de forma segura en SQLite.
+    Reserva atómicamente el siguiente grupo_id usando SecuenciaGrupo.
 
-    SQLite no soporta select_for_update() a nivel de fila; para evitar la
-    carrera de `MAX+1`, calculamos el candidato dentro del `transaction.atomic()`
-    activo y reintentamos hasta 5 veces si hay colisión de IntegrityError
-    (p. ej. dos requests concurrentes con el mismo MAX).
+    Reemplaza el patrón MAX(grupo_id)+1 que sufre race conditions cuando dos
+    operaciones concurrentes leen el mismo MAX antes de que alguna escriba.
 
-    Nota: en SQLite cada write transaction obtiene un lock exclusivo de archivo,
-    así que las colisiones son raras pero posibles en ventanas muy cortas.
+    Usa F("ultimo_valor") + 1 dentro de transaction.atomic() para garantizar
+    que el incremento es atómico. En SQLite, el lock exclusivo de archivo
+    serializa las escrituras. Si el lock está tomado, reintenta hasta 5 veces
+    con backoff exponencial.
+
+    Puede llamarse tanto dentro de un atomic() exterior (crea savepoint)
+    como de forma autónoma.
     """
-    for _intento in range(5):
-        ultimo = (
-            RegistroMovimiento.objects
-            .aggregate(max_id=Max('grupo_id'))
-        )['max_id'] or 0
-        candidato = ultimo + 1
-        # Verificar que GrupoMovimiento no tenga ese pk ya (pk único)
-        if not GrupoMovimiento.objects.filter(pk=candidato).exists():
-            return candidato
-        # Colisión: hay otro registro con ese grupo_id (creado por otro request)
-        # El siguiente loop usará el nuevo MAX
-    # Fallback: usar MAX real más uno
-    return (GrupoMovimiento.objects.aggregate(m=Max('grupo_id'))['m'] or 0) + 1
+    import time as _time
+    from django.db import OperationalError as _OE
+    for _attempt in range(5):
+        try:
+            with transaction.atomic():
+                SecuenciaGrupo.objects.get_or_create(
+                    nombre="grupo_id",
+                    defaults={"ultimo_valor": 0},
+                )
+                SecuenciaGrupo.objects.filter(nombre="grupo_id").update(
+                    ultimo_valor=F("ultimo_valor") + 1
+                )
+                return SecuenciaGrupo.objects.get(nombre="grupo_id").ultimo_valor
+        except Exception as _exc:
+            if "locked" in str(_exc).lower() and _attempt < 4:
+                _time.sleep(0.05 * (2 ** _attempt))
+                continue
+            raise
+    raise RuntimeError("No se pudo reservar grupo_id tras 5 intentos")
 
 
+def _reservar_grupos(n: int = 1) -> list:
+    """
+    Reserva n grupo_ids consecutivos en una sola operación atómica.
+
+    Devuelve una lista de n enteros consecutivos [base, base+1, ..., base+n-1].
+    Uso típico: devolución con retiro encadenado necesita 2 IDs.
+    No usar nuevo_grupo_id + 1 fuera de este helper.
+    """
+    import time as _time
+    for _attempt in range(5):
+        try:
+            with transaction.atomic():
+                SecuenciaGrupo.objects.get_or_create(
+                    nombre="grupo_id",
+                    defaults={"ultimo_valor": 0},
+                )
+                SecuenciaGrupo.objects.filter(nombre="grupo_id").update(
+                    ultimo_valor=F("ultimo_valor") + n
+                )
+                ultimo = SecuenciaGrupo.objects.get(nombre="grupo_id").ultimo_valor
+                return list(range(ultimo - n + 1, ultimo + 1))
+        except Exception as _exc:
+            if "locked" in str(_exc).lower() and _attempt < 4:
+                _time.sleep(0.05 * (2 ** _attempt))
+                continue
+            raise
+    raise RuntimeError(f"No se pudo reservar {n} grupo_ids tras 5 intentos")
 def _actualizar_total_grupo(grupo_id, tipo, origen=None, destino_nombre=None):
     agg = (RegistroMovimiento.objects
            .filter(grupo_id=grupo_id)
@@ -1677,7 +1715,7 @@ def confirmar_codigos(request):
     try:
         with transaction.atomic():
             # ✅ Generar grupo_id de forma segura con retry ante colisiones SQLite
-            nuevo_grupo_id = _siguiente_grupo_id()
+            nuevo_grupo_id = _reservar_grupo_id()
 
             for item in validados:
                 producto_obj = item["producto"]
@@ -1913,7 +1951,7 @@ def confirmar_retiro(request):
     try:
         with transaction.atomic():
             # ✅ Generar grupo_id de forma segura con retry ante colisiones SQLite
-            nuevo_grupo_id = _siguiente_grupo_id()
+            nuevo_grupo_id = _reservar_grupo_id()
 
             for producto_obj, codigo in solicitudes_validadas:
                 # Re-fetch con lock: detecta retiros concurrentes entre el pre-check y aquí
@@ -2087,11 +2125,14 @@ def confirmar_devolucion(request):
 
     # Fase 2 (transacción): solo escrituras + chequeo de doble-devolución con lock.
     devueltos = []
-    grupo_id_retiro = None
+    grupo_id_retiro = None  # se asigna dentro del atomic con _reservar_grupos
     try:
         with transaction.atomic():
-            # ✅ Generar grupo_id de forma segura con retry ante colisiones SQLite
-            nuevo_grupo_id = _siguiente_grupo_id()
+            # Reservar grupo_ids atómicamente con SecuenciaGrupo.
+            # Si hay destino (retiro encadenado) necesitamos 2 IDs; si no, 1.
+            _ids = _reservar_grupos(2 if destino else 1)
+            nuevo_grupo_id  = _ids[0]
+            grupo_id_retiro = _ids[1] if destino else None
 
             baldes_creados = []   # para el retiro encadenado si hay destino
 
@@ -2133,7 +2174,7 @@ def confirmar_devolucion(request):
 
             # ── Redirigir: si hay destino, crear retiro encadenado ────────────
             if destino and baldes_creados:
-                grupo_id_retiro = nuevo_grupo_id + 1
+                # grupo_id_retiro ya fue reservado con _reservar_grupos(2)
                 ahora = timezone.now()
                 destino_obj_retiro = BocaSalida.objects.filter(nombre=destino).first()
                 for balde_dev in baldes_creados:

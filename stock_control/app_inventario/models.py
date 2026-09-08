@@ -213,6 +213,31 @@ class ConfiguracionSistema(models.Model):
         return f"{self.clave} = {self.valor}"
 
 
+class SecuenciaGrupo(models.Model):
+    """
+    Contador persistente para generar grupo_id secuenciales sin colisiones.
+
+    Reemplaza el patrón MAX(grupo_id)+1 que sufre race conditions cuando dos
+    operaciones concurrentes leen el mismo MAX antes de que alguna escriba.
+
+    El incremento se hace con F("ultimo_valor") + 1 dentro de una
+    transaction.atomic(), lo que garantiza que SQLite serializa los writes
+    (lock exclusivo de archivo) y cada operación lee su propio valor reservado.
+
+    Nombre del único registro: "grupo_id".
+    """
+    nombre = models.CharField(max_length=30, unique=True, db_index=True)
+    ultimo_valor = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'app_inventario_secuenciagrupo'
+        verbose_name = 'Secuencia de Grupo'
+        verbose_name_plural = 'Secuencias de Grupo'
+
+    def __str__(self):
+        return f"{self.nombre} → {self.ultimo_valor}"
+
+
 class OperacionIdempotente(models.Model):
     """
     Registro persistente de operaciones ya procesadas.

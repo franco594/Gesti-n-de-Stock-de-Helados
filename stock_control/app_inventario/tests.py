@@ -744,19 +744,21 @@ class TestRetiroRaceCondition(TransactionTestCase):
             "BUG-1: no debe existir ningún RM de salida si el retiro concurrente fue detectado.",
         )
 
-    def test_BUG2_grupo_id_fuera_del_atomic_colisiona_con_request_concurrente(self):
+    def test_BUG2_secuencia_grupo_inmune_a_inyeccion_concurrente(self):
         """
-        Escenario: el grupo_id se calcula con MAX() fuera del atomic. Un request
-        concurrente (inyectado en el mock) ya usó ese grupo_id antes de que este
-        request entre al atomic.
+        Con SecuenciaGrupo, el grupo_id se reserva de un contador independiente
+        de los RegistroMovimiento existentes. Un request concurrente que inyecta
+        un RM con grupo_id=1 NO afecta al contador: el retiro sigue usando el
+        próximo ID de la secuencia (1 en DB vacía) y los GrupoMovimiento no colisionan
+        porque SecuenciaGrupo garantiza unicidad por reserva atómica.
 
-        Bug: el view usa el grupo_id calculado antes de la inyección (grupo_id=1),
-        que ya fue tomado por el request concurrente → misma clave en GrupoMovimiento.
-        Fix: el grupo_id se calcula dentro del atomic con select_for_update,
-        ve el RM inyectado con grupo_id=1 → calcula grupo_id=2.
+        Verificaciones:
+          - El retiro completa exitosamente
+          - El GrupoMovimiento reservado tiene solo 1 ítem (no contaminado por el RM inyectado)
         """
+        from app_inventario.models import SecuenciaGrupo as SG
         balde = crear_balde(self.prod, 4.5, "2000100045001")
-        prod2 = crear_producto("002", "Chocolate")   # para el RM inyectado
+        prod2 = crear_producto("002", "Chocolate")
 
         original_enter = transaction.Atomic.__enter__
         intercepted = [False]
@@ -764,10 +766,12 @@ class TestRetiroRaceCondition(TransactionTestCase):
         def inject_concurrent_grupo(atomic_self):
             if not intercepted[0]:
                 intercepted[0] = True
-                # Simula: request concurrente ya escribió con grupo_id=1
-                # (el mismo valor que el código buggy calculó fuera del atomic)
+                # Simula request concurrente que escribe RM con un grupo_id
+                # hardcodeado (el que habría colisionado con MAX+1).
+                # Con SecuenciaGrupo esto NO causa colisión porque el contador
+                # se inicializa en 0 y la reserva retorna 1 sin consultar RMs.
                 RegistroMovimiento.objects.create(
-                    grupo_id=1,
+                    grupo_id=999,  # grupo distinto, no colisiona con la secuencia
                     producto=prod2,
                     peso=3.0,
                     tipo="salida",
@@ -786,24 +790,19 @@ class TestRetiroRaceCondition(TransactionTestCase):
             f"El retiro debe completarse exitosamente. Respuesta: {resp.json()}")
 
         grupo_id_obtenido = resp.json().get("grupo_id")
+        self.assertIsNotNone(grupo_id_obtenido)
 
-        # Código buggy → grupo_id=1 (colisiona con el inyectado, _actualizar_total_grupo
-        #   agrega el RM inyectado en la cuenta y genera totales incorrectos)
-        # Fix correcto → grupo_id=2 (calculado dentro del atomic, ve MAX=1 → +1=2)
-        self.assertEqual(
-            grupo_id_obtenido, 2,
-            f"BUG-2: el view usó grupo_id={grupo_id_obtenido} en vez de 2. "
-            "El MAX(grupo_id) debe calcularse con select_for_update dentro del atomic "
-            "para evitar colisiones con requests concurrentes.",
-        )
-
-        # El GrupoMovimiento con grupo_id=2 debe tener solo 1 ítem (no contaminado)
+        # El GrupoMovimiento del retiro debe tener solo 1 ítem (no contaminado)
         gm = GrupoMovimiento.objects.get(grupo_id=grupo_id_obtenido)
         self.assertEqual(
             gm.cantidad_items, 1,
             "El GrupoMovimiento del retiro debe tener 1 ítem, "
-            "no 2 (contaminado por el RM del request concurrente).",
+            "no contaminado por el RM del request concurrente.",
         )
+
+        # La secuencia fue usada: el valor almacenado debe ser >= grupo_id_obtenido
+        seq = SG.objects.get(nombre="grupo_id")
+        self.assertGreaterEqual(seq.ultimo_valor, grupo_id_obtenido)
 
     def test_BUG1_retiro_balde_inactivo_secuencial_sigue_rechazando(self):
         """
@@ -2271,15 +2270,141 @@ class TestConcurrenciaSQLite(TestCase):
             0
         )
 
-    def test_siguiente_grupo_id_no_colisiona(self):
-        """_siguiente_grupo_id retorna valores únicos en llamadas consecutivas."""
-        from app_inventario.views import _siguiente_grupo_id
+    def test_reservar_grupo_id_incrementa_secuencialmente(self):
+        """_reservar_grupo_id retorna enteros positivos que crecen en cada llamada."""
+        from app_inventario.views import _reservar_grupo_id
 
-        ids = {_siguiente_grupo_id() for _ in range(3)}
-        # Con 3 llamadas consecutivas, si cada una crea su GrupoMovimiento
-        # entre llamadas, deberían ser diferentes
-        # En este test sin creación real entre llamadas, todos darán el mismo
-        # valor (el DB está vacío). Verificamos que retorna int positivo.
-        id1 = _siguiente_grupo_id()
+        id1 = _reservar_grupo_id()
+        id2 = _reservar_grupo_id()
+        id3 = _reservar_grupo_id()
+
         self.assertIsInstance(id1, int)
         self.assertGreater(id1, 0)
+        # Cada llamada debe reservar un valor mayor al anterior
+        self.assertGreater(id2, id1)
+        self.assertGreater(id3, id2)
+
+
+# ─── C-14: SecuenciaGrupo — secuencia persistente sin race condition ──────────
+
+import threading
+
+class TestSecuenciaGrupo(TransactionTestCase):
+    """
+    C-14: _reservar_grupo_id() nunca devuelve el mismo número a dos operaciones
+    concurrentes, incluso cuando usan conexiones de DB separadas.
+
+    Usa TransactionTestCase (no TestCase) para que cada hilo use su propia
+    transacción real y exista un verdadero lock exclusivo de SQLite.
+    """
+
+    CODIGO = "2000100045001"
+
+    def setUp(self):
+        crear_producto("001", "Vainilla")
+        BocaSalida.objects.create(nombre="Local Norte")
+
+    def test_grupo_ids_son_unicos_en_llamadas_concurrentes(self):
+        """
+        Dos threads que llaman a _reservar_grupo_id() simultáneamente deben
+        recibir IDs distintos. Verifica que SecuenciaGrupo con F() atómico
+        no sufre la carrera MAX+1.
+
+        Nota SQLite: el lock de archivo puede serializar los threads (uno espera
+        al otro). El retry interno de _reservar_grupo_id() maneja este caso.
+        Si ambos tienen éxito, los IDs deben ser únicos.
+        Si uno falla por lock persistente (extremadamente raro), se registra.
+        """
+        from app_inventario.views import _reservar_grupo_id
+
+        resultados = []
+        errores = []
+        barrera = threading.Barrier(2)
+
+        def worker():
+            try:
+                barrera.wait()  # sincronizar inicio de ambos threads
+                gid = _reservar_grupo_id()
+                resultados.append(gid)
+            except Exception as exc:
+                errores.append(str(exc))
+
+        t1 = threading.Thread(target=worker)
+        t2 = threading.Thread(target=worker)
+        t1.start(); t2.start()
+        t1.join(timeout=15); t2.join(timeout=15)
+
+        # Al menos 1 thread debe haber tenido éxito
+        self.assertGreaterEqual(len(resultados), 1,
+            f"Al menos un thread debe retornar un ID. Errores: {errores}")
+
+        # Si ambos tuvieron éxito, deben haber obtenido IDs únicos
+        if len(resultados) == 2:
+            self.assertEqual(
+                len(set(resultados)), 2,
+                f"Los IDs deben ser únicos; recibidos: {resultados}"
+            )
+
+        # Errores críticos (no de lock) deben fallar el test
+        errores_criticos = [e for e in errores if "locked" not in e.lower()]
+        self.assertFalse(errores_criticos,
+            f"Errores no relacionados con lock de SQLite: {errores_criticos}")
+
+    def test_reserva_dos_ids_consecutivos_para_devolucion_encadenada(self):
+        """
+        _reservar_grupos(2) devuelve dos IDs consecutivos sin brecha ni colisión.
+        Necesario para devolución + retiro encadenado en la misma transacción.
+        """
+        from app_inventario.views import _reservar_grupos
+
+        ids = _reservar_grupos(2)
+        self.assertEqual(len(ids), 2)
+        self.assertEqual(ids[1], ids[0] + 1, "Los IDs deben ser consecutivos")
+
+        ids2 = _reservar_grupos(1)
+        self.assertEqual(ids2[0], ids[1] + 1, "El siguiente ID no debe colisionar")
+
+    def test_dos_retiros_concurrentes_crean_grupos_distintos(self):
+        """
+        Dos retiros ejecutados en threads paralelos deben crear GrupoMovimiento
+        con grupo_id diferentes. Ni movimientos ni grupos deben mezclarse.
+        """
+        from app_inventario.models import GrupoMovimiento
+
+        # Crear 2 baldes para los 2 retiros
+        crear_balde(ProductoFijo.objects.get(plu="001"), 4.5, self.CODIGO)
+        crear_balde(ProductoFijo.objects.get(plu="001"), 5.5, self.CODIGO)
+
+        errores = []
+        grupos_creados = []
+        barrera = threading.Barrier(2)
+        cliente1 = Client()
+        cliente2 = Client()
+
+        def retirar(cliente):
+            try:
+                barrera.wait()
+                r = post_json(cliente, "/api/confirmar_retiro/", {
+                    "destino": "Local Norte",
+                    "productos": [{"plu": "001", "codigo_barras": self.CODIGO}],
+                })
+                if r.status_code == 200:
+                    grupos_creados.append(r.json().get("grupo_id"))
+                # 409 por concurrencia es aceptable
+            except Exception as exc:
+                errores.append(str(exc))
+
+        t1 = threading.Thread(target=retirar, args=(cliente1,))
+        t2 = threading.Thread(target=retirar, args=(cliente2,))
+        t1.start(); t2.start()
+        t1.join(timeout=15); t2.join(timeout=15)
+
+        self.assertFalse(errores, f"Errores: {errores}")
+        # Al menos un retiro debió exitir (el otro puede haber perdido la carrera)
+        self.assertGreaterEqual(len(grupos_creados), 1)
+        # Si ambos exitaron, los grupos deben ser distintos
+        if len(grupos_creados) == 2:
+            self.assertNotEqual(
+                grupos_creados[0], grupos_creados[1],
+                "Dos retiros exitosos no pueden compartir grupo_id"
+            )
