@@ -1,0 +1,29 @@
+# Entornos virtuales
+venv/
+stock_control/venv/
+
+# Builds de PyInstaller
+stock_control/dist/
+stock_control/build/
+
+# Bases de datos (excepto la semilla para instalaciones nuevas)
+*.sqlite3
+!stock_control/seed_db.sqlite3
+*.db
+
+# Logs y backups
+stock_control/logs/
+stock_control/backups/
+
+# Bytecode Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Archivos generados en runtime
+stock_control/staticfiles/
+stock_control/uploads/
+
+# Variables de entorno (credenciales)
+.env
+stock_control/.env
