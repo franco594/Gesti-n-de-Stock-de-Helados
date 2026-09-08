@@ -1919,6 +1919,54 @@ class TestValidacionEAN13(TestCase):
         dv = calcular_digito_verificador("590123412345")
         self.assertEqual(dv, 7)
 
+    def test_parsear_codigo_barras_extrae_plu_y_peso(self):
+        """parsear_codigo_barras extrae PLU y peso del formato interno '2xPLU...'."""
+        from app_inventario.utils.ean13 import parsear_codigo_barras
+
+        # "2000100045001" → PLU='001', kg_enteros=4, dec=500 → peso=4.500
+        # Formato: 2|0|001|000|4|500|DV
+        resultado = parsear_codigo_barras("2000100045001")
+        self.assertEqual(resultado["codigo"], "2000100045001")
+        self.assertEqual(resultado["plu"], "001")
+        self.assertAlmostEqual(resultado["peso_etiqueta"], 4.500, places=3)
+
+    def test_parsear_codigo_barras_dv_valido(self):
+        """parsear_codigo_barras informa correctamente si el DV es válido."""
+        from app_inventario.utils.ean13 import parsear_codigo_barras, calcular_digito_verificador
+
+        codigo_12 = "200010004500"
+        dv = calcular_digito_verificador(codigo_12)
+        codigo_valido = codigo_12 + str(dv)
+
+        resultado = parsear_codigo_barras(codigo_valido)
+        self.assertTrue(resultado["digito_verificador_valido"], "DV correcto debe dar True")
+
+        # Con DV incorrecto
+        dv_malo = (dv + 1) % 10
+        resultado2 = parsear_codigo_barras(codigo_12 + str(dv_malo))
+        self.assertFalse(resultado2["digito_verificador_valido"], "DV incorrecto debe dar False")
+
+    def test_parsear_codigo_barras_codigo_externo_sin_prefijo_2(self):
+        """Código que no empieza con '2' no tiene PLU ni peso_etiqueta."""
+        from app_inventario.utils.ean13 import parsear_codigo_barras
+
+        resultado = parsear_codigo_barras("5901234123457")
+        self.assertIsNone(resultado["plu"])
+        self.assertIsNone(resultado["peso_etiqueta"])
+
+    def test_parsear_codigo_barras_invalido_nunca_lanza(self):
+        """parsear_codigo_barras nunca lanza excepción con entradas inválidas."""
+        from app_inventario.utils.ean13 import parsear_codigo_barras
+
+        for entrada in ["", "abc", "1234", None, 123, "2000100045001X"]:
+            try:
+                r = parsear_codigo_barras(entrada)
+            except Exception as exc:
+                self.fail(f"parsear_codigo_barras({entrada!r}) lanzó {exc!r}")
+            self.assertIsNone(r["plu"])
+            self.assertIsNone(r["peso_etiqueta"])
+            self.assertFalse(r["digito_verificador_valido"])
+
 
 # ─── C-11: Idempotencia persistente en DB ────────────────────────────────────
 
@@ -2123,6 +2171,94 @@ class TestIdempotenciaDB(TestCase):
         r2 = post_json(self.client, "/api/confirmar_codigos/", payload)
         self.assertEqual(r2.status_code, 200, r2.content)
         self.assertEqual(r2.json().get("status"), "ya_procesado")
+
+    # ── Prueba obligatoria del spec (flujo completo de idempotencia con retiro) ──
+
+    def test_retiro_idempotente_flujo_completo_dos_baldes_un_uuid(self):
+        """
+        Prueba obligatoria del spec:
+        1. Crear dos baldes activos con el mismo código.
+        2. Enviar retiro con UUID A → se retira 1 balde (el más antiguo por FIFO).
+        3. Repetir exactamente el mismo retiro con UUID A.
+           → Solo se retiró 1 balde (el 2do request fue idempotente).
+           → Solo 1 movimiento de salida creado.
+        4. Enviar el mismo payload con UUID B.
+           → Se retira el 2do balde (UUID distinto = nueva operación).
+        """
+        boca = BocaSalida.objects.create(nombre="Local Norte")
+        balde1 = crear_balde(self.prod, 4.5, self.CODIGO)  # más antiguo (FIFO)
+        balde2 = crear_balde(self.prod, 5.5, self.CODIGO)  # más nuevo
+
+        UUID_A = "aaaa0000-0000-0000-0000-aaaaaaaaaaaa"
+        UUID_B = "bbbb0000-0000-0000-0000-bbbbbbbbbbbb"
+        payload_base = {
+            "destino": "Local Norte",
+            "productos": [{"plu": "001", "codigo_barras": self.CODIGO}],
+        }
+
+        # Paso 1: primer retiro con UUID A → retira balde1 (FIFO)
+        r1 = post_json(self.client, "/api/confirmar_retiro/", {**payload_base, "operation_id": UUID_A})
+        self.assertEqual(r1.status_code, 200, r1.content)
+        grupo_a = r1.json().get("grupo_id")
+
+        # Paso 2: mismo payload con UUID A → idempotente, no retira balde2
+        r2 = post_json(self.client, "/api/confirmar_retiro/", {**payload_base, "operation_id": UUID_A})
+        self.assertEqual(r2.status_code, 200, r2.content)
+        self.assertEqual(r2.json().get("status"), "ya_procesado",
+            "El segundo request con UUID A debe ser ya_procesado")
+        self.assertEqual(r2.json().get("grupo_id"), grupo_a,
+            "El grupo_id debe ser el mismo que el del primer request")
+
+        # Solo 1 movimiento de salida (balde1), balde2 sigue activo
+        rm_count = RegistroMovimiento.objects.filter(
+            codigo_barras=self.CODIGO, tipo="salida"
+        ).count()
+        self.assertEqual(rm_count, 1, "Solo debe haber 1 movimiento de salida tras 2 requests con UUID A")
+
+        balde1.refresh_from_db()
+        balde2.refresh_from_db()
+        self.assertFalse(balde1.is_activo, "Balde1 (más antiguo) debe estar inactivo")
+        self.assertTrue(balde2.is_activo, "Balde2 debe seguir activo (idempotencia)")
+
+        # Paso 3: mismo payload con UUID B → nueva operación, retira balde2
+        r3 = post_json(self.client, "/api/confirmar_retiro/", {**payload_base, "operation_id": UUID_B})
+        self.assertEqual(r3.status_code, 200, r3.content)
+        self.assertNotEqual(r3.json().get("status"), "ya_procesado",
+            "UUID B es nuevo, debe ejecutar la operación")
+
+        balde2.refresh_from_db()
+        self.assertFalse(balde2.is_activo, "Balde2 debe estar inactivo tras UUID B")
+
+        rm_count_final = RegistroMovimiento.objects.filter(
+            codigo_barras=self.CODIGO, tipo="salida"
+        ).count()
+        self.assertEqual(rm_count_final, 2,
+            "Deben existir exactamente 2 movimientos de salida al final")
+
+    def test_retiro_ya_procesado_devuelve_campos_completos(self):
+        """
+        La respuesta del segundo request (ya_procesado) debe incluir los campos
+        originales de la operación: productos, destino, grupo_id.
+        Esto permite que el frontend muestre el resultado correcto en un retry.
+        """
+        boca = BocaSalida.objects.create(nombre="Local Norte")
+        crear_balde(self.prod, 4.5, self.CODIGO)
+
+        UUID_C = "cccc0000-0000-0000-0000-cccccccccccc"
+        payload = {
+            "destino": "Local Norte",
+            "operation_id": UUID_C,
+            "productos": [{"plu": "001", "codigo_barras": self.CODIGO}],
+        }
+        r1 = post_json(self.client, "/api/confirmar_retiro/", payload)
+        self.assertEqual(r1.status_code, 200, r1.content)
+
+        r2 = post_json(self.client, "/api/confirmar_retiro/", payload)
+        self.assertEqual(r2.status_code, 200, r2.content)
+        d2 = r2.json()
+
+        self.assertEqual(d2.get("status"), "ya_procesado")
+        self.assertIn("grupo_id", d2, "El retry debe incluir grupo_id")
 
 
 # ─── C-12: Autorización de duplicado por scan_item_id (item 3) ───────────────

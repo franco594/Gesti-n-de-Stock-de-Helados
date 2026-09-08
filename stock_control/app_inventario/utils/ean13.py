@@ -1,5 +1,5 @@
 """
-Validación centralizada de códigos EAN-13.
+Validación y parseo centralizado de códigos EAN-13.
 
 Formato interno del sistema:
   Posiciones (base-0):  0    1    2-4   5-7    8    9-11   12
@@ -17,7 +17,9 @@ Ejemplo: "2000100045001"
 
 Funciones exportadas:
   validar_ean13(codigo)           → (ok: bool, motivo: str)
+  validar_ean13_estricto(codigo)  → (ok: bool, motivo: str)
   calcular_digito_verificador(12) → int
+  parsear_codigo_barras(codigo)   → dict
 """
 
 
@@ -78,3 +80,56 @@ def validar_ean13_estricto(codigo: str) -> tuple[bool, str]:
     if real != esperado:
         return False, f"Dígito verificador incorrecto (esperado {esperado}, recibido {real})"
     return True, ""
+
+
+def parsear_codigo_barras(codigo: str) -> dict:
+    """
+    Extrae los campos semánticos de un EAN-13 del sistema de baldes.
+
+    Retorna un dict con:
+      {
+        "codigo":                 str,   # código original completo
+        "plu":                    str,   # PLU de 3 dígitos (posiciones 2-4)
+        "peso_etiqueta":          float, # peso en kg según etiqueta (posiciones 8-11)
+        "digito_verificador_valido": bool, # True si el DV del código coincide
+      }
+
+    Si el código no tiene 13 dígitos numéricos, retorna None para plu y
+    peso_etiqueta, y digito_verificador_valido=False.
+
+    El campo `plu` solo se extrae si el código empieza con '2'
+    (código de peso variable). Para códigos externos que no siguen el
+    formato interno del sistema, plu y peso_etiqueta serán None.
+
+    Nunca lanza excepción: siempre retorna el dict (incluso con datos parciales).
+    """
+    resultado: dict = {
+        "codigo": codigo,
+        "plu": None,
+        "peso_etiqueta": None,
+        "digito_verificador_valido": False,
+    }
+
+    # Validación básica de formato
+    if not isinstance(codigo, str) or len(codigo) != 13 or not codigo.isdigit():
+        return resultado
+
+    # Verificar dígito verificador
+    try:
+        esperado = calcular_digito_verificador(codigo[:12])
+        resultado["digito_verificador_valido"] = (int(codigo[12]) == esperado)
+    except Exception:
+        pass  # resultado ya tiene False
+
+    # Extraer PLU y peso solo para códigos de peso variable (prefijo '2')
+    if codigo[0] == "2":
+        resultado["plu"] = codigo[2:5]  # posiciones 2-4
+
+        try:
+            kg_enteros = int(codigo[8])         # posición 8
+            kg_decimales = codigo[9:12]          # posiciones 9-11
+            resultado["peso_etiqueta"] = float(f"{kg_enteros}.{kg_decimales}")
+        except (ValueError, IndexError):
+            pass  # peso_etiqueta queda en None
+
+    return resultado
