@@ -1753,9 +1753,8 @@ def confirmar_codigos(request):
 
     productos = data.get("productos", []) or request.session.get("productos_temporales", [])
     origen = (data.get("origen") or "").strip()
-    # `force` mantenido por compatibilidad; la validación usa force_approved_ids
-    # por scan_item_id cuando están disponibles (ver item 3 del spec de ingeniería).
-    force = bool(data.get("force", False))
+    # `force` global eliminado: la autorización es exclusivamente por scan_item_id
+    # vía /api/autorizar_duplicado/. Un force=True en el payload ya no tiene efecto.
 
     # IDs de ítems aprobados individualmente por el operario (via ConfirmDialog)
     force_approved_ids = set(request.session.get("force_approved_ids", []))
@@ -1851,11 +1850,11 @@ def confirmar_codigos(request):
                 )
 
                 # Autorización por ítem: el operario autorizó este scan_item_id
-                # específico vía ConfirmDialog. Si no está en force_approved_ids
-                # ni hay force global, rechazamos el duplicado.
+                # específico vía /api/autorizar_duplicado/. Si no está en
+                # force_approved_ids, rechazamos el duplicado.
                 item_autorizado = (
                     scan_item_id_item and scan_item_id_item in force_approved_ids
-                ) or force
+                )
 
                 if duplicado_qs.exists() and not item_autorizado:
                     ultimo_dup = (

@@ -254,8 +254,10 @@ class OperacionIdempotente(models.Model):
     En un retry con el mismo operation_id:
       - estado='completed' + mismo payload_hash → devolver respuesta_json almacenada
       - estado='completed' + payload_hash distinto → 409
-      - estado='processing' → la transacción anterior probablemente falló (SQLite);
-        se considera inexistente y se procesa normalmente.
+      - estado='processing' → request concurrente en curso; se rechaza con 409
+        ("Operación en proceso — reintentar en breve"). Si el proceso anterior
+        terminó con rollback, el registro 'processing' también fue revertido,
+        así que no puede quedar huérfano indefinidamente salvo crash a nivel OS.
 
     Garantía: si el proceso cae entre el COMMIT y el retorno de la view,
     el registro SIGUE en la DB (ya está committed), así que un retry

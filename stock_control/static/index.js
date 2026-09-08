@@ -1109,12 +1109,19 @@ async function confirmarAgregarProductos() {
             p => p.codigo_barras === codigoConflicto
           );
           if (productoConflicto?.scan_item_id) {
+            let autorizacion;
             try {
-              await postJSON(API.autorizarDuplicado, {
+              autorizacion = await postJSON(API.autorizarDuplicado, {
                 scan_item_id: productoConflicto.scan_item_id,
               });
             } catch (e) {
               Toast.error("No se pudo autorizar el duplicado. Intentá de nuevo.");
+              return;
+            }
+            // postJSON no lanza excepción ante 4xx/5xx: chequeamos _status explícitamente
+            if (!autorizacion?.ok || (autorizacion._status && autorizacion._status >= 400)) {
+              const motivo = autorizacion?.error ?? "Error desconocido";
+              Toast.error(`No se pudo autorizar el duplicado: ${motivo}`);
               return;
             }
           }
@@ -1152,48 +1159,10 @@ async function confirmarAgregarProductos() {
   }
 }
 
-async function confirmarAgregarProductosConForzar() {
-  // UX-2 + UX-4: deshabilitar botón y verificar res.ok
-  const btn = byId("btnForzarDuplicado");
-  if (btn?.disabled) return;
-  if (btn) btn.disabled = true;
-
-  try {
-    const boca = byId("input-boca-ingresar")?.value?.trim();
-    const _ingresoForzadoBase = {
-      origen: boca,
-      force: true,
-      productos: productosEscaneados.map(p => ({
-        plu: p.plu,
-        peso: p.peso,
-        codigo_barras: p.codigo_barras
-      }))
-    };
-    const payload = {
-      ..._ingresoForzadoBase,
-      operation_id: PendingOp.getOrCreate("ingreso_forzado", _ingresoForzadoBase),
-    };
-
-    const data = await postJSON(API.confirmarIngreso, payload);
-
-    if (data.error || (data._status && data._status >= 400)) {
-      Toast.error(data.error ?? data.message ?? "Error al confirmar el ingreso");
-      return;
-    }
-
-    PendingOp.clear("ingreso_forzado");
-    Toast.success(data.message ?? "Productos agregados");
-    cerrarModal("ingresar");
-    productosEscaneados = [];
-    actualizarTablaStock(); // actualiza tabla + totales juntos
-    //actualizarTablasGrupos();
-  } catch (e) {
-    console.error("⚠️ Error al forzar ingreso:", e);
-    Toast.error("Error al confirmar el ingreso forzado");
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
+// confirmarAgregarProductosConForzar eliminado: la autorización de duplicados
+// se realiza exclusivamente por scan_item_id vía /api/autorizar_duplicado/.
+// El callback del modal de duplicado ahora llama confirmarAgregarProductos()
+// directamente, después de autorizar el ítem específico en sesión.
 
 async function confirmarRetirarProductos() {
   // UX-2: evitar doble-submit
