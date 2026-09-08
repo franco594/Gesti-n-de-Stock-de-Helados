@@ -27,3 +27,6 @@ stock_control/uploads/
 # Variables de entorno (credenciales)
 .env
 stock_control/.env
+
+# Configuración local de Claude Code (específica de cada máquina)
+.claude/settings.local.json
