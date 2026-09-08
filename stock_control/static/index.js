@@ -95,6 +95,55 @@ function setDisabled(el, disabled) {
   el.disabled = !!disabled;
 }
 
+/**
+ * PendingOp — Persistencia de UUID por operación pendiente.
+ *
+ * Problema: crypto.randomUUID() en cada clic genera un UUID nuevo aunque
+ * el operario esté reintentando la misma operación tras un timeout o reload.
+ * El backend registra el primer UUID como completado y el segundo lo procesa
+ * como una operación nueva, duplicando retiros/ingresos/devoluciones.
+ *
+ * Solución: guardar en sessionStorage el UUID + fingerprint del payload.
+ * Si el payload es idéntico → reusar UUID. Si cambia → generar uno nuevo.
+ * El UUID se borra solo cuando la operación termina con éxito.
+ *
+ * Alcance sessionStorage: solo la pestaña actual; se descarta al cerrar el tab.
+ */
+const PendingOp = {
+  _key(tipo) { return `pending_op_${tipo}`; },
+
+  /**
+   * Retorna el UUID para esta operación, reutilizando el guardado si el
+   * payload fingerprint coincide, o generando uno nuevo si cambió.
+   * @param {string} tipo - 'ingreso' | 'ingreso_forzado' | 'retiro' | 'devolucion'
+   * @param {object} payloadSinUUID - payload sin operation_id (define la operación)
+   */
+  getOrCreate(tipo, payloadSinUUID) {
+    const fingerprint = JSON.stringify(
+      payloadSinUUID,
+      Object.keys(payloadSinUUID).sort()
+    );
+    try {
+      const raw = sessionStorage.getItem(this._key(tipo));
+      if (raw) {
+        const { uuid, fp } = JSON.parse(raw);
+        if (fp === fingerprint) return uuid;  // mismo payload → reintentar con mismo UUID
+      }
+    } catch { /* sessionStorage no disponible (p.ej. iframe sandbox) */ }
+
+    const uuid = crypto.randomUUID();
+    try {
+      sessionStorage.setItem(this._key(tipo), JSON.stringify({ uuid, fp: fingerprint }));
+    } catch { /* ignore quota/secure-context issues */ }
+    return uuid;
+  },
+
+  /** Llama tras éxito confirmado en el backend para liberar el UUID. */
+  clear(tipo) {
+    try { sessionStorage.removeItem(this._key(tipo)); } catch {}
+  },
+};
+
 // UX-12: timeout via AbortController; _status añadido en respuestas no-2xx
 async function getJSON(url, timeoutMs = 12000) {
   const controller = new AbortController();
@@ -1015,14 +1064,17 @@ async function confirmarAgregarProductos() {
       Toast.warning("Por favor, seleccioná un origen");
       return;
     }
-    const payload = {
+    const _ingresoBase = {
       origen: boca,
-      operation_id: crypto.randomUUID(),
       productos: productosEscaneados.map(p => ({
         plu: p.plu,
         peso: p.peso,
         codigo_barras: p.codigo_barras
       }))
+    };
+    const payload = {
+      ..._ingresoBase,
+      operation_id: PendingOp.getOrCreate("ingreso", _ingresoBase),
     };
 
     const data = await postJSON(API.confirmarIngreso, payload);
@@ -1057,6 +1109,7 @@ async function confirmarAgregarProductos() {
     }
 
     if (data.success) {
+      PendingOp.clear("ingreso");
       Toast.success(`${data.productos.length} productos agregados correctamente`);
       cerrarModal("ingresar");
       productosEscaneados = [];
@@ -1081,15 +1134,18 @@ async function confirmarAgregarProductosConForzar() {
 
   try {
     const boca = byId("input-boca-ingresar")?.value?.trim();
-    const payload = {
+    const _ingresoForzadoBase = {
       origen: boca,
       force: true,
-      operation_id: crypto.randomUUID(),
       productos: productosEscaneados.map(p => ({
         plu: p.plu,
         peso: p.peso,
         codigo_barras: p.codigo_barras
       }))
+    };
+    const payload = {
+      ..._ingresoForzadoBase,
+      operation_id: PendingOp.getOrCreate("ingreso_forzado", _ingresoForzadoBase),
     };
 
     const data = await postJSON(API.confirmarIngreso, payload);
@@ -1099,6 +1155,7 @@ async function confirmarAgregarProductosConForzar() {
       return;
     }
 
+    PendingOp.clear("ingreso_forzado");
     Toast.success(data.message ?? "Productos agregados");
     cerrarModal("ingresar");
     productosEscaneados = [];
@@ -1134,13 +1191,16 @@ async function confirmarRetirarProductos() {
       Toast.warning("Por favor, seleccioná una boca de salida");
       return;
     }
-    const payload = {
+    const _retiroBase = {
       destino: boca,
-      operation_id: crypto.randomUUID(),
       productos: productosEscaneados.map(p => ({
         plu: p.plu,
         codigo_barras: p.codigo_barras
       }))
+    };
+    const payload = {
+      ..._retiroBase,
+      operation_id: PendingOp.getOrCreate("retiro", _retiroBase),
     };
     const data = await postJSON(API.confirmarRetiro, payload);
     // UX-6: 409 = retiro concurrente — mensaje accionable
@@ -1154,6 +1214,7 @@ async function confirmarRetirarProductos() {
       Toast.error(data.error ?? "No se pudo retirar el producto");
       return;
     }
+    PendingOp.clear("retiro");
     Toast.success(`${data.productos.length} productos retirados correctamente`);
     cerrarModal("retirar");
     productosEscaneados = [];
@@ -1971,11 +2032,13 @@ async function confirmarDevolucion() {
       return;
     }
 
+    const _devBase = { productos: productosFinales, origen, destino: destino || null };
     const data = await postJSON("/api/confirmar_devolucion/", {
-      productos: productosFinales, origen, destino: destino || null,
-      operation_id: crypto.randomUUID(),
+      ..._devBase,
+      operation_id: PendingOp.getOrCreate("devolucion", _devBase),
     });
     if (!data.success) throw new Error(data.error || "Error desconocido");
+    PendingOp.clear("devolucion");
     Toast.success(data.message);
     cerrarModalDevolucion();
     actualizarTablaStock();
