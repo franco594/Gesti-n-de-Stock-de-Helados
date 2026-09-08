@@ -1113,8 +1113,7 @@ async function confirmarAgregarProductos() {
       Toast.success(`${data.productos.length} productos agregados correctamente`);
       cerrarModal("ingresar");
       productosEscaneados = [];
-      actualizarTotales();
-      actualizarTablaStock();
+      actualizarTotales();  // ya llama a actualizarTablaStock internamente
       //actualizarTablasGrupos();
     }
 
@@ -1218,9 +1217,8 @@ async function confirmarRetirarProductos() {
     Toast.success(`${data.productos.length} productos retirados correctamente`);
     cerrarModal("retirar");
     productosEscaneados = [];
-    actualizarTotales();
+    actualizarTotales();  // ya llama a actualizarTablaStock internamente
     //actualizarTablasGrupos();
-    actualizarTablaStock();
   } catch (e) {
     console.error("❌ Error al retirar productos:", e);
     Toast.error("Error al retirar productos");
