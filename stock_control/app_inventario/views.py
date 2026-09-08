@@ -1,5 +1,6 @@
 # views.py (consolidado y corregido)
 import hashlib
+import re
 import io
 import time
 import uuid
@@ -298,17 +299,52 @@ def actualizar_stock_minimo(request):
 
 def _payload_hash(payload: dict) -> str:
     """
-    Calcula un SHA-256 del payload de una operación.
-
-    Serializa el dict con sort_keys=True para garantizar orden determinístico
-    y devuelve los primeros 64 caracteres hexadecimales (256 bits completos).
-
-    Se usa para detectar replays con operation_id reutilizado pero payload
-    distinto (posible ataque o bug de cliente): si el hash difiere del almacenado
-    el servidor rechaza la solicitud con 409.
+    SHA-256 del payload para detectar replays con payload distinto.
     """
     canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+def _check_idempotencia(operation_id: str, incoming_hash: str):
+    """
+    Verifica si el operation_id ya fue procesado.
+
+    Retorna:
+      None                  — no existe, continuar con la operación.
+      JsonResponse(200)     — ya_procesado con payload idéntico → devolver respuesta original.
+      JsonResponse(409)     — mismo UUID pero payload distinto → rechazar.
+
+    Solo considera 'completed' como procesado. Una operación 'processing'
+    probablemente quedó huérfana (crash); se permite reintentar.
+    """
+    try:
+        op = OperacionIdempotente.objects.get(
+            operation_id=operation_id, estado="completed"
+        )
+    except OperacionIdempotente.DoesNotExist:
+        return None
+
+    if op.payload_hash and op.payload_hash != incoming_hash:
+        return JsonResponse(
+            {"error": "operation_id reutilizado con payload distinto"},
+            status=409,
+        )
+
+    # Devolver la respuesta original almacenada
+    try:
+        resp_data = json.loads(op.respuesta_json) if op.respuesta_json else {}
+    except (json.JSONDecodeError, TypeError):
+        resp_data = {}
+
+    resp_data["status"] = "ya_procesado"
+    resp_data["grupo_id"] = resp_data.get("grupo_id") or op.grupo_id
+    return JsonResponse(resp_data, status=op.status_code)
 
 
 def _reservar_grupo_id() -> int:
@@ -1646,25 +1682,14 @@ def confirmar_codigos(request):
         return JsonResponse({"error": "Debe indicar un origen"}, status=400)
 
     # ---- Idempotencia persistente en DB ----
-    # Si el operation_id ya fue procesado, devolvemos el mismo grupo_id.
-    # Si el operation_id existe pero con un payload distinto → 409 (replay attack).
+    if operation_id and not _UUID_RE.match(operation_id):
+        return JsonResponse({"error": "operation_id debe ser un UUID v4"}, status=400)
+
     incoming_hash = _payload_hash(data) if operation_id else ""
     if operation_id:
-        try:
-            op = OperacionIdempotente.objects.get(operation_id=operation_id)
-            if op.payload_hash and op.payload_hash != incoming_hash:
-                return JsonResponse(
-                    {"error": "operation_id reutilizado con payload distinto"},
-                    status=409,
-                )
-            return JsonResponse({
-                "success": True,
-                "grupo_id": op.grupo_id,
-                "status": "ya_procesado",
-                "message": "Esta confirmación ya fue procesada.",
-            }, status=200)
-        except OperacionIdempotente.DoesNotExist:
-            pass
+        check = _check_idempotencia(operation_id, incoming_hash)
+        if check is not None:
+            return check
 
     ingresados = []
 
@@ -1794,11 +1819,26 @@ def confirmar_codigos(request):
                 request.session["force_approved_ids"] = []
             request.session.modified = True
 
-            # ✅ Marcar operation_id como procesado en DB (idempotencia persistente)
+            # ✅ Registrar operation_id DENTRO del atomic (crash-safe).
+            # Si el atomic hace rollback, este registro también se revierte.
             if operation_id:
-                OperacionIdempotente.objects.get_or_create(
+                _resp_ingreso = {
+                    "success": True,
+                    "grupo_id": nuevo_grupo_id,
+                    "origen": origen,
+                    "productos": list(ingresados),
+                }
+                OperacionIdempotente.objects.update_or_create(
                     operation_id=operation_id,
-                    defaults={"tipo": "ingreso", "grupo_id": nuevo_grupo_id, "payload_hash": incoming_hash},
+                    defaults={
+                        "tipo": "ingreso",
+                        "estado": "completed",
+                        "grupo_id": nuevo_grupo_id,
+                        "payload_hash": incoming_hash,
+                        "status_code": 200,
+                        "respuesta_json": json.dumps(_resp_ingreso, ensure_ascii=False),
+                        "fecha_fin": timezone.now(),
+                    },
                 )
 
     except _DuplicadoDetectado as exc:
@@ -1849,24 +1889,14 @@ def confirmar_retiro(request):
         return JsonResponse({"error": "Debe indicar un destino"}, status=400)
 
     # ---- Idempotencia persistente en DB ----
-    # Si el operation_id existe con payload distinto → 409 (replay attack).
+    if operation_id and not _UUID_RE.match(operation_id):
+        return JsonResponse({"error": "operation_id debe ser un UUID v4"}, status=400)
+
     incoming_hash = _payload_hash(data) if operation_id else ""
     if operation_id:
-        try:
-            op = OperacionIdempotente.objects.get(operation_id=operation_id)
-            if op.payload_hash and op.payload_hash != incoming_hash:
-                return JsonResponse(
-                    {"error": "operation_id reutilizado con payload distinto"},
-                    status=409,
-                )
-            return JsonResponse({
-                "success": True,
-                "grupo_id": op.grupo_id,
-                "status": "ya_procesado",
-                "message": "Esta confirmación ya fue procesada.",
-            }, status=200)
-        except OperacionIdempotente.DoesNotExist:
-            pass
+        check = _check_idempotencia(operation_id, incoming_hash)
+        if check is not None:
+            return check
 
     # -------- Destino (FK) --------
     destino_obj = BocaSalida.objects.filter(nombre=destino_nombre).first()
@@ -2011,17 +2041,31 @@ def confirmar_retiro(request):
                 destino_nombre=destino_nombre,
             )
 
+            # ✅ Registrar operation_id DENTRO del atomic (crash-safe).
+            if operation_id:
+                _resp_retiro = {
+                    "success": True,
+                    "grupo_id": nuevo_grupo_id,
+                    "destino": destino_nombre,
+                    "productos": list(productos_retirados),
+                }
+                OperacionIdempotente.objects.update_or_create(
+                    operation_id=operation_id,
+                    defaults={
+                        "tipo": "retiro",
+                        "estado": "completed",
+                        "grupo_id": nuevo_grupo_id,
+                        "payload_hash": incoming_hash,
+                        "status_code": 200,
+                        "respuesta_json": json.dumps(_resp_retiro, ensure_ascii=False),
+                        "fecha_fin": timezone.now(),
+                    },
+                )
+
     except _ErrorRetiro as exc:
         return JsonResponse(exc.data, status=exc.status_code)
     except Exception as e:
         return JsonResponse({"error": f"Error al retirar productos: {e}"}, status=500)
-
-    # ✅ Registrar operation_id en DB (idempotencia persistente)
-    if operation_id:
-        OperacionIdempotente.objects.get_or_create(
-            operation_id=operation_id,
-            defaults={"tipo": "retiro", "grupo_id": nuevo_grupo_id, "payload_hash": incoming_hash},
-        )
 
     msg = "Productos retirados correctamente:\n\n" + "\n".join(productos_retirados)
     return JsonResponse(
@@ -2065,24 +2109,14 @@ def confirmar_devolucion(request):
         return JsonResponse({"error": "No hay baldes para devolver"}, status=400)
 
     # ---- Idempotencia persistente en DB ----
-    # Si el operation_id existe con payload distinto → 409 (replay attack).
+    if operation_id and not _UUID_RE.match(operation_id):
+        return JsonResponse({"error": "operation_id debe ser un UUID v4"}, status=400)
+
     incoming_hash = _payload_hash(data) if operation_id else ""
     if operation_id:
-        try:
-            op = OperacionIdempotente.objects.get(operation_id=operation_id)
-            if op.payload_hash and op.payload_hash != incoming_hash:
-                return JsonResponse(
-                    {"error": "operation_id reutilizado con payload distinto"},
-                    status=409,
-                )
-            return JsonResponse({
-                "success": True,
-                "grupo_id": op.grupo_id,
-                "status": "ya_procesado",
-                "message": "Esta confirmación ya fue procesada.",
-            }, status=200)
-        except OperacionIdempotente.DoesNotExist:
-            pass
+        check = _check_idempotencia(operation_id, incoming_hash)
+        if check is not None:
+            return check
 
     # ── Fix BUG-A: separar validación de escritura ────────────────────────────
     # Excepción local para salir del bloque atómico con rollback garantizado.
@@ -2196,17 +2230,36 @@ def confirmar_devolucion(request):
             request.session["productos_temporales"] = []
             request.session.modified = True
 
+            # ✅ Registrar operation_id DENTRO del atomic (crash-safe).
+            if operation_id:
+                _resp_dev = {
+                    "success": True,
+                    "grupo_id": nuevo_grupo_id,
+                    "grupo_id_retiro": grupo_id_retiro,
+                    "origen": origen,
+                    "destino": destino or None,
+                    "cantidad": len(devueltos),
+                    "productos": list(devueltos),
+                }
+                OperacionIdempotente.objects.update_or_create(
+                    operation_id=operation_id,
+                    defaults={
+                        "tipo": "devolucion",
+                        "estado": "completed",
+                        "grupo_id": nuevo_grupo_id,
+                        "payload_hash": incoming_hash,
+                        "status_code": 200,
+                        "respuesta_json": json.dumps(_resp_dev, ensure_ascii=False),
+                        "fecha_fin": timezone.now(),
+                    },
+                )
+
     except _ErrorDevolucion as exc:
         return JsonResponse(exc.data, status=exc.status_code)
     except Exception as e:
         return JsonResponse({"error": f"Error al procesar devolución: {e}"}, status=500)
 
-    # ✅ Registrar operation_id en DB (idempotencia persistente)
-    if operation_id:
-        OperacionIdempotente.objects.get_or_create(
-            operation_id=operation_id,
-            defaults={"tipo": "devolucion", "grupo_id": nuevo_grupo_id, "payload_hash": incoming_hash},
-        )
+
 
     if destino and grupo_id_retiro:
         msg = (
