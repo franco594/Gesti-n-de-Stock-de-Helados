@@ -120,10 +120,16 @@ const PendingOp = {
    * @param {object} payloadSinUUID - payload sin operation_id (define la operación)
    */
   getOrCreate(tipo, payloadSinUUID) {
-    const fingerprint = JSON.stringify(
-      payloadSinUUID,
-      Object.keys(payloadSinUUID).sort()
+    // Stringify estable: ordena claves recursivamente para que el mismo payload
+    // siempre produzca el mismo fingerprint, independientemente del orden de inserción.
+    // No se usa el array replacer de JSON.stringify porque solo ordena el nivel raíz
+    // y elimina las propiedades de objetos anidados (los convierte en {}).
+    const _stableStr = (v) => JSON.stringify(v, (_, val) =>
+      val && typeof val === 'object' && !Array.isArray(val)
+        ? Object.fromEntries(Object.entries(val).sort())
+        : val
     );
+    const fingerprint = _stableStr(payloadSinUUID);
     try {
       const raw = sessionStorage.getItem(this._key(tipo));
       if (raw) {
@@ -1108,10 +1114,13 @@ async function confirmarAgregarProductos() {
                 scan_item_id: productoConflicto.scan_item_id,
               });
             } catch (e) {
-              console.warn("No se pudo autorizar por scan_item_id, usando force=true de respaldo:", e);
+              Toast.error("No se pudo autorizar el duplicado. Intentá de nuevo.");
+              return;
             }
           }
-          confirmarAgregarProductosConForzar();
+          // Reintentar el ingreso normal: la sesión ya tiene el scan_item_id
+          // en force_approved_ids gracias a autorizar_duplicado. No se usa force=true.
+          confirmarAgregarProductos();
         });
 
         return;
