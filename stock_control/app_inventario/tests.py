@@ -2514,6 +2514,83 @@ class TestAutorizarDuplicado(TestCase):
         # El balde fue ingresado (ahora hay 2 activos)
         self.assertEqual(StockBalde.objects.filter(is_activo=True).count(), 2)
 
+    def test_409_incluye_scan_item_id(self):
+        """
+        La respuesta 409 de confirmar_codigos debe incluir scan_item_id del ítem
+        conflictivo para que el frontend no tenga que buscarlo por codigo_barras.
+        """
+        sid = "deadbeef-0000-0000-0000-000000000001"
+        StockBalde.objects.create(
+            producto=self.prod, peso=4.5, codigo_barras=self.CODIGO, is_activo=True
+        )
+        payload = {
+            "origen": "Fábrica",
+            "productos": [{"plu": "001", "peso": 4.5,
+                           "codigo_barras": self.CODIGO, "scan_item_id": sid}],
+        }
+        r = self.client.post(
+            "/api/confirmar_codigos/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 409, r.content)
+        d = json.loads(r.content)
+        self.assertEqual(d.get("scan_item_id"), sid,
+                         "La respuesta 409 debe devolver el scan_item_id del ítem conflictivo")
+        self.assertTrue(d.get("se_puede_forzar"))
+
+    def test_force_true_sin_autorizacion_retorna_409(self):
+        """
+        force: true en el payload ya no es un mecanismo de autorización.
+        Sin scan_item_id en force_approved_ids, el duplicado debe retornar 409.
+        """
+        StockBalde.objects.create(
+            producto=self.prod, peso=4.5, codigo_barras=self.CODIGO, is_activo=True
+        )
+        payload = {
+            "origen": "Fábrica",
+            "force": True,      # ignorado — ya no tiene efecto en el backend
+            "productos": [{"plu": "001", "peso": 4.5, "codigo_barras": self.CODIGO}],
+        }
+        r = self.client.post(
+            "/api/confirmar_codigos/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 409, r.content)
+        d = json.loads(r.content)
+        self.assertTrue(d.get("se_puede_forzar"),
+                        "La respuesta 409 debe indicar que se puede autorizar por scan_item_id")
+
+    def test_eliminar_producto_temporal_limpia_force_approved_ids(self):
+        """
+        Al eliminar un producto temporal por scan_item_id, su autorización
+        en force_approved_ids también debe ser eliminada de la sesión.
+        """
+        sid = "aabbccdd-0000-0000-0000-000000000001"
+        self._seed_sesion(sid)
+
+        # Autorizar el scan_item_id
+        self.client.post(
+            "/api/autorizar_duplicado/",
+            data=json.dumps({"scan_item_id": sid}),
+            content_type="application/json",
+        )
+        self.assertIn(sid, self.client.session.get("force_approved_ids", []))
+
+        # Eliminar el producto temporal
+        r = self.client.post(
+            "/api/eliminar_producto_temporal/",
+            data=json.dumps({"scan_item_id": sid}),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+
+        # El scan_item_id ya no debe estar en force_approved_ids
+        approved = self.client.session.get("force_approved_ids", [])
+        self.assertNotIn(sid, approved,
+                         "Eliminar un producto temporal debe limpiar su autorización en sesión")
+
 
 # ─── C-14: _reclamar_operacion — race condition en idempotencia ───────────────
 
