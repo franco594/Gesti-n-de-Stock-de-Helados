@@ -1100,14 +1100,18 @@ async function confirmarAgregarProductos() {
           Fecha ingreso: <b>${fecha}</b>
         `;
 
-        // Autorización por ítem: buscar el scan_item_id del balde que causó el 409
-        // y llamar a /api/autorizar_duplicado/ antes de reintentar.
-        // Evita el force=True global que autorizaría todos los baldes del grupo.
+        // Autorización por ítem: el backend devuelve el scan_item_id exacto del
+        // ítem conflictivo en la respuesta 409. Usarlo directamente evita la
+        // búsqueda por codigo_barras (ambigua cuando hay duplicados en la lista).
         mostrarModalDuplicado(texto, async () => {
-          const codigoConflicto = data.codigo_barras;
-          const productoConflicto = productosEscaneados.find(
-            p => p.codigo_barras === codigoConflicto
-          );
+          // Preferir scan_item_id del 409; fallback: buscar por codigo_barras.
+          const sidConflicto = data.scan_item_id || (() => {
+            const codigoConflicto = data.codigo_barras;
+            return productosEscaneados.find(p => p.codigo_barras === codigoConflicto)?.scan_item_id;
+          })();
+          const productoConflicto = sidConflicto
+            ? { scan_item_id: sidConflicto }
+            : null;
           if (productoConflicto?.scan_item_id) {
             let autorizacion;
             try {

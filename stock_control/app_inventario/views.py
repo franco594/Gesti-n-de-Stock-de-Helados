@@ -1684,17 +1684,31 @@ def eliminar_producto_temporal(request):
         # o por codigo_barras eliminando solo la primera ocurrencia (compatibilidad).
         nuevo_listado = []
         eliminado = False
+        sid_eliminado = None
         for p in productos_temporales:
             if not eliminado:
                 if scan_item_id and p.get("scan_item_id") == scan_item_id:
                     eliminado = True
+                    sid_eliminado = p.get("scan_item_id")
                 elif not scan_item_id and p.get("codigo_barras") == codigo_barras:
                     eliminado = True
+                    sid_eliminado = p.get("scan_item_id")
                 else:
                     nuevo_listado.append(p)
             else:
                 nuevo_listado.append(p)
         request.session["productos_temporales"] = nuevo_listado
+
+        # Limpiar la autorización de duplicado del ítem eliminado, si existía.
+        # Evita que un scan_item_id aprobado siga autorizado aunque el operario
+        # haya quitado el producto de la lista antes de confirmar.
+        if sid_eliminado:
+            approved = [
+                sid for sid in request.session.get("force_approved_ids", [])
+                if sid != sid_eliminado
+            ]
+            request.session["force_approved_ids"] = approved
+
         request.session.modified = True
         return JsonResponse({"success": True, "message": "Producto eliminado de la sesión."})
     except Exception as e:
@@ -1862,11 +1876,14 @@ def confirmar_codigos(request):
                         .values("producto__nombre", "peso", "fecha_retiro", "timestamp")
                         .first()
                     )
-                    # raise → rollback automático del atomic block
+                    # raise → rollback automático del atomic block.
+                    # Incluimos scan_item_id para que el frontend no tenga que
+                    # buscarlo por codigo_barras (ambiguo cuando hay duplicados).
                     raise _DuplicadoDetectado(
                         {
                             "status": "duplicado_detectado",
                             "codigo_barras": codigo_str,
+                            "scan_item_id": scan_item_id_item or None,
                             "producto": ultimo_dup.get("producto__nombre") if ultimo_dup else None,
                             "peso_anterior": ultimo_dup.get("peso") if ultimo_dup else None,
                             "fecha_retiro": ultimo_dup.get("fecha_retiro") if ultimo_dup else None,
