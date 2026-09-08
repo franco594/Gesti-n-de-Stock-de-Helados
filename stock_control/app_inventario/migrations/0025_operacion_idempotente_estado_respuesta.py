@@ -3,6 +3,23 @@
 from django.db import migrations, models
 
 
+def _marcar_historicos_como_completed(apps, schema_editor):
+    """
+    Al agregar el campo 'estado', las filas ya existentes reciben el default
+    'processing' por ser el valor de columna por defecto de Django.
+    Sin embargo, esos registros fueron creados por el código anterior a esta
+    migración, que usaba update_or_create DENTRO de un atomic() exitoso.
+    Es decir, representan operaciones completadas, no en curso.
+
+    Este RunPython los marca como 'completed' para que no queden bloqueados
+    permanentemente y sean devueltos correctamente en reintentos.
+
+    Instalaciones nuevas (sin registros previos) no son afectadas.
+    """
+    OperacionIdempotente = apps.get_model("app_inventario", "OperacionIdempotente")
+    OperacionIdempotente.objects.filter(estado="processing").update(estado="completed")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -29,5 +46,11 @@ class Migration(migrations.Migration):
             model_name='operacionidempotente',
             name='status_code',
             field=models.SmallIntegerField(default=200, help_text='Código HTTP de la respuesta original (200, 400, 409, etc.)'),
+        ),
+        # Después de agregar la columna con default='processing', corregir
+        # los registros históricos que representan operaciones ya completadas.
+        migrations.RunPython(
+            _marcar_historicos_como_completed,
+            reverse_code=migrations.RunPython.noop,
         ),
     ]
