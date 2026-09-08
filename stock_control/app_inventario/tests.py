@@ -2365,9 +2365,18 @@ class TestAutorizarDuplicado(TestCase):
         self.client = Client()
         self.prod = crear_producto("001", "Vainilla")
 
+    def _seed_sesion(self, scan_item_id):
+        """Agrega el scan_item_id a productos_temporales en sesión (simula procesar_codigo)."""
+        session = self.client.session
+        temporales = session.get("productos_temporales", [])
+        temporales.append({"scan_item_id": scan_item_id, "codigo_barras": self.CODIGO})
+        session["productos_temporales"] = temporales
+        session.save()
+
     def test_autorizar_duplicado_agrega_scan_item_id_a_sesion(self):
         """POST /api/autorizar_duplicado/ agrega el scan_item_id a la sesión."""
         sid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        self._seed_sesion(sid)
         r = self.client.post(
             "/api/autorizar_duplicado/",
             data=json.dumps({"scan_item_id": sid}),
@@ -2388,6 +2397,17 @@ class TestAutorizarDuplicado(TestCase):
             content_type="application/json",
         )
         self.assertEqual(r.status_code, 400)
+
+    def test_autorizar_duplicado_con_id_ajeno_retorna_403(self):
+        """POST con scan_item_id que no está en productos_temporales retorna 403."""
+        # Sin seed de sesión → el ID es desconocido para esta sesión
+        r = self.client.post(
+            "/api/autorizar_duplicado/",
+            data=json.dumps({"scan_item_id": "id-que-no-existe-en-sesion"}),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 403, r.content)
+        self.assertIn("no pertenece", json.loads(r.content).get("error", ""))
 
     def test_autorizar_duplicado_permite_confirmar_stock_duplicado(self):
         """
@@ -2415,7 +2435,11 @@ class TestAutorizarDuplicado(TestCase):
         d1 = json.loads(r1.content)
         self.assertTrue(d1.get("se_puede_forzar"))
 
-        # 2. Autorizar el scan_item_id específico
+        # 2. Seed de sesión: simular que procesar_codigo registró el sid en temporales.
+        #    (En producción esto lo hace el scanner; en test lo hacemos directo.)
+        self._seed_sesion(sid)
+
+        # 3. Autorizar el scan_item_id específico
         r2 = self.client.post(
             "/api/autorizar_duplicado/",
             data=json.dumps({"scan_item_id": sid}),
@@ -2423,7 +2447,7 @@ class TestAutorizarDuplicado(TestCase):
         )
         self.assertEqual(r2.status_code, 200, r2.content)
 
-        # 3. Reintentar confirmar: ahora debe pasar (scan_item_id en force_approved_ids)
+        # 4. Reintentar confirmar: ahora debe pasar (scan_item_id en force_approved_ids)
         r3 = self.client.post(
             "/api/confirmar_codigos/",
             data=json.dumps(payload),
@@ -2435,6 +2459,116 @@ class TestAutorizarDuplicado(TestCase):
 
         # El balde fue ingresado (ahora hay 2 activos)
         self.assertEqual(StockBalde.objects.filter(is_activo=True).count(), 2)
+
+
+# ─── C-14: _reclamar_operacion — race condition en idempotencia ───────────────
+
+class TestReclamarOperacion(TestCase):
+    """
+    _reclamar_operacion() debe reclamar un UUID atómicamente al inicio del atomic,
+    garantizando que dos requests concurrentes no ejecuten ambos la operación.
+
+    Flujo happy-path:
+    1. Primera llamada → creates 'processing' → retorna None (claim exitoso).
+    2. Segunda llamada → encuentra 'processing' existente → retorna JsonResponse 409.
+    3. Marca como 'completed' → siguiente llamada retorna la respuesta original (200).
+    """
+
+    def setUp(self):
+        # Importamos aquí para no contaminar otros tests si falla el import
+        from app_inventario.views import _reclamar_operacion, _check_idempotencia
+        self._reclamar = _reclamar_operacion
+        self._check = _check_idempotencia
+        self.uuid = "cafecafe-cafe-cafe-cafe-cafecafecafe"
+        self.hash = "abc123"
+
+    def test_primera_llamada_retorna_none(self):
+        """La primera reclamación de un UUID crea 'processing' y retorna None."""
+        with transaction.atomic():
+            resultado = self._reclamar(self.uuid, "ingreso", self.hash)
+        self.assertIsNone(resultado)
+        op = OperacionIdempotente.objects.get(operation_id=self.uuid)
+        self.assertEqual(op.estado, "processing")
+        self.assertEqual(op.tipo, "ingreso")
+
+    def test_segunda_llamada_retorna_409_processing(self):
+        """Una segunda reclamación sobre el mismo UUID en estado 'processing' retorna 409."""
+        with transaction.atomic():
+            self._reclamar(self.uuid, "ingreso", self.hash)
+
+        # Segunda llamada: el registro ya existe como 'processing'
+        with transaction.atomic():
+            resultado = self._reclamar(self.uuid, "ingreso", self.hash)
+
+        self.assertIsNotNone(resultado)
+        self.assertEqual(resultado.status_code, 409)
+        data = json.loads(resultado.content)
+        self.assertEqual(data.get("estado"), "processing")
+
+    def test_llamada_post_completed_retorna_respuesta_original(self):
+        """Si el UUID ya está 'completed', _reclamar retorna la respuesta original (200)."""
+        # Crear directamente como completed
+        OperacionIdempotente.objects.create(
+            operation_id=self.uuid,
+            tipo="ingreso",
+            estado="completed",
+            payload_hash=self.hash,
+            status_code=200,
+            respuesta_json=json.dumps({"success": True, "grupo_id": 42}),
+            grupo_id=42,
+        )
+        with transaction.atomic():
+            resultado = self._reclamar(self.uuid, "ingreso", self.hash)
+
+        self.assertIsNotNone(resultado)
+        self.assertEqual(resultado.status_code, 200)
+        data = json.loads(resultado.content)
+        self.assertEqual(data.get("status"), "ya_procesado")
+        self.assertEqual(data.get("grupo_id"), 42)
+
+    def test_hash_distinto_completed_retorna_409(self):
+        """UUID completed con hash diferente → rechazo 409 (operation_id reutilizado)."""
+        OperacionIdempotente.objects.create(
+            operation_id=self.uuid,
+            tipo="ingreso",
+            estado="completed",
+            payload_hash="hash-original",
+            status_code=200,
+            respuesta_json=json.dumps({"success": True}),
+        )
+        with transaction.atomic():
+            resultado = self._reclamar(self.uuid, "ingreso", "hash-diferente")
+
+        self.assertIsNotNone(resultado)
+        self.assertEqual(resultado.status_code, 409)
+
+    def test_check_idempotencia_fast_path_fuera_de_atomic(self):
+        """_check_idempotencia funciona como fast-path para UUID completed."""
+        OperacionIdempotente.objects.create(
+            operation_id=self.uuid,
+            tipo="retiro",
+            estado="completed",
+            payload_hash=self.hash,
+            status_code=200,
+            respuesta_json=json.dumps({"success": True, "grupo_id": 7}),
+            grupo_id=7,
+        )
+        resultado = self._check(self.uuid, self.hash)
+        self.assertIsNotNone(resultado)
+        self.assertEqual(resultado.status_code, 200)
+        data = json.loads(resultado.content)
+        self.assertEqual(data.get("status"), "ya_procesado")
+
+    def test_check_idempotencia_processing_retorna_none(self):
+        """_check_idempotencia ignora 'processing' — retorna None para permitir retry."""
+        OperacionIdempotente.objects.create(
+            operation_id=self.uuid,
+            tipo="ingreso",
+            estado="processing",
+            payload_hash=self.hash,
+        )
+        resultado = self._check(self.uuid, self.hash)
+        self.assertIsNone(resultado, "_check_idempotencia debe ignorar 'processing'")
 
 
 # ─── C-13: Concurrencia SQLite — UPDATE WHERE is_activo=True (item 5) ────────
@@ -2632,16 +2766,12 @@ class TestSecuenciaGrupo(TransactionTestCase):
         self.assertFalse(errores, f"Errores de red/Python: {errores}")
 
         # Si ambos threads agotaron los reintentos de lock (SQLite in-memory),
-        # el test es inconclusivo pero no un fallo de lógica. Reportar y continuar.
+        # el test es inconclusivo pero no un fallo de lógica.
         if not grupos_creados and errores_http:
-            import warnings
-            warnings.warn(
-                "test_dos_retiros_concurrentes: ambos threads agotaron el lock de SQLite. "
-                "Esto es una limitación de SQLite in-memory, no un bug de lógica.",
-                RuntimeWarning,
-                stacklevel=2,
+            self.skipTest(
+                "SQLite in-memory agotó el lock en ambos threads "
+                "(limitación del entorno de test, no un bug de lógica)."
             )
-            return  # inconcluyente — no reportar como fallo
 
         # Al menos un retiro debió exitir (el otro puede haber perdido la carrera)
         self.assertGreaterEqual(len(grupos_creados), 1,
