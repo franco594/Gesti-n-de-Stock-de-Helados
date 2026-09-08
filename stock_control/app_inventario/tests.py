@@ -2349,6 +2349,94 @@ class TestAutorizacionDuplicadoPorUnidad(TestCase):
         self.assertEqual(r.status_code, 409, r.content)
 
 
+# ─── C-13b: /api/autorizar_duplicado/ — autorización por scan_item_id ─────────
+
+class TestAutorizarDuplicado(TestCase):
+    """
+    El endpoint /api/autorizar_duplicado/ agrega un scan_item_id específico
+    a force_approved_ids en sesión, sin afectar otros ítems.
+
+    Esto reemplaza el mecanismo global force=True en ingreso con duplicados.
+    """
+
+    CODIGO = "2000100045001"
+
+    def setUp(self):
+        self.client = Client()
+        self.prod = crear_producto("001", "Vainilla")
+
+    def test_autorizar_duplicado_agrega_scan_item_id_a_sesion(self):
+        """POST /api/autorizar_duplicado/ agrega el scan_item_id a la sesión."""
+        sid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        r = self.client.post(
+            "/api/autorizar_duplicado/",
+            data=json.dumps({"scan_item_id": sid}),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        data = json.loads(r.content)
+        self.assertTrue(data.get("ok"))
+
+        approved = self.client.session.get("force_approved_ids", [])
+        self.assertIn(sid, approved)
+
+    def test_autorizar_duplicado_sin_scan_item_id_retorna_400(self):
+        """POST sin scan_item_id retorna 400."""
+        r = self.client.post(
+            "/api/autorizar_duplicado/",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_autorizar_duplicado_permite_confirmar_stock_duplicado(self):
+        """
+        Flujo completo: balde activo en stock → confirmar 409 → autorizar scan_item_id
+        → reintentar confirmar → 200.
+        """
+        # Balde existente en stock con el mismo código
+        StockBalde.objects.create(
+            producto=self.prod, peso=4.5, codigo_barras=self.CODIGO, is_activo=True
+        )
+        sid = "11111111-2222-3333-4444-555555555555"
+
+        # 1. Confirmar: debería 409 porque el código ya está activo
+        payload = {
+            "origen": "Fábrica",
+            "productos": [{"plu": "001", "peso": 4.5,
+                           "codigo_barras": self.CODIGO, "scan_item_id": sid}],
+        }
+        r1 = self.client.post(
+            "/api/confirmar_codigos/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(r1.status_code, 409, r1.content)
+        d1 = json.loads(r1.content)
+        self.assertTrue(d1.get("se_puede_forzar"))
+
+        # 2. Autorizar el scan_item_id específico
+        r2 = self.client.post(
+            "/api/autorizar_duplicado/",
+            data=json.dumps({"scan_item_id": sid}),
+            content_type="application/json",
+        )
+        self.assertEqual(r2.status_code, 200, r2.content)
+
+        # 3. Reintentar confirmar: ahora debe pasar (scan_item_id en force_approved_ids)
+        r3 = self.client.post(
+            "/api/confirmar_codigos/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(r3.status_code, 200, r3.content)
+        d3 = json.loads(r3.content)
+        self.assertTrue(d3.get("success"))
+
+        # El balde fue ingresado (ahora hay 2 activos)
+        self.assertEqual(StockBalde.objects.filter(is_activo=True).count(), 2)
+
+
 # ─── C-13: Concurrencia SQLite — UPDATE WHERE is_activo=True (item 5) ────────
 
 class TestConcurrenciaSQLite(TestCase):

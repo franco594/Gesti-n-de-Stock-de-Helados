@@ -19,6 +19,7 @@ from app_inventario.views import (
 
     # Confirmaciones agrupadas
     confirmar_agregado, confirmar_codigos, confirmar_retiro,
+    autorizar_duplicado,
 
     # Catálogos
     obtener_bocas, crear_boca, crear_origen,
@@ -89,6 +90,7 @@ urlpatterns = [
     path('api/confirmar_codigos/', confirmar_codigos, name="confirmar_codigos"),  # ingreso (grupo)
     path('api/confirmar_retiro/', confirmar_retiro, name="confirmar_retiro"),     # retiro (grupo)
     path('api/confirmar_agregado/', confirmar_agregado, name="confirmar_agregado"),  # legacy opcional
+    path('api/autorizar_duplicado/', autorizar_duplicado, name="autorizar_duplicado"),  # per-item
 
     # Catálogos
     path('api/bocas/', obtener_bocas, name='obtener_bocas'),

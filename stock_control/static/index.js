@@ -55,6 +55,7 @@ const API = {
   procesarCodigo: "/api/procesar_codigo/",
   confirmarIngreso: "/api/confirmar_codigos/",
   confirmarRetiro: "/api/confirmar_retiro/",
+  autorizarDuplicado: "/api/autorizar_duplicado/",
   obtenerStock: "/api/obtener_stock/",
   stockDetallado: "/api/stock_detallado/",
   obtenerCodigos: "/api/obtener_codigos/",
@@ -1069,7 +1070,8 @@ async function confirmarAgregarProductos() {
       productos: productosEscaneados.map(p => ({
         plu: p.plu,
         peso: p.peso,
-        codigo_barras: p.codigo_barras
+        codigo_barras: p.codigo_barras,
+        scan_item_id: p.scan_item_id || "",   // identifica el balde físico exacto
       }))
     };
     const payload = {
@@ -1092,7 +1094,23 @@ async function confirmarAgregarProductos() {
           Fecha ingreso: <b>${fecha}</b>
         `;
 
-        mostrarModalDuplicado(texto, () => {
+        // Autorización por ítem: buscar el scan_item_id del balde que causó el 409
+        // y llamar a /api/autorizar_duplicado/ antes de reintentar.
+        // Evita el force=True global que autorizaría todos los baldes del grupo.
+        mostrarModalDuplicado(texto, async () => {
+          const codigoConflicto = data.codigo_barras;
+          const productoConflicto = productosEscaneados.find(
+            p => p.codigo_barras === codigoConflicto
+          );
+          if (productoConflicto?.scan_item_id) {
+            try {
+              await postJSON(API.autorizarDuplicado, {
+                scan_item_id: productoConflicto.scan_item_id,
+              });
+            } catch (e) {
+              console.warn("No se pudo autorizar por scan_item_id, usando force=true de respaldo:", e);
+            }
+          }
           confirmarAgregarProductosConForzar();
         });
 

@@ -1581,6 +1581,40 @@ def obtener_productos_temporales(request):
 
 
 @csrf_exempt
+def autorizar_duplicado(request):
+    """
+    Autoriza un scan_item_id específico para ingresar como duplicado de stock.
+
+    Recibe POST JSON: {"scan_item_id": "<uuid>"}
+    Agrega el scan_item_id a la lista force_approved_ids de la sesión, que
+    confirmar_codigos consulta para decidir si un ítem ya autorizado puede
+    ingresarse aunque ya exista un balde activo con el mismo código.
+
+    Esto reemplaza el mecanismo de force=True global, que autorizaba todos
+    los baldes del grupo de una sola vez. La autorización por ítem garantiza
+    que solo se ingrese el balde específico que el operario revisó y aprobó.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+
+    scan_item_id = (data.get("scan_item_id") or "").strip()
+    if not scan_item_id:
+        return JsonResponse({"error": "scan_item_id requerido"}, status=400)
+
+    approved = list(request.session.get("force_approved_ids", []))
+    if scan_item_id not in approved:
+        approved.append(scan_item_id)
+    # Evitar crecimiento infinito; IDs viejos ya fueron procesados o caducaron
+    request.session["force_approved_ids"] = approved[-100:]
+    request.session.modified = True
+    return JsonResponse({"ok": True, "scan_item_id": scan_item_id})
+
+
+@csrf_exempt
 def eliminar_producto_temporal(request):
     if request.method != "POST":
         return JsonResponse({"success": False, "error": "Método no permitido"}, status=405)
