@@ -155,3 +155,64 @@ DROPBOX_FOLDER = '/StockControl Backups'                # Carpeta en Dropbox
 ONEDRIVE_CLIENT_ID = os.getenv('ONEDRIVE_CLIENT_ID', '')
 ONEDRIVE_CLIENT_SECRET = os.getenv('ONEDRIVE_CLIENT_SECRET', '')
 ONEDRIVE_FOLDER = 'StockControl Backups'
+
+# ── Logging a archivo diario ──────────────────────────────────────────────────
+# Los logs se guardan junto a la DB: %LOCALAPPDATA%\StockControl\logs\
+# Rotan a medianoche y se conservan 30 días.
+# Archivos generados:
+#   stock.log            ← día actual
+#   stock.log.2026-09-09 ← días anteriores
+_LOG_DIR = DB_FILE.parent / "logs"
+_LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "detallado": {
+            "format": "{asctime} {levelname:<8} {name}: {message}",
+            "style": "{",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "consola": {
+            "class": "logging.StreamHandler",
+            "formatter": "detallado",
+        },
+        "archivo_diario": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "filename": str(_LOG_DIR / "stock.log"),
+            "when": "midnight",
+            "backupCount": 30,
+            "encoding": "utf-8",
+            "formatter": "detallado",
+        },
+    },
+    "loggers": {
+        # Accesos HTTP — las líneas GET/POST que ves en la consola
+        "django.server": {
+            "handlers": ["consola", "archivo_diario"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # Errores HTTP 4xx/5xx (WARNING y superior)
+        "django.request": {
+            "handlers": ["consola", "archivo_diario"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        # Lógica de negocio de la app
+        "app_inventario": {
+            "handlers": ["consola", "archivo_diario"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # Scheduler de tareas (backups automáticos, reporte de email)
+        "apscheduler": {
+            "handlers": ["consola", "archivo_diario"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
