@@ -905,6 +905,10 @@ async function actualizarTablaStock() {
       upd("kGastronomico",c.gastronomico.kilos.toFixed(2));
     }
 
+    // Si el usuario está en Vista Grupos, actualizar los grupos desde la tabla recién cargada
+    const _vg = byId("vistaGrupos");
+    if (_vg && _vg.style.display !== "none") _rellenarVistaGrupos();
+
   } catch (e) {
     console.error("❌ Error al actualizar tabla de stock:", e);
   }
@@ -1574,39 +1578,29 @@ function toggleStockDetalle() {
   if (btn)       btn.textContent = _stockDetalleVisible ? "▲" : "▼";
 }
 
-function mostrarVistaGrupos() {
-  const tabla = ensureEl(SELECTORS.stockTable);
-  const vg = ensureEl(SELECTORS.vistaGrupos);
-  if (!tabla || !vg) return;
-
-  tabla.classList.add("fade-out");
-  setTimeout(() => {
-    tabla.style.display = "none";
-    tabla.classList.remove("fade-out");
-    vg.style.display = "flex";
-    requestAnimationFrame(() => {
-      vg.classList.add("fade-in");
-      setTimeout(() => vg.classList.remove("fade-in"), 300);
-    });
-  }, 300);
-
+/**
+ * Rellena los tbody de Vista Grupos leyendo las filas actuales de #stockTable.
+ * Se llama tanto al abrir Vista Grupos como tras cada actualización de stock,
+ * para que los grupos reflejen siempre el último dato cargado.
+ */
+function _rellenarVistaGrupos() {
   const gruposBody = {
-    jarabe: byId("jarabe-body"),
-    chocolates: byId("chocolates-body"),
-    dulces: byId("dulces-body"),
-    blanca: byId("blanca-body"),
-    neutra: byId("neutra-body"),
-    zambayon: byId("zambayon-body"),
-    oleosa: byId("oleosa-body"),
-    tortas: byId("tortas-body"),
-    barras: byId("barras-body"),
+    jarabe:        byId("jarabe-body"),
+    chocolates:    byId("chocolates-body"),
+    dulces:        byId("dulces-body"),
+    blanca:        byId("blanca-body"),
+    neutra:        byId("neutra-body"),
+    zambayon:      byId("zambayon-body"),
+    oleosa:        byId("oleosa-body"),
+    tortas:        byId("tortas-body"),
+    barras:        byId("barras-body"),
     gastronomicos: byId("gastronomicos-body"),
   };
-  Object.values(gruposBody).forEach((el) => el && (el.innerHTML = ""));
+  Object.values(gruposBody).forEach(el => el && (el.innerHTML = ""));
 
-  $(`#stockTable tbody`)?.querySelectorAll("tr").forEach((row) => {
-    const nombre = row.cells[0].textContent.trim().toUpperCase();
-    const cantidad = row.cells[1].textContent.trim();
+  document.querySelectorAll("#stockTable tbody tr").forEach(row => {
+    const nombre   = row.cells[0]?.textContent.trim().toUpperCase() ?? "";
+    const cantidad = row.cells[1]?.textContent.trim() ?? "";
 
     let grupoAsignado = "otros";
     if (nombre.includes("GASTRO")) {
@@ -1627,6 +1621,25 @@ function mostrarVistaGrupos() {
     }
     gruposBody[grupoAsignado]?.appendChild(nueva);
   });
+}
+
+function mostrarVistaGrupos() {
+  const tabla = ensureEl(SELECTORS.stockTable);
+  const vg = ensureEl(SELECTORS.vistaGrupos);
+  if (!tabla || !vg) return;
+
+  tabla.classList.add("fade-out");
+  setTimeout(() => {
+    tabla.style.display = "none";
+    tabla.classList.remove("fade-out");
+    vg.style.display = "flex";
+    requestAnimationFrame(() => {
+      vg.classList.add("fade-in");
+      setTimeout(() => vg.classList.remove("fade-in"), 300);
+    });
+  }, 300);
+
+  _rellenarVistaGrupos();
 }
 
 function mostrarVistaGeneral() {
