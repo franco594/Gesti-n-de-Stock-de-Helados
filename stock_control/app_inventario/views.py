@@ -740,7 +740,7 @@ def historial(request):
             {
                 "grupo_id": mov.grupo_id,
                 "tipo": mov.tipo,
-                "timestamp": mov.timestamp.strftime("%d/%m/%Y %H:%M")
+                "timestamp": timezone.localtime(mov.timestamp).strftime("%d/%m/%Y %H:%M")
             }
             for mov in movimientos
         ]
@@ -775,7 +775,7 @@ from django.utils.timezone import make_aware
 def _fmt_dt(dt: datetime | None) -> str:
     if not dt:
         return ""
-    return dt.strftime("%d/%m/%Y %H:%M")
+    return timezone.localtime(dt).strftime("%d/%m/%Y %H:%M")
 
 def _build_periodo_label(dt_desde, dt_hasta) -> str:
     if dt_desde and dt_hasta:
@@ -3140,7 +3140,7 @@ def api_dashboard_metricas(request):
                 'destino': grupo.destino.nombre if grupo.destino else '',
                 'total_peso': float(grupo.total_peso),
                 'cantidad_items': grupo.cantidad_items,
-                'fecha': grupo.fecha.strftime('%d/%m/%Y %H:%M')
+                'fecha': timezone.localtime(grupo.fecha).strftime('%d/%m/%Y %H:%M')
             })
         
         # ============================================================
