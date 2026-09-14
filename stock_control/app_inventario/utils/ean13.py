@@ -16,11 +16,14 @@ Ejemplo: "2000100045001"
   peso = 4.500 kg
 
 Funciones exportadas:
-  validar_ean13(codigo)           → (ok: bool, motivo: str)
-  validar_ean13_estricto(codigo)  → (ok: bool, motivo: str)
-  calcular_digito_verificador(12) → int
-  parsear_codigo_barras(codigo)   → dict
+  validar_ean13(codigo)                              → (ok: bool, motivo: str)
+  validar_ean13_estricto(codigo)                     → (ok: bool, motivo: str)
+  validar_coherencia_barcode(codigo, plu, peso)      → (ok: bool, motivo: str)
+  calcular_digito_verificador(12)                    → int
+  parsear_codigo_barras(codigo)                      → dict
 """
+
+from decimal import Decimal, InvalidOperation
 
 
 def calcular_digito_verificador(codigo_12: str) -> int:
@@ -79,6 +82,68 @@ def validar_ean13_estricto(codigo: str) -> tuple[bool, str]:
     real = int(codigo[12])
     if real != esperado:
         return False, f"Dígito verificador incorrecto (esperado {esperado}, recibido {real})"
+    return True, ""
+
+
+def validar_coherencia_barcode(
+    codigo: str,
+    plu_esperado: str,
+    peso_esperado=None,
+) -> tuple[bool, str]:
+    """
+    Verifica que el barcode sea coherente con el PLU (y opcionalmente el peso).
+
+    Condiciones validadas:
+      1. El código empieza con '2' (código de peso variable del sistema).
+         Barcodes con otro prefijo no tienen PLU ni peso codificados en las
+         posiciones del sistema; rechazarlos evita interpretaciones sin sentido.
+      2. El PLU codificado en [2:5] coincide exactamente con plu_esperado.
+      3. Si peso_esperado no es None: el peso codificado en [8:11] (Decimal)
+         coincide con peso_esperado. Se usa Decimal para evitar errores de
+         representación de punto flotante.
+         Pasar peso_esperado=None en devoluciones parciales, donde el operario
+         re-pesa el balde devuelto y el peso real puede diferir del original.
+
+    Retorna (True, "") si coherente; (False, motivo) si no.
+
+    No lanza excepción: ante un código malformado retorna (False, motivo).
+    Debe llamarse después de que validar_ean13() ya confirmó que el código
+    tiene 13 dígitos numéricos.
+    """
+    if not isinstance(codigo, str) or len(codigo) != 13:
+        return False, "Código inválido (se requieren 13 dígitos)"
+
+    if codigo[0] != "2":
+        return (
+            False,
+            f"El código '{codigo}' no es un código de peso variable del sistema "
+            f"(debe empezar con '2', recibido '{codigo[0]}')",
+        )
+
+    plu_barcode = codigo[2:5]
+    if plu_barcode != str(plu_esperado):
+        return (
+            False,
+            f"El PLU codificado en el barcode ('{plu_barcode}') "
+            f"no coincide con el PLU del producto ('{plu_esperado}')",
+        )
+
+    if peso_esperado is not None:
+        try:
+            kg_enteros = int(codigo[8])
+            kg_decimales = codigo[9:12]
+            peso_barcode = Decimal(f"{kg_enteros}.{kg_decimales}")
+            peso_payload = Decimal(str(peso_esperado))
+        except (ValueError, IndexError, InvalidOperation) as exc:
+            return False, f"No se pudo leer el peso del barcode: {exc}"
+
+        if peso_barcode != peso_payload:
+            return (
+                False,
+                f"El peso codificado en el barcode ({peso_barcode} kg) "
+                f"no coincide con el peso del payload ({peso_payload} kg)",
+            )
+
     return True, ""
 
 

@@ -30,7 +30,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.management import call_command
 
 from app_inventario.services.printing import print_stock_total
-from app_inventario.utils.ean13 import validar_ean13
+from app_inventario.utils.ean13 import validar_ean13, validar_coherencia_barcode
 from datetime import datetime, time, timedelta
 from django.db.models import Sum, Count, Q, F, Avg, IntegerField
 from django.db.models.functions import Cast
@@ -1549,6 +1549,18 @@ def procesar_codigo(request):
     if not ok:
         return JsonResponse({"error": f"Código de barras no válido: {motivo}"}, status=400)
 
+    # --- Verificar que es un código de peso variable del sistema ---
+    if codigo_barras[0] != "2":
+        return JsonResponse(
+            {
+                "error": (
+                    f"El código '{codigo_barras}' no es un código de peso variable "
+                    f"del sistema (debe empezar con '2')."
+                )
+            },
+            status=400,
+        )
+
     # --- Interpretación del código ---
     plu = codigo_barras[2:5]  # 3 dígitos
     peso = float(f"{codigo_barras[8]}.{codigo_barras[9:12]}")  # X.XXX
@@ -1807,6 +1819,13 @@ def confirmar_codigos(request):
         if not _ok:
             return JsonResponse(
                 {"error": f"Cada balde debe incluir un código EAN-13 válido: {_motivo}"},
+                status=400,
+            )
+
+        _coh_ok, _coh_motivo = validar_coherencia_barcode(codigo_str, plu, peso)
+        if not _coh_ok:
+            return JsonResponse(
+                {"error": f"Barcode incoherente con PLU/peso: {_coh_motivo}"},
                 status=400,
             )
 
@@ -2212,6 +2231,23 @@ def confirmar_devolucion(request):
     if not productos:
         return JsonResponse({"error": "No hay baldes para devolver"}, status=400)
 
+    # ---- Validación de destino (FUERA de la transacción) ----
+    # Si se especificó un destino, debe existir como BocaSalida antes de escribir
+    # cualquier dato. Un destino inexistente causaría un RM de salida con FK NULL.
+    destino_obj = None
+    if destino:
+        destino_obj = BocaSalida.objects.filter(nombre=destino).first()
+        if destino_obj is None:
+            return JsonResponse(
+                {
+                    "error": (
+                        f"El destino '{destino}' no existe. "
+                        f"Verificá el nombre e intentá de nuevo."
+                    )
+                },
+                status=400,
+            )
+
     # ---- Idempotencia persistente en DB ----
     if operation_id and not _UUID_RE.match(operation_id):
         return JsonResponse({"error": "operation_id debe ser un UUID v4"}, status=400)
@@ -2245,6 +2281,16 @@ def confirmar_devolucion(request):
         _ok, _motivo = validar_ean13(codigo_str)
         if not _ok:
             return JsonResponse({"error": f"Código de barras inválido: {_motivo}"}, status=400)
+
+        # Solo se valida prefijo '2' y PLU — el peso NO se valida porque en
+        # devoluciones el operario puede devolver un balde parcialmente consumido
+        # (peso real distinto al codificado en la etiqueta original).
+        _coh_ok, _coh_motivo = validar_coherencia_barcode(codigo_str, plu)
+        if not _coh_ok:
+            return JsonResponse(
+                {"error": f"Barcode incoherente con PLU: {_coh_motivo}"},
+                status=400,
+            )
 
         if codigo_str in codigos_devolucion_vistos:
             continue
@@ -2319,8 +2365,9 @@ def confirmar_devolucion(request):
             # ── Redirigir: si hay destino, crear retiro encadenado ────────────
             if destino and baldes_creados:
                 # grupo_id_retiro ya fue reservado con _reservar_grupos(2)
+                # destino_obj fue validado en la fase 1 (pre-validación): nunca es None aquí.
                 ahora = timezone.now()
-                destino_obj_retiro = BocaSalida.objects.filter(nombre=destino).first()
+                destino_obj_retiro = destino_obj
                 for balde_dev in baldes_creados:
                     balde_dev.is_activo    = False
                     balde_dev.fecha_retiro = ahora

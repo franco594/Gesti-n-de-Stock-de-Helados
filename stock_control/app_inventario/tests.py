@@ -1144,7 +1144,8 @@ class TestIngresoForzado(TestCase):
     El retiro elige el más antiguo (FIFO).
     """
 
-    CODIGO = "2000100050001"
+    # "2001100050009": PLU='011', peso=5.000, DV=9
+    CODIGO = "2001100050009"
 
     def setUp(self):
         self.client = Client()
@@ -2973,3 +2974,257 @@ class TestDetalleMovimientoURLEliminada(TestCase):
         """GET /movimientos/<id>/?format=json para grupo inexistente → 404, no 500."""
         resp = self.client.get("/movimientos/0/?format=json")
         self.assertEqual(resp.status_code, 404)
+
+
+# ─── C-15: Integridad EAN-13 — barcode coherente con PLU y peso ──────────────
+
+class TestIntegridadEAN13(TestCase):
+    """
+    C-15: Los endpoints procesar_codigo y confirmar_codigos deben rechazar:
+      1. Barcodes que no empiezan con '2' (no son código de peso variable).
+      2. Payloads donde el PLU del barcode difiere del campo 'plu'.
+      3. Payloads donde el peso del barcode difiere del campo 'peso'.
+
+    Los tests con prefijo test_BUG_ FALLAN con el código actual (demuestran bugs).
+    Los tests sin ese prefijo son regresiones que ya pasan y deben seguir pasando.
+
+    Barcodes de referencia:
+      "2005000045004" → PLU='050', peso=4.500, DV=4  (coherente)
+      "2005100045003" → PLU='051', peso=4.500, DV=3  (PLU distinto al anterior)
+      "5901234123457" → EAN-13 estándar, prefijo '5' (no es código del sistema)
+    """
+
+    URL_PROCESAR = "/api/procesar_codigo/"
+    URL_CONFIRMAR = "/api/confirmar_codigos/"
+
+    CODIGO_050 = "2005000045004"   # PLU='050', peso=4.500
+    CODIGO_051 = "2005100045003"   # PLU='051', peso=4.500
+    CODIGO_EXTERNO = "5901234123457"  # prefijo '5', no empieza con '2'
+
+    def setUp(self):
+        self.client = Client()
+        self.prod_050 = crear_producto("050", "Frambuesa Test")
+        self.prod_051 = crear_producto("051", "Stracciatella Test")
+        # PLU "012" coincide con CODIGO_EXTERNO[2:5]="012".
+        # Sin este producto, procesar_codigo retornaría 400 "Producto no encontrado"
+        # en vez de 400 "barcode inválido", enmascarando el bug.
+        self.prod_012 = crear_producto("012", "Menta Test")
+
+    # ── Bugs (deben fallar actualmente) ──────────────────────────────────────
+
+    def test_BUG_procesar_codigo_barcode_sin_prefijo_2_rechazado(self):
+        """
+        BUG: procesar_codigo acepta '5901234123457' porque tiene 13 dígitos.
+        Extrae PLU='012' y peso=2.345 de posiciones que no tienen ese significado.
+
+        Debe retornar 400. Actualmente retorna 200 (BUG).
+        """
+        resp = post_json(self.client, self.URL_PROCESAR, {"codigo": self.CODIGO_EXTERNO})
+        self.assertEqual(
+            resp.status_code, 400,
+            f"Barcode sin prefijo '2' debe rechazarse con 400; "
+            f"recibido {resp.status_code}: {resp.content}",
+        )
+
+    def test_BUG_confirmar_codigos_plu_payload_difiere_del_barcode(self):
+        """
+        BUG: confirmar_codigos acepta el PLU del payload sin verificar que
+        coincida con el PLU codificado en el barcode.
+
+        '2005100045003' codifica PLU='051', pero el payload declara plu='050'.
+        El servidor encuentra ProductoFijo PLU '050' y lo acepta, creando un
+        StockBalde con PLU '050' y un barcode que dice '051' (inconsistencia).
+
+        Debe retornar 400. Actualmente retorna 200 (BUG).
+        """
+        resp = post_json(self.client, self.URL_CONFIRMAR, {
+            "origen": "Fábrica",
+            "productos": [
+                {"plu": "050", "peso": 4.5, "codigo_barras": self.CODIGO_051},
+            ],
+        })
+        self.assertEqual(
+            resp.status_code, 400,
+            f"PLU inconsistente con barcode debe rechazarse con 400; "
+            f"recibido {resp.status_code}: {resp.content}",
+        )
+        self.assertEqual(
+            StockBalde.objects.count(), 0,
+            "No debe crearse ningún StockBalde cuando el PLU no coincide con el barcode",
+        )
+
+    def test_BUG_confirmar_codigos_peso_payload_difiere_del_barcode(self):
+        """
+        BUG: confirmar_codigos acepta el peso del payload sin verificar que
+        coincida con el peso codificado en el barcode.
+
+        '2005000045004' codifica peso=4.500, pero el payload dice peso=5.0.
+        El servidor crea un StockBalde con peso=5.0 y un barcode que dice 4.5 kg.
+
+        Debe retornar 400. Actualmente retorna 200 (BUG).
+        """
+        resp = post_json(self.client, self.URL_CONFIRMAR, {
+            "origen": "Fábrica",
+            "productos": [
+                {"plu": "050", "peso": 5.0, "codigo_barras": self.CODIGO_050},
+            ],
+        })
+        self.assertEqual(
+            resp.status_code, 400,
+            f"Peso inconsistente con barcode debe rechazarse con 400; "
+            f"recibido {resp.status_code}: {resp.content}",
+        )
+        self.assertEqual(
+            StockBalde.objects.count(), 0,
+            "No debe crearse ningún StockBalde cuando el peso no coincide con el barcode",
+        )
+
+    def test_BUG_confirmar_codigos_barcode_sin_prefijo_2(self):
+        """
+        BUG: confirmar_codigos acepta barcodes sin prefijo '2' cuando el PLU
+        y peso del payload coinciden con lo que [2:5] y [8:11] contienen.
+
+        '5901234123457': [2:5]='012', peso=[8].[9:12]=2.345.
+        El payload plu='012', peso=2.345 coincide numéricamente, pero el
+        barcode no es un código de peso variable del sistema.
+
+        Debe retornar 400. Actualmente retorna 200 (BUG).
+        """
+        resp = post_json(self.client, self.URL_CONFIRMAR, {
+            "origen": "Fábrica",
+            "productos": [
+                {"plu": "012", "peso": 2.345, "codigo_barras": self.CODIGO_EXTERNO},
+            ],
+        })
+        self.assertEqual(
+            resp.status_code, 400,
+            f"Barcode sin prefijo '2' debe rechazarse con 400 incluso si "
+            f"los campos PLU/peso del payload coinciden numéricamente; "
+            f"recibido {resp.status_code}: {resp.content}",
+        )
+        self.assertEqual(
+            StockBalde.objects.count(), 0,
+            "No debe crearse ningún StockBalde para un barcode que no empieza con '2'",
+        )
+
+    # ── Regresiones (ya pasan y deben seguir pasando tras la corrección) ─────
+
+    def test_confirmar_codigos_barcode_coherente_pasa(self):
+        """
+        Regression: barcode, PLU y peso coherentes → confirmar_codigos acepta.
+        '2005000045004' → PLU='050', peso=4.500; payload plu='050', peso=4.5.
+        """
+        resp = post_json(self.client, self.URL_CONFIRMAR, {
+            "origen": "Fábrica",
+            "productos": [
+                {"plu": "050", "peso": 4.5, "codigo_barras": self.CODIGO_050},
+            ],
+        })
+        self.assertEqual(
+            resp.status_code, 200,
+            f"Barcode coherente debe aceptarse; recibido {resp.status_code}: {resp.content}",
+        )
+        self.assertEqual(StockBalde.objects.count(), 1)
+
+    def test_procesar_codigo_barcode_con_prefijo_2_pasa(self):
+        """
+        Regression: barcode con prefijo '2' y producto existente → procesar_codigo acepta.
+        '2005000045004' → PLU='050', peso=4.500.
+        """
+        resp = post_json(self.client, self.URL_PROCESAR, {"codigo": self.CODIGO_050})
+        self.assertEqual(
+            resp.status_code, 200,
+            f"Barcode coherente debe aceptarse; recibido {resp.status_code}: {resp.content}",
+        )
+
+
+# ─── C-16: Destino inexistente en devolución — debe rechazarse con 400 ────────
+
+class TestDestinoDevolucionInexistente(TestCase):
+    """
+    C-16: confirmar_devolucion debe rechazar con 400 cuando el destino
+    especificado no existe como BocaSalida en la base de datos.
+
+    Bug: si destino="NoExiste" y no hay ningún BocaSalida con ese nombre,
+    el servidor actualmente retorna 200, crea un StockBalde de devolución
+    y lo retira inmediatamente con un RegistroMovimiento(tipo='salida')
+    cuyo FK destino=NULL, corrompiendo el historial.
+
+    Los tests con prefijo test_BUG_ FALLAN con el código actual (demuestran bugs).
+    El test sin ese prefijo es una regresión que ya pasa y debe seguir pasando.
+    """
+
+    URL = "/api/confirmar_devolucion/"
+    CODIGO = "2000100045001"
+
+    def setUp(self):
+        self.client = Client()
+        self.prod = crear_producto("001", "Vainilla")
+        # No se crea ningún BocaSalida → cualquier destino que se pase será inexistente.
+
+    def _devolver(self, destino):
+        return post_json(self.client, self.URL, {
+            "origen": "Local Norte",
+            "destino": destino,
+            "productos": [{"plu": "001", "codigo_barras": self.CODIGO, "peso": 4.5}],
+        })
+
+    def test_BUG_devolucion_destino_inexistente_rechazado(self):
+        """
+        BUG: confirmar_devolucion con destino inexistente retorna 200.
+        Debe retornar 400 antes de crear cualquier objeto.
+        """
+        resp = self._devolver("LocalInexistente")
+        self.assertEqual(
+            resp.status_code, 400,
+            f"Destino inexistente debe rechazarse con 400; "
+            f"recibido {resp.status_code}: {resp.content}",
+        )
+
+    def test_BUG_devolucion_destino_inexistente_no_crea_baldes(self):
+        """
+        BUG: con destino inexistente el servidor crea un StockBalde (is_activo=False).
+        Tras la corrección, ningún StockBalde debe existir.
+        """
+        self._devolver("LocalInexistente")
+        self.assertEqual(
+            StockBalde.objects.count(), 0,
+            "No debe crearse ningún StockBalde cuando el destino no existe",
+        )
+
+    def test_BUG_devolucion_destino_inexistente_no_crea_movimientos(self):
+        """
+        BUG: con destino inexistente se crean 2 RegistroMovimiento
+        (tipo='devolucion' y tipo='salida' con FK destino=NULL).
+        Tras la corrección, ninguno debe existir.
+        """
+        self._devolver("LocalInexistente")
+        self.assertEqual(
+            RegistroMovimiento.objects.count(), 0,
+            "No debe crearse ningún RegistroMovimiento cuando el destino no existe",
+        )
+
+    def test_BUG_devolucion_destino_inexistente_no_genera_rm_con_fk_null(self):
+        """
+        BUG: actualmente se crea un RM de salida con destino=None (FK NULL).
+        Esto hace que el historial muestre una salida sin destino identificable.
+        Tras la corrección, no debe existir ningún RM con FK destino=NULL.
+        """
+        self._devolver("LocalInexistente")
+        rm_sin_fk = RegistroMovimiento.objects.filter(tipo="salida", destino__isnull=True)
+        self.assertFalse(
+            rm_sin_fk.exists(),
+            "No debe existir ningún RM de tipo 'salida' con FK destino=NULL",
+        )
+
+    def test_devolucion_destino_existente_sigue_funcionando(self):
+        """
+        Regression: cuando el destino SÍ existe como BocaSalida,
+        confirmar_devolucion debe retornar 200 (sin regresión).
+        """
+        BocaSalida.objects.create(nombre="Local Norte")
+        resp = self._devolver("Local Norte")
+        self.assertEqual(
+            resp.status_code, 200,
+            f"Destino existente debe aceptarse; recibido {resp.status_code}: {resp.content}",
+        )
