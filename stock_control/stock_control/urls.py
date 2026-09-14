@@ -68,8 +68,8 @@ urlpatterns = [
     # Historial / movimientos agrupados
     path('historial/', historial, name="historial"),
     path('historial_movimientos/', historial_movimientos, name='historial_movimientos'),
-    path('detalle_movimiento/<int:grupo_id>/', detalle_movimiento, name='detalle_movimiento'),
-    # Alias opcional (por compatibilidad con el front)
+    # La pantalla /detalle_movimiento/ fue eliminada intencionalmente.
+    # El alias /movimientos/<id>/ sigue activo: devuelve JSON para el panel de historial.
     path('movimientos/<int:grupo_id>/', detalle_movimiento, name='movimientos_detalle_json'),
     path('eliminar_movimiento/<int:grupo_id>/', eliminar_movimiento, name='eliminar_movimiento'),
     path('api/eliminar_item_movimiento/', eliminar_item_movimiento, name='eliminar_item_movimiento'),

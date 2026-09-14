@@ -1187,16 +1187,9 @@ def detalle_movimiento(request, grupo_id: int):
             ],
         })
 
-    return render(request, "detalle_movimiento.html", {
-        "grupo_id": grupo_id,
-        "tipo": tipo,
-        "origen": origen,
-        "destino": destino,
-        "destino_retiro": destino_retiro,
-        "total_peso": total_peso,
-        "cantidad_items": cantidad_items,
-        "items": items,
-    })
+    # La pantalla HTML fue eliminada intencionalmente.
+    # Esta vista solo responde a peticiones JSON (?format=json o X-Requested-With: XMLHttpRequest).
+    raise Http404("Esta vista solo acepta peticiones JSON.")
 
 
 @csrf_exempt

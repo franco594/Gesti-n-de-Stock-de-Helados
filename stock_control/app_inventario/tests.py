@@ -2927,3 +2927,49 @@ class TestSecuenciaGrupo(TransactionTestCase):
                 grupos_creados[0], grupos_creados[1],
                 "Dos retiros exitosos no pueden compartir grupo_id"
             )
+
+
+# ─── URL de detalle_movimiento eliminada ─────────────────────────────────────
+
+class TestDetalleMovimientoURLEliminada(TestCase):
+    """
+    La pantalla /detalle_movimiento/ fue eliminada intencionalmente.
+    Verifica:
+      - La URL vieja devuelve 404 (no está en urlconf → nunca puede ser 500).
+      - El alias /movimientos/<id>/?format=json sigue funcionando (lo usa el historial).
+    """
+
+    def setUp(self):
+        self.client = Client()
+        prod = crear_producto("099", "TestDetalle")
+        self.grupo_id = 8877
+        RegistroMovimiento.objects.create(
+            grupo_id=self.grupo_id,
+            producto=prod,
+            peso=3.5,
+            tipo="ingreso",
+            origen="Fábrica",
+        )
+
+    def test_url_vieja_devuelve_404_no_500(self):
+        """GET /detalle_movimiento/<id>/ ya no existe en urlconf → 404, nunca 500."""
+        resp = self.client.get(f"/detalle_movimiento/{self.grupo_id}/")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_alias_json_devuelve_datos_correctos(self):
+        """GET /movimientos/<id>/?format=json devuelve JSON con los ítems del grupo."""
+        resp = self.client.get(
+            f"/movimientos/{self.grupo_id}/?format=json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["grupo_id"], self.grupo_id)
+        self.assertIsInstance(data["items"], list)
+        self.assertEqual(len(data["items"]), 1)
+        self.assertEqual(data["items"][0]["peso"], 3.5)
+
+    def test_alias_grupo_inexistente_devuelve_404(self):
+        """GET /movimientos/<id>/?format=json para grupo inexistente → 404, no 500."""
+        resp = self.client.get("/movimientos/0/?format=json")
+        self.assertEqual(resp.status_code, 404)
