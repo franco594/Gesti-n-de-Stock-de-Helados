@@ -3228,3 +3228,112 @@ class TestDestinoDevolucionInexistente(TestCase):
             resp.status_code, 200,
             f"Destino existente debe aceptarse; recibido {resp.status_code}: {resp.content}",
         )
+
+
+# ─── C-17: Flag sin_stock en procesar_codigo ─────────────────────────────────
+
+class TestProcesarCodigoFlagSinStock(TestCase):
+    """
+    C-17: procesar_codigo debe incluir sin_stock=True en la respuesta y en la
+    sesión cuando no existe ningún balde activo con ese código de barras exacto.
+
+    Esto permite al frontend marcar visualmente el ítem en la lista de retiro
+    antes de que el operario intente confirmar, sin bloquear el flujo.
+    """
+
+    # PLU '001', peso 4.500 — cumple coherencia de barcode
+    CODIGO = "2000100045001"
+
+    def setUp(self):
+        self.client = Client()
+        self.prod = crear_producto("001", "Vainilla")
+
+    def _escanear(self, codigo=None, force_duplicate=False):
+        payload = {"codigo": codigo or self.CODIGO}
+        if force_duplicate:
+            payload["force_duplicate"] = True
+        return post_json(self.client, "/api/procesar_codigo/", payload)
+
+    # ── Comportamiento sin stock ──────────────────────────────────────────────
+
+    def test_sin_stock_true_cuando_no_hay_balde_activo(self):
+        """
+        BUG: al escanear un código sin balde activo, la respuesta y la sesión
+        deben incluir sin_stock=True para que el frontend resalte el ítem.
+        """
+        resp = self._escanear()
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(
+            data.get("sin_stock"),
+            "La respuesta debe incluir sin_stock=True cuando no hay balde activo",
+        )
+
+    def test_sin_stock_true_guardado_en_sesion(self):
+        """El flag sin_stock=True debe persistir en productos_temporales de sesión."""
+        self._escanear()
+        session = self.client.session
+        items = session.get("productos_temporales", [])
+        self.assertEqual(len(items), 1)
+        self.assertTrue(
+            items[0].get("sin_stock"),
+            "El flag sin_stock=True debe almacenarse en la sesión",
+        )
+
+    # ── Comportamiento con stock ──────────────────────────────────────────────
+
+    def test_sin_stock_false_cuando_hay_balde_activo(self):
+        """Cuando existe al menos un balde activo con ese código, sin_stock=False."""
+        crear_balde(self.prod, peso=4.5, codigo=self.CODIGO, activo=True)
+        resp = self._escanear()
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertFalse(
+            data.get("sin_stock"),
+            "La respuesta debe incluir sin_stock=False cuando hay balde activo",
+        )
+
+    def test_sin_stock_false_guardado_en_sesion(self):
+        """Con balde activo, sin_stock=False en la sesión."""
+        crear_balde(self.prod, peso=4.5, codigo=self.CODIGO, activo=True)
+        self._escanear()
+        session = self.client.session
+        items = session.get("productos_temporales", [])
+        self.assertEqual(len(items), 1)
+        self.assertFalse(
+            items[0].get("sin_stock"),
+            "El flag sin_stock=False debe almacenarse en la sesión",
+        )
+
+    # ── Segundo escaneo con force_duplicate ───────────────────────────────────
+
+    def test_segundo_escaneo_sin_stock_suficiente_es_sin_stock(self):
+        """
+        Con 1 balde activo y 1 ya en la lista, el segundo escaneo (force=True)
+        debe indicar sin_stock=True (pedido 2, disponible 1).
+        """
+        crear_balde(self.prod, peso=4.5, codigo=self.CODIGO, activo=True)
+        self._escanear()                       # primer escaneo → sin_stock=False
+        resp = self._escanear(force_duplicate=True)  # segundo → sin_stock=True
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(
+            data.get("sin_stock"),
+            "El segundo escaneo con solo 1 balde disponible debe ser sin_stock=True",
+        )
+
+    def test_segundo_escaneo_con_stock_suficiente_no_es_sin_stock(self):
+        """
+        Con 2 baldes activos y 1 ya en la lista, el segundo escaneo (force=True)
+        no debe ser sin_stock=True (pedido 2, disponible 2).
+        """
+        crear_balde(self.prod, peso=4.5, codigo=self.CODIGO, activo=True)
+        crear_balde(self.prod, peso=4.5, codigo=self.CODIGO, activo=True)
+        self._escanear()                       # primer escaneo
+        resp = self._escanear(force_duplicate=True)
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertFalse(
+            data.get("sin_stock"),
+            "Con 2 baldes disponibles el segundo escaneo no debe ser sin_stock",
+        )

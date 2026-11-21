@@ -801,7 +801,22 @@ function actualizarListaEscaneados(modalTipo, lista) {
       const numUnidad = _contadorCodigo[producto.codigo_barras];
       const prefijo = totalMismoCodigo > 1 ? `Unidad ${numUnidad} · ` : "";
 
-      li.textContent = `🧊 ${prefijo}${producto.nombre} · ${producto.peso} kg · ${producto.codigo_barras}`;
+      // Grupo izquierdo: texto + badge opcional de sin_stock (solo en retiro)
+      const leftGroup = document.createElement("span");
+      leftGroup.className = "item-escaneado-left";
+      leftGroup.appendChild(document.createTextNode(
+        `🧊 ${prefijo}${producto.nombre} · ${producto.peso} kg · ${producto.codigo_barras}`
+      ));
+
+      if (modalTipo === "retirar" && producto.sin_stock) {
+        li.classList.add("item-sin-stock");
+        const badge = document.createElement("span");
+        badge.className = "badge-sin-stock";
+        badge.textContent = "sin stock";
+        leftGroup.appendChild(badge);
+      }
+
+      li.appendChild(leftGroup);
 
       const btn = document.createElement("button");
       btn.classList.add("btnEliminar");

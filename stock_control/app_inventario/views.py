@@ -1579,22 +1579,27 @@ def procesar_codigo(request):
     # Contar cuántas veces ya está este código en la lista
     ya_en_lista = sum(1 for p in productos_temporales if p.get("codigo_barras") == codigo_barras)
 
+    # Contar baldes activos con este código exacto — se usa tanto para el
+    # diálogo de duplicados como para el flag sin_stock del ítem nuevo.
+    disponibles_en_stock = StockBalde.objects.filter(
+        codigo_barras=codigo_barras, is_activo=True
+    ).count()
+
     if ya_en_lista > 0 and not force_duplicate:
         # No descartar silenciosamente: informar al frontend para que muestre
         # un ConfirmDialog y deje al operario decidir si es otro balde físico.
-        stock_disponible = StockBalde.objects.filter(
-            codigo_barras=codigo_barras, is_activo=True
-        ).count()
         return JsonResponse({
             "duplicado": True,
             "codigo_barras": codigo_barras,
             "nombre": prod.nombre,
             "peso": peso,
             "ya_en_lista": ya_en_lista,
-            "stock_disponible": stock_disponible,
+            "stock_disponible": disponibles_en_stock,
         })
 
-    # Armamos el item con ID único para distinguir cada balde físico
+    # Armamos el item con ID único para distinguir cada balde físico.
+    # sin_stock=True cuando el stock disponible no alcanza para cubrir
+    # todos los items de este código que quedarán en la lista (incluido éste).
     scan_item_id = str(uuid.uuid4())
     nuevo = {
         "nombre": prod.nombre,
@@ -1602,6 +1607,7 @@ def procesar_codigo(request):
         "plu": plu,
         "codigo_barras": codigo_barras,
         "scan_item_id": scan_item_id,
+        "sin_stock": disponibles_en_stock < (ya_en_lista + 1),
     }
     productos_temporales.append(nuevo)
 
@@ -1621,7 +1627,8 @@ def procesar_codigo(request):
 
     return JsonResponse({
         "message": "Producto agregado temporalmente",
-        "productos_temporales": productos_temporales
+        "productos_temporales": productos_temporales,
+        "sin_stock": nuevo["sin_stock"],
     })
 
 

@@ -767,6 +767,34 @@ button#ver-detalle:hover {
     padding: 0;         /* Elimina el padding predeterminado */
 }
 
+/* ── Alerta de stock insuficiente en lista de retiro ─────────────────── */
+#listaEscaneadosRetiro .item-sin-stock {
+    background: rgba(220, 53, 69, 0.07);
+    border: 1px solid var(--color-danger);
+    border-radius: 6px;
+}
+
+/* Agrupa texto + badge en el lado izquierdo del item flex */
+.item-escaneado-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Píldora "sin stock" */
+.badge-sin-stock {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 7px;
+    background: var(--color-danger);
+    color: #fff;
+    border-radius: 4px;
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .03em;
+    white-space: nowrap;
+}
+
 .btnEliminar {
     padding: 0;
     background-color: white;
